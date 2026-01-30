@@ -37,7 +37,7 @@ local function resolve_python_executable()
         host_prog = nil
     end
     if type(host_prog) == "string" and host_prog ~= "" then
-        return host_prog
+        return vim.fn.expand(host_prog)
     end
     return "python3"
 end
@@ -215,13 +215,13 @@ local function open_terminal(python_executable)
         -- Open terminal with environment and options
         local chanid =
             fn.termopen(
-            term_cmd,
-            {
-                env = build_repl_env(),
-                on_exit = function()
-                end
-            }
-        )
+                term_cmd,
+                {
+                    env = build_repl_env(),
+                    on_exit = function()
+                    end
+                }
+            )
 
         M.term = {
             opened = 1,
@@ -240,7 +240,7 @@ end
 
 local function raw_send_message(message)
     local function normalize_python_message(msg)
-        local lines = vim.split(msg, "\n", {plain = true})
+        local lines = vim.split(msg, "\n", { plain = true })
         if #lines <= 1 then
             return msg
         end
@@ -315,7 +315,7 @@ local function raw_send_message(message)
     if api.nvim_win_is_valid(M.term.winid) then
         api.nvim_win_set_cursor(
             M.term.winid,
-            {api.nvim_buf_line_count(api.nvim_win_get_buf(M.term.winid)), 0}
+            { api.nvim_buf_line_count(api.nvim_win_get_buf(M.term.winid)), 0 }
         )
     end
 end
@@ -362,7 +362,7 @@ local function move_cursor_to_next_line(end_row)
         local line = api.nvim_buf_get_lines(0, row - 1, row, false)[1] or ""
         local col = line:find("%S")
         if col and line:sub(col, col + (#comment_char - 1)) ~= comment_char then
-            api.nvim_win_set_cursor(0, {row, 0})
+            api.nvim_win_set_cursor(0, { row, 0 })
             return
         end
         row = row + 1
@@ -380,7 +380,7 @@ local function get_visual_selection()
 end
 
 local function create_pretty_float(content)
-    local content_lines = vim.split(content, "\n", {plain = true})
+    local content_lines = vim.split(content, "\n", { plain = true })
     local win_width = vim.o.columns
     local win_height = vim.o.lines
 
@@ -432,13 +432,13 @@ local function create_pretty_float(content)
         local normal_target = fn.hlexists("NormalFloat") == 1 and "NormalFloat" or "Normal"
 
         if fn.hlexists(border_hl) == 0 then
-            api.nvim_set_hl(0, border_hl, {link = border_target})
+            api.nvim_set_hl(0, border_hl, { link = border_target })
         end
         if fn.hlexists(title_hl) == 0 then
-            api.nvim_set_hl(0, title_hl, {link = title_target})
+            api.nvim_set_hl(0, title_hl, { link = title_target })
         end
         if fn.hlexists(normal_hl) == 0 then
-            api.nvim_set_hl(0, normal_hl, {link = normal_target})
+            api.nvim_set_hl(0, normal_hl, { link = normal_target })
         end
         M._inspector_highlights_set = true
     end
@@ -450,7 +450,7 @@ local function create_pretty_float(content)
         title_hl
     )
 
-    local keymap_opts = {noremap = true, silent = true, buffer = bufnr}
+    local keymap_opts = { noremap = true, silent = true, buffer = bufnr }
     vim.keymap.set(
         "n",
         "q",
@@ -496,12 +496,12 @@ local function check_and_install_dependencies(python_executable)
     fn.system(check_cmd)
 
     if vim.v.shell_error ~= 0 then
-        local pip_path = fn.system({python_executable, "-m", "pip", "--version"}):gsub("\n", "")
+        local pip_path = fn.system({ python_executable, "-m", "pip", "--version" }):gsub("\n", "")
         local install_path = fn.system({
             python_executable,
             "-c",
             "import site, sys; "
-                .. "print(site.getsitepackages()[0] if hasattr(site, 'getsitepackages') and site.getsitepackages() else sys.prefix)"
+            .. "print(site.getsitepackages()[0] if hasattr(site, 'getsitepackages') and site.getsitepackages() else sys.prefix)"
         }):gsub("\n", "")
 
         local choice = fn.confirm(
@@ -516,7 +516,7 @@ local function check_and_install_dependencies(python_executable)
         )
         if choice == 1 then
             local bufnr = api.nvim_create_buf(false, true)
-            api.nvim_buf_set_lines(bufnr, 0, -1, false, {"Installing dependencies..."})
+            api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Installing dependencies..." })
 
             local width = math.floor(vim.o.columns * 0.6)
             local height = math.floor(vim.o.lines * 0.4)
@@ -534,7 +534,7 @@ local function check_and_install_dependencies(python_executable)
 
             local error_lines = {}
 
-            local pip_args = {python_executable, "-m", "pip", "install"}
+            local pip_args = { python_executable, "-m", "pip", "install" }
             table.insert(pip_args, "pynvim")
             table.insert(pip_args, "jupyter-client")
             table.insert(pip_args, "prompt-toolkit")
@@ -547,25 +547,25 @@ local function check_and_install_dependencies(python_executable)
                 on_stdout = function(_, data)
                     if data then
                         vim.schedule(function()
-                                    for _, line in ipairs(data) do
-                                        if line ~= "" then
-                                            api.nvim_buf_set_lines(bufnr, -1, -1, false, {line})
-                                        end
-                                    end
-                                end)
+                            for _, line in ipairs(data) do
+                                if line ~= "" then
+                                    api.nvim_buf_set_lines(bufnr, -1, -1, false, { line })
+                                end
                             end
+                        end)
+                    end
                 end,
                 on_stderr = function(_, data)
                     if data then
                         vim.schedule(function()
-                                    for _, line in ipairs(data) do
-                                        if line ~= "" then
-                                            table.insert(error_lines, line)
-                                            api.nvim_buf_set_lines(bufnr, -1, -1, false, {line})
-                                        end
-                                    end
-                                end)
+                            for _, line in ipairs(data) do
+                                if line ~= "" then
+                                    table.insert(error_lines, line)
+                                    api.nvim_buf_set_lines(bufnr, -1, -1, false, { line })
+                                end
                             end
+                        end)
+                    end
                 end,
                 on_exit = function(_, return_val)
                     vim.schedule(function()
@@ -574,7 +574,9 @@ local function check_and_install_dependencies(python_executable)
                         end
                         if return_val == 0 then
                             vim.cmd("UpdateRemotePlugins")
-                            vim.notify("Pyrola: Dependencies installed and remote plugins updated. Please restart Neovim.", vim.log.levels.INFO)
+                            vim.notify(
+                                "Pyrola: Dependencies installed and remote plugins updated. Please restart Neovim.",
+                                vim.log.levels.INFO)
                         else
                             vim.notify(string.format(
                                 "Pyrola: Failed to install dependencies (exit code: %d)\nPython: %s\nCheck output above for details.",
@@ -612,7 +614,7 @@ function M.setup(opts)
                 return
             end
             vim.notify("Pyrola: Unknown command. Try :Pyrola init", vim.log.levels.WARN)
-        end, {nargs = 1})
+        end, { nargs = 1 })
         M.commands_set = true
     end
     return M
@@ -741,7 +743,7 @@ local function handle_cursor_move()
         if not col or line:sub(col, col + (#comment_char - 1)) == comment_char then
             row = row + 1
             pcall(function()
-                api.nvim_win_set_cursor(0, {row, 0})
+                api.nvim_win_set_cursor(0, { row, 0 })
             end)
         else
             local cursor_pos = api.nvim_win_get_cursor(0)
@@ -774,9 +776,9 @@ local function handle_cursor_move()
             local forward_dist = forward_pos and (forward_pos - current_col) or math.huge
 
             if backward_dist < forward_dist then
-                api.nvim_win_set_cursor(0, {row, backward_pos - 1})
+                api.nvim_win_set_cursor(0, { row, backward_pos - 1 })
             elseif forward_dist <= backward_dist then
-                api.nvim_win_set_cursor(0, {row, forward_pos - 1})
+                api.nvim_win_set_cursor(0, { row, forward_pos - 1 })
             end
 
             break
