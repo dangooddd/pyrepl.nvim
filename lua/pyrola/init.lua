@@ -3,9 +3,7 @@ local api, fn, ts = vim.api, vim.fn, vim.treesitter
 local M = {
     config = {
         kernel_map = {
-            python = "python3",
-            r = "ir",
-            cpp = "xcpp17"
+            python = "python3"
         },
         split_horizontal = false,
         split_ratio = 0.65,
@@ -305,12 +303,8 @@ local function raw_send_message(message)
     local prefix = api.nvim_replace_termcodes("<esc>[200~", true, false, true)
     local suffix = api.nvim_replace_termcodes("<esc>[201~", true, false, true)
 
-    if M.filetype == "python" then
-        local normalized = normalize_python_message(message)
-        api.nvim_chan_send(M.term.chanid, prefix .. normalized .. suffix .. "\n")
-    else
-        api.nvim_chan_send(M.term.chanid, prefix .. message .. suffix .. "\n")
-    end
+    local normalized = normalize_python_message(message)
+    api.nvim_chan_send(M.term.chanid, prefix .. normalized .. suffix .. "\n")
 
     if api.nvim_win_is_valid(M.term.winid) then
         api.nvim_win_set_cursor(
@@ -354,7 +348,7 @@ function M._on_repl_ready()
 end
 
 local function move_cursor_to_next_line(end_row)
-    local comment_char = vim.bo.filetype == "cpp" and "//" or "#"
+    local comment_char = "#"
     local line_count = api.nvim_buf_line_count(0)
     local row = end_row + 2
 
@@ -377,107 +371,6 @@ local function get_visual_selection()
     end
     local lines = api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
     return table.concat(lines, "\n"), end_line
-end
-
-local function create_pretty_float(content)
-    local content_lines = vim.split(content, "\n", { plain = true })
-    local win_width = vim.o.columns
-    local win_height = vim.o.lines
-
-    local max_content_width = 0
-    for _, line in ipairs(content_lines) do
-        max_content_width = math.max(max_content_width, fn.strdisplaywidth(line))
-    end
-
-    local max_width = math.max(10, math.floor(win_width * 0.9))
-    local max_height = math.max(6, math.floor(win_height * 0.9))
-    local min_width = math.min(20, max_width)
-    local min_height = math.min(4, max_height)
-
-    local width = math.min(max_content_width + 4, max_width)
-    local height = math.min(#content_lines + 2, max_height)
-    width = math.max(width, min_width)
-    height = math.max(height, min_height)
-
-    local row = math.max(0, math.floor((win_height - height) / 2))
-    local col = math.max(0, math.floor((win_width - width) / 2))
-
-    local opts = {
-        relative = "editor",
-        width = width,
-        height = height,
-        row = row,
-        col = col,
-        style = "minimal",
-        border = "rounded",
-        title = " Inspector ",
-        title_pos = "center"
-    }
-
-    local bufnr = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_lines(bufnr, 0, -1, false, content_lines)
-
-    vim.bo[bufnr].modifiable = false
-    vim.bo[bufnr].buftype = "nofile"
-
-    local winid = api.nvim_open_win(bufnr, true, opts)
-
-    local border_hl = "PyrolaInspectorBorder"
-    local title_hl = "PyrolaInspectorTitle"
-    local normal_hl = "PyrolaInspectorNormal"
-
-    if not M._inspector_highlights_set then
-        local border_target = fn.hlexists("FloatBorder") == 1 and "FloatBorder" or "WinSeparator"
-        local title_target = fn.hlexists("FloatTitle") == 1 and "FloatTitle" or "Title"
-        local normal_target = fn.hlexists("NormalFloat") == 1 and "NormalFloat" or "Normal"
-
-        if fn.hlexists(border_hl) == 0 then
-            api.nvim_set_hl(0, border_hl, { link = border_target })
-        end
-        if fn.hlexists(title_hl) == 0 then
-            api.nvim_set_hl(0, title_hl, { link = title_target })
-        end
-        if fn.hlexists(normal_hl) == 0 then
-            api.nvim_set_hl(0, normal_hl, { link = normal_target })
-        end
-        M._inspector_highlights_set = true
-    end
-
-    vim.wo[winid].winhl = string.format(
-        "Normal:%s,FloatBorder:%s,FloatTitle:%s",
-        normal_hl,
-        border_hl,
-        title_hl
-    )
-
-    local keymap_opts = { noremap = true, silent = true, buffer = bufnr }
-    vim.keymap.set(
-        "n",
-        "q",
-        function()
-            api.nvim_win_close(winid, true)
-        end,
-        keymap_opts
-    )
-    vim.keymap.set(
-        "n",
-        "<Esc>",
-        function()
-            api.nvim_win_close(winid, true)
-        end,
-        keymap_opts
-    )
-
-    vim.keymap.set("n", "j", "gj", keymap_opts)
-    vim.keymap.set("n", "k", "gk", keymap_opts)
-    vim.keymap.set("n", "<C-d>", "<C-d>zz", keymap_opts)
-    vim.keymap.set("n", "<C-u>", "<C-u>zz", keymap_opts)
-    vim.keymap.set("n", "<C-f>", "<C-f>zz", keymap_opts)
-    vim.keymap.set("n", "<C-b>", "<C-b>zz", keymap_opts)
-
-    api.nvim_set_current_win(winid)
-
-    return winid, bufnr
 end
 
 local function check_and_install_dependencies(python_executable)
@@ -591,19 +484,6 @@ local function check_and_install_dependencies(python_executable)
     return true
 end
 
-local function check_timg_available()
-    if M.timg_checked then
-        return
-    end
-    M.timg_checked = true
-    if fn.executable("timg") == 0 then
-        vim.notify(
-            "Pyrola: 'timg' not found. Image previews are disabled. Install 'timg' to enable image rendering.",
-            vim.log.levels.INFO
-        )
-    end
-end
-
 function M.setup(opts)
     vim.env.PYTHONDONTWRITEBYTECODE = "1"
     M.config = vim.tbl_deep_extend("force", M.config, opts or {})
@@ -628,7 +508,6 @@ function M.init()
     if not check_and_install_dependencies(python_executable) then
         return
     end
-    check_timg_available()
     local filetype = vim.bo.filetype
     local kernelname = M.config.kernel_map[filetype]
     if not kernelname then
@@ -647,57 +526,6 @@ function M.init()
         register_kernel_cleanup()
     end
     open_terminal(python_executable)
-end
-
-function M.inspect()
-    if not repl_ready() then
-        return
-    end
-
-    M.filetype = vim.bo.filetype
-    local obj
-    if ts.get_node then
-        local ok_node, node = pcall(ts.get_node)
-        if ok_node and node then
-            local ok_text, text = pcall(ts.get_node_text, node, 0)
-            if ok_text and text and text ~= "" then
-                obj = text
-            end
-        end
-    end
-    if not obj then
-        local ok_parser, parser = pcall(ts.get_parser, 0)
-        if ok_parser and parser then
-            local tree = parser:parse()[1]
-            if tree then
-                local root = tree:root()
-                local row, col = unpack(api.nvim_win_get_cursor(0))
-                row = row - 1
-                local node = root:named_descendant_for_range(row, col, row, col)
-                if node and node ~= root then
-                    local ok_text, text = pcall(ts.get_node_text, node, 0)
-                    if ok_text and text and text ~= "" then
-                        obj = text
-                    end
-                end
-            end
-        end
-    end
-    if not obj or obj == "" then
-        obj = fn.expand("<cword>")
-    end
-    if not obj or obj == "" then
-        vim.notify("Pyrola: No symbol found under cursor to inspect.", vim.log.levels.WARN)
-        return
-    end
-
-    local ok, result = pcall(fn.ExecuteKernelCode, M.filetype, M.connection_file_path, obj)
-    if not ok then
-        vim.notify(string.format("Pyrola: Inspect failed: %s", result), vim.log.levels.ERROR)
-        return
-    end
-    result = tostring(result or ""):gsub("\\n", "\n")
-    create_pretty_float(result)
 end
 
 function M.send_visual_to_repl()
@@ -734,7 +562,7 @@ end
 
 local function handle_cursor_move()
     local row = api.nvim_win_get_cursor(0)[1]
-    local comment_char = vim.bo.filetype == "cpp" and "//" or "#"
+    local comment_char = "#"
     while row <= api.nvim_buf_line_count(0) do
         local line = api.nvim_buf_get_lines(0, row - 1, row, false)[1]
         local col = line:find("%S")

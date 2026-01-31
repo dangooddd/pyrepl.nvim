@@ -4,21 +4,20 @@ sys.dont_write_bytecode = True
 
 import json
 import time
+from typing import Optional
 
 import pynvim
 from jupyter_client import BlockingKernelClient, KernelManager
 
-from vari_inspector import get_python_inspector, get_r_inspector
-
 
 @pynvim.plugin
 class PyrolaPlugin:
-    def __init__(self, nvim):
+    def __init__(self, nvim: pynvim.Nvim):
         self.nvim = nvim
-        self.kernel_manager = None
-        self.client = None
+        self.kernel_manager: Optional[KernelManager] = None
+        self.client: Optional[BlockingKernelClient] = None
 
-    def _disconnect_client(self):
+    def _disconnect_client(self) -> None:
         if not self.client:
             return
         try:
@@ -28,7 +27,7 @@ class PyrolaPlugin:
         self.client = None
 
     @pynvim.function("InitKernel", sync=True)
-    def init_kernel(self, args):
+    def init_kernel(self, args) -> Optional[str]:
         """Initialize Jupyter kernel and return connection file path."""
         if not args:
             self.nvim.err_write("Pyrola: missing kernel name\n")
@@ -46,7 +45,7 @@ class PyrolaPlugin:
             self._disconnect_client()
             return None
 
-    def _connect_kernel(self, connection_file):
+    def _connect_kernel(self, connection_file: str) -> bool:
         """Connect to the Jupyter kernel using the connection file."""
         try:
             with open(connection_file, "r", encoding="utf-8") as file_handle:
@@ -61,66 +60,8 @@ class PyrolaPlugin:
             self._disconnect_client()
             return False
 
-    def _handle_kernel_message(self, msg_id=None):
-        """Handle messages from the kernel."""
-        try:
-            msg = self.client.get_iopub_msg(timeout=1)
-        except Exception as exc:
-            print(f"Message handling error: {exc}")
-            return None
-
-        if msg_id and msg.get("parent_header", {}).get("msg_id") != msg_id:
-            return None
-
-        msg_type = msg.get("msg_type")
-        if msg_type == "stream":
-            return msg["content"]["text"]
-        if msg_type == "execute_result":
-            return msg["content"]["data"].get("text/plain")
-        if msg_type == "error":
-            return f"Error: {msg['content']['ename']}: {msg['content']['evalue']}"
-        if msg_type == "status" and msg["content"]["execution_state"] == "idle":
-            return "IDLE"
-        return None
-
-    @pynvim.function("ExecuteKernelCode", sync=True)
-    def execute_code(self, args):
-        """Execute code in the Jupyter kernel."""
-        if len(args) < 3:
-            return "Error: missing arguments"
-
-        filetype, connection_file, inspected_variable = args
-
-        if filetype == "python":
-            code = get_python_inspector(inspected_variable)
-        elif filetype == "r":
-            code = get_r_inspector(inspected_variable)
-        else:
-            return "Error: unsupported kernel"
-
-        try:
-            if not self._connect_kernel(connection_file):
-                return "Error: Failed to connect to kernel"
-
-            msg_id = self.client.execute(code)
-
-            outputs = []
-            while True:
-                msg = self._handle_kernel_message(msg_id)
-                if msg == "IDLE":
-                    break
-                if msg is not None:
-                    outputs.append(msg)
-
-            return "\n".join(outputs) if outputs else "No output received"
-        except Exception as exc:
-            print(f"Execution error: {exc}")
-            return f"Execution error: {exc}"
-        finally:
-            self._disconnect_client()
-
     @pynvim.function("ShutdownKernel", sync=True)
-    def shutdown_kernel(self, args):
+    def shutdown_kernel(self, args) -> bool:
         """Shutdown the Jupyter kernel."""
         if len(args) < 2:
             return False

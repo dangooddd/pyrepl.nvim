@@ -1,22 +1,17 @@
-import sys
-
-sys.dont_write_bytecode = True
-
 import argparse
-import atexit
 import asyncio
+import atexit
 import base64
 import io
 import json
 import os
-import shutil
 import signal
-import subprocess
+import sys
 import tempfile
 import time
 from queue import Empty, Queue
 from threading import Lock, Thread
-from typing import List, Optional
+from typing import Optional, cast
 
 import pynvim
 from jupyter_client import BlockingKernelClient
@@ -28,15 +23,14 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.shortcuts import PromptSession
 from prompt_toolkit.styles import Style
-from pygments.lexers import CppLexer, Python3Lexer, TextLexer
-from pygments.lexers.r import SLexer
+from pygments.lexers.python import PythonLexer
 
-IMAGE_MIME_MAP = {
-    "image/png": "png",
-    "image/jpeg": "jpeg",
-    "image/svg+xml": "svg",
-}
-IMAGE_MIME_TYPES = tuple(IMAGE_MIME_MAP.keys())
+IMAGE_MIME_TYPES = (
+    "image/png",
+    "image/jpeg",
+    "image/svg+xml",
+)
+sys.dont_write_bytecode = True
 
 
 def _gradient_ansi_lines(lines, start, end):
@@ -58,7 +52,7 @@ def _gradient_ansi_lines(lines, start, end):
     return "\n".join(colored)
 
 
-def _extract_image_data(value):
+def _extract_image_data(value: object) -> str:
     if isinstance(value, str):
         return value
     if isinstance(value, (bytes, bytearray)):
@@ -69,30 +63,34 @@ def _extract_image_data(value):
     if isinstance(value, (list, tuple)):
         if not value:
             return ""
-        if all(isinstance(x, str) for x in value):
-            return "".join(value)
-        if all(isinstance(x, (bytes, bytearray)) for x in value):
+        elif isinstance(value[0], str):
+            return "".join(cast(list[str], value))
+        elif isinstance(value[0], bytes):
             try:
-                return b"".join(value).decode("utf-8")
+                return b"".join(cast(list[bytes], value)).decode("utf-8")
             except Exception:
                 return ""
         return _extract_image_data(value[0])
     return ""
 
 
-def _read_env_int(name, default):
-    value = os.environ.get(name)
+def _read_env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
     try:
-        value = int(value)
+        value = int(raw)
     except Exception:
         return default
     return value if value > 0 else default
 
 
-def _read_env_float(name, default):
-    value = os.environ.get(name)
+def _read_env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
     try:
-        value = float(value)
+        value = float(raw)
     except Exception:
         return default
     if value <= 0:
@@ -101,8 +99,10 @@ def _read_env_float(name, default):
 
 
 class ReplInterpreter:
-    def __init__(self, connection_file: Optional[str] = None, lan: str = None):
-        self.buffer: List[str] = []
+    def __init__(
+        self, connection_file: Optional[str] = None, lan: Optional[str] = None
+    ):
+        self.buffer: list[str] = []
         self._pending_clearoutput = False
         self._executing = False
         self._execution_state = "idle"
@@ -113,8 +113,12 @@ class ReplInterpreter:
         self._auto_indent = os.environ.get("PYROLA_AUTO_INDENT", "0") == "1"
         self._cell_width = _read_env_int("PYROLA_IMAGE_CELL_WIDTH", 10)
         self._cell_height = _read_env_int("PYROLA_IMAGE_CELL_HEIGHT", 20)
-        self._image_max_width_ratio = _read_env_float("PYROLA_IMAGE_MAX_WIDTH_RATIO", 0.5)
-        self._image_max_height_ratio = _read_env_float("PYROLA_IMAGE_MAX_HEIGHT_RATIO", 0.5)
+        self._image_max_width_ratio = _read_env_float(
+            "PYROLA_IMAGE_MAX_WIDTH_RATIO", 0.5
+        )
+        self._image_max_height_ratio = _read_env_float(
+            "PYROLA_IMAGE_MAX_HEIGHT_RATIO", 0.5
+        )
         self._temp_paths = set()
         try:
             self._temp_dir = tempfile.TemporaryDirectory(prefix="pyrola-")
@@ -125,15 +129,7 @@ class ReplInterpreter:
         self.history = InMemoryHistory()
         self.bindings = self._create_keybindings()
 
-        # Select lexer based on language
-        if lan == "python":
-            self.lexer = PygmentsLexer(Python3Lexer)
-        elif lan == "r":
-            self.lexer = PygmentsLexer(SLexer)
-        elif lan == "cpp":
-            self.lexer = PygmentsLexer(CppLexer)
-        else:
-            self.lexer = PygmentsLexer(TextLexer)
+        self.lexer = PygmentsLexer(PythonLexer)
 
         self.nvim = None
         self.nvim_queue = Queue()
@@ -255,7 +251,31 @@ class ReplInterpreter:
     def _vim_escape_string(self, value: str) -> str:
         return value.replace("\\", "\\\\").replace('"', '\\"')
 
-    def _create_keybindings(self):
+    def _send_image_to_nvim(
+        self, path: str, width: Optional[int], height: Optional[int]
+    ) -> None:
+        if not self._ensure_nvim():
+            return
+        escaped_path = self._vim_escape_string(path)
+        width_val = int(width) if width else 0
+        height_val = int(height) if height else 0
+        try:
+            with self.nvim_lock:
+                self.nvim.command(f'let g:pyrola_image_path = "{escaped_path}"')
+                self.nvim.command(f"let g:pyrola_image_width = {width_val}")
+                self.nvim.command(f"let g:pyrola_image_height = {height_val}")
+                self.nvim.command(
+                    'lua require("pyrola.image").show_image_file(vim.g.pyrola_image_path, vim.g.pyrola_image_width, vim.g.pyrola_image_height)'
+                )
+                self.nvim.command("unlet g:pyrola_image_path")
+                self.nvim.command("unlet g:pyrola_image_width")
+                self.nvim.command("unlet g:pyrola_image_height")
+        except Exception as e:
+            if self._handle_nvim_disconnect(e, "image sync"):
+                return
+            print(f"Error in Neovim thread: {e}", file=sys.stderr)
+
+    def _create_keybindings(self) -> KeyBindings:
         kb = KeyBindings()
 
         @kb.add("enter")
@@ -298,7 +318,7 @@ class ReplInterpreter:
 
         return kb
 
-    async def interact_async(self, banner: Optional[str] = None):
+    async def interact_async(self, banner: Optional[str] = None) -> None:
         logo_lines = [
             "██████╗ ██╗   ██╗██████╗  ██████╗ ██╗      █████╗ ",
             "██╔══██╗╚██╗ ██╔╝██╔══██╗██╔═══██╗██║     ██╔══██╗",
@@ -358,7 +378,7 @@ class ReplInterpreter:
             self.client.shutdown()
             self.client.stop_channels()
 
-    def init_kernel_info(self):
+    def init_kernel_info(self) -> None:
         timeout = 10
         tic = time.time()
         msg_id = self.client.kernel_info()
@@ -373,10 +393,10 @@ class ReplInterpreter:
                 if (time.time() - tic) > timeout:
                     raise RuntimeError("Kernel didn't respond to kernel_info_request")
 
-    def _setup_signal_handlers(self):
+    def _setup_signal_handlers(self) -> None:
         signal.signal(signal.SIGINT, self._signal_handler)
 
-    def _signal_handler(self, signum, frame):
+    def _signal_handler(self, signum: int, frame) -> None:
         if self._executing:
             self._interrupt_requested = True
             try:
@@ -386,7 +406,7 @@ class ReplInterpreter:
         else:
             print("\nKeyboardInterrupt")
 
-    def handle_is_complete(self, code):
+    def handle_is_complete(self, code: str) -> tuple[str, str]:
         while self.client.shell_channel.msg_ready():
             self.client.get_shell_msg()
 
@@ -401,8 +421,7 @@ class ReplInterpreter:
             pass
         return "unknown", ""
 
-    async def handle_execute(self, code):
-
+    async def handle_execute(self, code: str) -> bool:
         self._interrupt_requested = False
 
         while self.client.shell_channel.msg_ready():
@@ -450,7 +469,7 @@ class ReplInterpreter:
 
         return False
 
-    async def handle_input_request(self, msg_id, timeout=0.1):
+    async def handle_input_request(self, msg_id, timeout: float = 0.1) -> None:
         msg = self.client.get_stdin_msg(timeout=timeout)
         if msg_id == msg["parent_header"].get("msg_id"):
             content = msg["content"]
@@ -465,10 +484,10 @@ class ReplInterpreter:
                 print("\n")
                 return
 
-    def interact(self, banner: Optional[str] = None):
+    def interact(self, banner: Optional[str] = None) -> None:
         asyncio.run(self.interact_async(banner))
 
-    def _nvim_worker(self):
+    def _nvim_worker(self) -> None:
         """Worker thread for handling Neovim communications"""
         while True:
             try:
@@ -497,6 +516,14 @@ class ReplInterpreter:
 
                     if kind != "image":
                         continue
+                    image_mime = None
+                    image_data = payload
+                    if isinstance(payload, dict):
+                        image_mime = payload.get("mime")
+                        image_data = payload.get("data")
+
+                    if not image_mime or not image_data:
+                        continue
 
                     if not self._ensure_nvim():
                         continue
@@ -518,91 +545,89 @@ class ReplInterpreter:
 
                     target_width = max(
                         1,
-                        int(dimensions["width"] * self._cell_width * self._image_max_width_ratio),
+                        int(
+                            dimensions["width"]
+                            * self._cell_width
+                            * self._image_max_width_ratio
+                        ),
                     )
                     target_height = max(
                         1,
-                        int(dimensions["height"] * self._cell_height * self._image_max_height_ratio),
+                        int(
+                            dimensions["height"]
+                            * self._cell_height
+                            * self._image_max_height_ratio
+                        ),
                     )
 
+                    tmp_path = None
+                    new_width = None
+                    new_height = None
+
                     try:
-                        img_bytes = base64.b64decode(payload)
-                        img = Image.open(io.BytesIO(img_bytes))
+                        if image_mime == "image/svg+xml":
+                            if isinstance(image_data, str):
+                                svg_text = image_data
+                            elif isinstance(image_data, (bytes, bytearray)):
+                                svg_text = bytes(image_data).decode("utf-8")
+                            else:
+                                svg_text = ""
+                            if not svg_text:
+                                continue
+                            with tempfile.NamedTemporaryFile(
+                                suffix=".svg",
+                                delete=False,
+                                dir=self._temp_dir.name if self._temp_dir else None,
+                            ) as tmp:
+                                tmp.write(svg_text.encode("utf-8"))
+                                tmp_path = tmp.name
+                        else:
+                            if isinstance(image_data, str):
+                                img_bytes = base64.b64decode(image_data)
+                            elif isinstance(image_data, (bytes, bytearray)):
+                                img_bytes = bytes(image_data)
+                            else:
+                                continue
+
+                            img = Image.open(io.BytesIO(img_bytes))
+                            orig_width, orig_height = img.size
+
+                            if (
+                                orig_width > target_width
+                                or orig_height > target_height
+                                or orig_width < target_width / 2
+                                or orig_height < target_height / 2
+                            ):
+                                width_ratio = target_width / orig_width
+                                height_ratio = target_height / orig_height
+                                ratio = min(width_ratio, height_ratio)
+                                new_width = int(orig_width * ratio)
+                                new_height = int(orig_height * ratio)
+                                img = img.resize(
+                                    (new_width, new_height), Image.Resampling.LANCZOS
+                                )
+                            else:
+                                new_width = orig_width
+                                new_height = orig_height
+
+                            with tempfile.NamedTemporaryFile(
+                                suffix=".png",
+                                delete=False,
+                                dir=self._temp_dir.name if self._temp_dir else None,
+                            ) as tmp:
+                                img.save(tmp, format="PNG")
+                                tmp_path = tmp.name
+
+                        if tmp_path:
+                            self._register_temp_path(tmp_path)
+                            if self._image_debug:
+                                print(
+                                    f"[pyrola] wrote image temp: {tmp_path}",
+                                    file=sys.stderr,
+                                )
+                            self._send_image_to_nvim(tmp_path, new_width, new_height)
                     except Exception as e:
                         print(f"Error handling image: {e}", file=sys.stderr)
-                        continue
-
-                    orig_width, orig_height = img.size
-
-                    if (
-                        orig_width > target_width
-                        or orig_height > target_height
-                        or orig_width < target_width / 2
-                        or orig_height < target_height / 2
-                    ):
-
-                        # Calculate scaling ratio while maintaining aspect ratio
-                        width_ratio = target_width / orig_width
-                        height_ratio = target_height / orig_height
-                        ratio = min(width_ratio, height_ratio)
-
-                        # Calculate new dimensions
-                        new_width = int(orig_width * ratio)
-                        new_height = int(orig_height * ratio)
-
-                        # Resize image
-                        img = img.resize(
-                            (new_width, new_height), Image.Resampling.LANCZOS
-                        )
-
-                        # Convert back to base64
-                        buffer = io.BytesIO()
-                        img.save(buffer, format="PNG")
-                        img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                    else:
-                        new_width = orig_width
-                        new_height = orig_height
-                        img_base64 = payload
-                    tmp_path = None
-                    try:
-                        with tempfile.NamedTemporaryFile(
-                            suffix=".b64",
-                            delete=False,
-                            dir=self._temp_dir.name if self._temp_dir else None,
-                        ) as tmp:
-                            tmp.write(img_base64.encode("utf-8"))
-                            tmp_path = tmp.name
-                        self._register_temp_path(tmp_path)
-                        if self._image_debug:
-                            print(
-                                f"[pyrola] wrote image b64 temp: {tmp_path} bytes={len(img_base64)}",
-                                file=sys.stderr,
-                            )
-                        escaped_path = self._vim_escape_string(tmp_path)
-                        try:
-                            with self.nvim_lock:
-                                self.nvim.command(
-                                    f'let g:pyrola_image_path = "{escaped_path}"'
-                                )
-                                self.nvim.command(
-                                    f"let g:pyrola_image_width = {int(new_width)}"
-                                )
-                                self.nvim.command(
-                                    f"let g:pyrola_image_height = {int(new_height)}"
-                                )
-                                self.nvim.command(
-                                    'lua require("pyrola.image").show_image_file(vim.g.pyrola_image_path, vim.g.pyrola_image_width, vim.g.pyrola_image_height)'
-                                )
-                                self.nvim.command("unlet g:pyrola_image_path")
-                                self.nvim.command("unlet g:pyrola_image_width")
-                                self.nvim.command("unlet g:pyrola_image_height")
-                        except Exception as e:
-                            if self._handle_nvim_disconnect(e, "image sync"):
-                                continue
-                            print(f"Error in Neovim thread: {e}", file=sys.stderr)
-                    finally:
-                        if tmp_path:
-                            self._cleanup_temp_path(tmp_path)
                 except Exception as e:
                     print(f"Error in Neovim thread: {e}", file=sys.stderr)
             except Exception as e:
@@ -610,17 +635,17 @@ class ReplInterpreter:
             finally:
                 self.nvim_queue.task_done()
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """Cleanup resources"""
         if self.nvim_thread and self.nvim_thread.is_alive():
             self.nvim_queue.put(None)  # Send exit signal
             self.nvim_thread.join(timeout=1.0)
 
-    def _register_temp_path(self, path):
+    def _register_temp_path(self, path: Optional[str]) -> None:
         if path:
             self._temp_paths.add(path)
 
-    def _cleanup_temp_path(self, path):
+    def _cleanup_temp_path(self, path: Optional[str]) -> None:
         if not path:
             return
         try:
@@ -629,11 +654,11 @@ class ReplInterpreter:
             pass
         self._temp_paths.discard(path)
 
-    def _cleanup_temp_paths(self):
+    def _cleanup_temp_paths(self) -> None:
         for path in list(self._temp_paths):
             self._cleanup_temp_path(path)
 
-    def _cleanup_resources(self):
+    def _cleanup_resources(self) -> None:
         self._cleanup()
         self._cleanup_temp_paths()
         if self._temp_dir:
@@ -643,7 +668,7 @@ class ReplInterpreter:
                 pass
             self._temp_dir = None
 
-    async def handle_iopub_msgs(self, msg_id):
+    async def handle_iopub_msgs(self, msg_id) -> None:
         while self.client.iopub_channel.msg_ready():
             msg = self.client.get_iopub_msg()
             msg_type = msg["header"]["msg_type"]
@@ -703,42 +728,11 @@ class ReplInterpreter:
                             f"[pyrola] image mime={image_mime} b64len={len(image_data)}",
                             file=sys.stderr,
                         )
-
-                    tmp_path = None
-                    try:
-                        ext = IMAGE_MIME_MAP[image_mime]
-                        with tempfile.NamedTemporaryFile(
-                            suffix=f".{ext}",
-                            delete=False,
-                            dir=self._temp_dir.name if self._temp_dir else None,
-                        ) as tmp:
-                            if image_mime == "image/svg+xml":
-                                tmp.write(image_data.encode("utf-8"))
-                            else:
-                                img_bytes = base64.b64decode(image_data)
-                                tmp.write(img_bytes)
-                            tmp_path = tmp.name
-                        self._register_temp_path(tmp_path)
-
-                        try:
-                            # Get terminal size explicitly since prompt_toolkit
-                            # may prevent timg from detecting it
-                            term_size = shutil.get_terminal_size()
-                            size_arg = f"-g{term_size.columns}x{term_size.lines}"
-                            subprocess.run(["timg", "-p", "q", size_arg, tmp_path], check=True)
-                            if image_mime == "image/png" and self._nvim_address:
-                                self._start_nvim_thread()
-                                self.nvim_queue.put(("image", image_data))
-                        except (
-                            subprocess.CalledProcessError,
-                            FileNotFoundError,
-                        ) as e:
-                            print(f"Failed to display image: {e}")
-                    except Exception as e:
-                        print(f"Error handling image: {e}")
-                    finally:
-                        if tmp_path:
-                            self._cleanup_temp_path(tmp_path)
+                    if self._nvim_address:
+                        self._start_nvim_thread()
+                        self.nvim_queue.put(
+                            ("image", {"mime": image_mime, "data": image_data})
+                        )
 
             elif msg_type == "error":
                 content = msg["content"]

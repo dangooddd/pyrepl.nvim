@@ -9,13 +9,12 @@
 
 If you are seeking an alternative to **Jupyter**, **Spyder**, or **RStudio** in Neovim, **Pyrola** is the solution.
 
-Pyrola delivers a **multi-language REPL (Read–Eval–Print Loop)** experience inside **Neovim**. It is designed for interactive programming, especially for **data scientists**, and supports:
+Pyrola delivers a **Python REPL (Read–Eval–Print Loop)** experience inside **Neovim**. It is designed for interactive programming, especially for **data scientists**, and supports:
 
 * Real-time code execution
-* Variable inspection
 * Image visualization
 
-Since Pyrola is built on Jupyter kernels, **any language** with a Jupyter kernel can be integrated.
+Pyrola is built on the Jupyter kernel stack and focuses exclusively on **Python** for simplicity.
 
 ---
 
@@ -29,18 +28,11 @@ Since Pyrola is built on Jupyter kernels, **any language** with a Jupyter kernel
 
 ## Features
 
-- **Multi-language support**: Pyrola is designed based on Jupyter kernels; any language with a Jupyter kernel can be shipped and used in Pyrola.
-  ![recording_2026-01-04_07-36-08 - frame at 0m57s](https://github.com/user-attachments/assets/71d3ca3c-4f16-4567-b81c-c9d7e77383bc)
-
 - **Real-time REPL**: Execute code dynamically within Neovim, allowing for immediate feedback and interaction.
 
 - **Multiple Code Block Selection Methods**: You can send code via semantic code block identification (based on the Tree-sitter syntax parser), visual selection, or send the entire buffer to the REPL console with one click.
 
-- **Environment Variable Inspector**: Facilitate debugging by inspecting environment variables and checking their attributes (class, type) directly within the REPL (currently only Python and R are supported).
- ![recording_2026-01-04_07-36-08 - frame at 0m52s](https://github.com/user-attachments/assets/c6668a17-da69-4ae5-ba88-841ec9f3f059)
-
-- **Image Viewer**: Preview image outputs with high resolution (via the Kitty image protocol) or rough resolution (Unicode/ASCII based), providing a quick visual reference without the need for external viewers.
-  ![recording_2026-01-04_07-36-08 - frame at 0m40s](https://github.com/user-attachments/assets/7ad7400c-f251-452b-879f-e9bd39d4f791)
+- **Image Viewer**: Preview image outputs inside Neovim using `image.nvim`, providing a clean, dedicated floating window for plots and figures.
 
 - **History Image Viewer**: Stores historical images and allows browsing previously plotted images in a Neovim floating window.
 
@@ -53,7 +45,7 @@ Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided belo
 ```lua
 {
   "matarina/pyrola.nvim",
-  dependencies = { "nvim-treesitter/nvim-treesitter" },
+  dependencies = { "nvim-treesitter/nvim-treesitter", "3rd/image.nvim" },
   build = ":UpdateRemotePlugins",
   config = function()
     local pyrola = require("pyrola")
@@ -61,7 +53,6 @@ Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided belo
     pyrola.setup({
       kernel_map = {
         python = "py3", -- Jupyter kernel name
-        r = "ir",
       },
       split_horizontal = false,
       split_ratio = 0.65, -- width of split REPL terminal
@@ -92,11 +83,6 @@ Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided belo
       pyrola.send_buffer_to_repl()
     end, { noremap = true })
 
-    -- Inspect variable under cursor
-    vim.keymap.set("n", "<leader>is", function()
-      pyrola.inspect()
-    end, { noremap = true })
-
     -- Open history image viewer
     vim.keymap.set("n", "<leader>im", function()
       pyrola.open_history_manager()
@@ -117,7 +103,7 @@ Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided belo
     })
 
     -- Install required parsers
-    ts.install({ "python", "r", "lua" })
+    ts.install({ "python", "lua" })
   end,
 }
 
@@ -126,9 +112,6 @@ Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided belo
 Highlight groups are theme-aware by default (linked to `FloatBorder`, `FloatTitle`, and `NormalFloat`). Override them if you want custom colors:
 
 ```lua
-vim.api.nvim_set_hl(0, "PyrolaInspectorBorder", { link = "FloatBorder" })
-vim.api.nvim_set_hl(0, "PyrolaInspectorTitle", { link = "FloatTitle" })
-vim.api.nvim_set_hl(0, "PyrolaInspectorNormal", { link = "NormalFloat" })
 vim.api.nvim_set_hl(0, "PyrolaImageBorder", { link = "FloatBorder" })
 vim.api.nvim_set_hl(0, "PyrolaImageTitle", { link = "FloatTitle" })
 vim.api.nvim_set_hl(0, "PyrolaImageNormal", { link = "NormalFloat" })
@@ -145,9 +128,7 @@ python3 -m pip install pynvim jupyter-client prompt-toolkit pillow pygments
 
 ```
 
-Then, install a Jupyter kernel for each language you want to use.
-
-**Python Example:**
+Then, install a Python Jupyter kernel:
 
 ```bash
 python3 -m pip install ipykernel
@@ -156,24 +137,16 @@ python3 -m ipykernel install --user --name py3
 
 ```
 
-For other languages, install their Jupyter kernels and use the kernel name in `kernel_map`:
+### 3) Image Rendering (Recommended)
 
-* **R**: `IRkernel::installspec()` (run from R)
-* **C++**: `xeus-cling` (kernel name varies by installation)
+Pyrola renders images using [image.nvim](https://github.com/3rd/image.nvim). Install it and its dependencies:
 
-### 3) Image Preview Helper (Recommended)
+- A supported terminal (Kitty recommended) or ueberzugpp backend
+- ImageMagick
 
-Pyrola can render images inside the REPL.
+Follow the [image.nvim setup guide](https://github.com/3rd/image.nvim#dependencies) for your platform.
 
-* For **high-quality image viewing**, the [Kitty terminal](https://sw.kovidgoyal.net/kitty/) is necessary.
-* For **embedded pixel image viewing** in the REPL console, [timg](https://github.com/hzeller/timg) is required.
-
-On Debian/Ubuntu:
-
-```bash
-apt install timg
-
-```
+Make sure you call `require("image").setup()` in your Neovim config as described in the image.nvim README.
 
 **Note for tmux:**
 Image hiding/showing on pane or window switches relies on focus events. to enable tmux focus events for the current session.  configure  the following to your `~/.tmux.conf`:
@@ -227,17 +200,6 @@ pyrola.send_buffer_to_repl()
 
 
 
-### Inspect Variables
-
-Place the cursor on a symbol and run:
-
-```lua
-pyrola.inspect()
-
-```
-Currently, Python and R are supported. This is easy to extend, and contributions are welcome!
-
-
 ### Image History Manager
 
 Press `<leader>im` (or your configured key) to open the image manager.
@@ -248,16 +210,6 @@ When focused:
 * `l` — Next image
 * `q` — Close
   
-## TODO
-
-- [ ] **Global variable list**
-  - Display all global variables in a floating window
-  - Support sorting and quick lookup
-
-- [ ] **Multi-language variable inspector**
-  - Extend variable inspection beyond Python and R
-  - Provide a common inspection interface for different Jupyter kernels
-
 ## Credits
 
 * [Jupyter Team](https://github.com/jupyter/jupyter)
