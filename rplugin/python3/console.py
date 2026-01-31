@@ -11,18 +11,15 @@ import tempfile
 import time
 from queue import Empty, Queue
 from threading import Lock, Thread
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 import pynvim
 from jupyter_client import BlockingKernelClient
 from PIL import Image
-from prompt_toolkit import print_formatted_text
-from prompt_toolkit.formatted_text import ANSI, HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.shortcuts import PromptSession
-from prompt_toolkit.styles import Style
 from pygments.lexers.python import PythonLexer
 
 IMAGE_MIME_TYPES = (
@@ -31,25 +28,6 @@ IMAGE_MIME_TYPES = (
     "image/svg+xml",
 )
 sys.dont_write_bytecode = True
-
-
-def _gradient_ansi_lines(lines, start, end):
-    if not lines:
-        return ""
-    if len(lines) == 1:
-        colors = [start]
-    else:
-        colors = []
-        for idx in range(len(lines)):
-            ratio = idx / (len(lines) - 1)
-            r = int(start[0] + (end[0] - start[0]) * ratio)
-            g = int(start[1] + (end[1] - start[1]) * ratio)
-            b = int(start[2] + (end[2] - start[2]) * ratio)
-            colors.append((r, g, b))
-    colored = []
-    for line, (r, g, b) in zip(lines, colors):
-        colored.append(f"\x1b[38;2;{r};{g};{b}m{line}\x1b[0m")
-    return "\n".join(colored)
 
 
 def _extract_image_data(value: object) -> str:
@@ -121,7 +99,9 @@ class ReplInterpreter:
         )
         self._temp_paths = set()
         try:
-            self._temp_dir = tempfile.TemporaryDirectory(prefix="pyrola-")
+            self._temp_dir: Optional[tempfile.TemporaryDirectory[str]] = (
+                tempfile.TemporaryDirectory(prefix="pyrola-")
+            )
         except Exception:
             self._temp_dir = None
 
@@ -131,54 +111,32 @@ class ReplInterpreter:
 
         self.lexer = PygmentsLexer(PythonLexer)
 
-        self.nvim = None
-        self.nvim_queue = Queue()
-        self.nvim_thread = None
+        self.nvim: Optional[pynvim.Nvim] = None
+        self.nvim_queue: Queue[Optional[tuple[str, Any]]] = Queue()
+        self.nvim_thread: Optional[Thread] = None
         self.nvim_lock = Lock()
         self._nvim_address = os.environ.get("NVIM_LISTEN_ADDRESS")
+        self.client: Optional[BlockingKernelClient] = None
 
         if self._nvim_address:
             self._start_nvim_thread()
 
-        self.style = Style.from_dict(
-            {
-                # Basic colors
-                "continuation": "#ff8c00",
-                # Use RGB colors for better compatibility
-                "pygments.keyword": "#569cd6",
-                "pygments.string": "#ce9178",
-                "pygments.number": "#b5cea8",
-                "pygments.comment": "#6a9955",
-                "pygments.operator": "#d4d4d4",
-                "pygments.name.function": "#1f86d6",
-                "pygments.name.class": "#4ec9b0",
-                "pygments.text": "#d4d4d4",
-                "pygments.name": "#f5614a",
-                "pygments.name.builtin": "#569cd6",
-                "pygments.punctuation": "#d4d4d4",
-                "pygments.name.namespace": "#4ec9b0",
-                "pygments.name.decorator": "#c586c0",
-                "pygments.name.exception": "#f44747",
-                "pygments.name.constant": "#4fc1ff",
-            }
-        )
-
         def continuation_prompt(width, line_number, is_soft_wrap):
-            return HTML("<orange>.. </orange>")
+            return ".. "
 
         self.session = PromptSession(
             history=self.history,
             key_bindings=self.bindings,
             enable_history_search=True,
             multiline=True,
-            style=self.style,
-            lexer=self.lexer,  # Add the lexer here
+            lexer=self.lexer,
             prompt_continuation=continuation_prompt,
-            message=lambda: HTML("<orange>>> </orange>"),
-            include_default_pygments_style=False,
+            message=lambda: ">>> ",
+            include_default_pygments_style=True,
         )
         try:
-            self.session.default_buffer.auto_indent = self._auto_indent
+            buffer = cast(Any, self.session.default_buffer)
+            buffer.auto_indent = self._auto_indent
         except Exception:
             pass
 
@@ -189,10 +147,11 @@ class ReplInterpreter:
             try:
                 with open(connection_file, "r", encoding="utf-8") as f:
                     connection_info = json.load(f)
-                self.client = BlockingKernelClient()
-                self.client.load_connection_info(connection_info)
-                self.client.start_channels()
-                self.client.wait_for_ready(timeout=10)
+                client = BlockingKernelClient()
+                client.load_connection_info(connection_info)
+                client.start_channels()
+                client.wait_for_ready(timeout=10)
+                self.client = client
                 self.kernelname = connection_info.get("kernel_name")
             except Exception as e:
                 print(f"Failed to connect to kernel: {e}", file=sys.stderr)
@@ -220,6 +179,11 @@ class ReplInterpreter:
         if self.nvim:
             return True
         return self._attach_nvim(log_failure=self._image_debug)
+
+    def _get_client(self) -> BlockingKernelClient:
+        if self.client is None:
+            raise RuntimeError("Kernel client is not initialized")
+        return self.client
 
     def _is_nvim_disconnect_error(self, exc: Exception) -> bool:
         if isinstance(exc, (EOFError, BrokenPipeError, ConnectionResetError)):
@@ -261,15 +225,16 @@ class ReplInterpreter:
         height_val = int(height) if height else 0
         try:
             with self.nvim_lock:
-                self.nvim.command(f'let g:pyrola_image_path = "{escaped_path}"')
-                self.nvim.command(f"let g:pyrola_image_width = {width_val}")
-                self.nvim.command(f"let g:pyrola_image_height = {height_val}")
-                self.nvim.command(
+                nvim = cast(pynvim.Nvim, self.nvim)
+                nvim.command(f'let g:pyrola_image_path = "{escaped_path}"')
+                nvim.command(f"let g:pyrola_image_width = {width_val}")
+                nvim.command(f"let g:pyrola_image_height = {height_val}")
+                nvim.command(
                     'lua require("pyrola.image").show_image_file(vim.g.pyrola_image_path, vim.g.pyrola_image_width, vim.g.pyrola_image_height)'
                 )
-                self.nvim.command("unlet g:pyrola_image_path")
-                self.nvim.command("unlet g:pyrola_image_width")
-                self.nvim.command("unlet g:pyrola_image_height")
+                nvim.command("unlet g:pyrola_image_path")
+                nvim.command("unlet g:pyrola_image_width")
+                nvim.command("unlet g:pyrola_image_height")
         except Exception as e:
             if self._handle_nvim_disconnect(e, "image sync"):
                 return
@@ -308,7 +273,8 @@ class ReplInterpreter:
             if self._executing:
                 self._interrupt_requested = True
                 try:
-                    self.client.interrupt_kernel()
+                    client = self._get_client()
+                    client.interrupt_kernel()
                 except Exception as e:
                     print(f"\nFailed to interrupt kernel: {e}", file=sys.stderr)
             else:
@@ -319,23 +285,6 @@ class ReplInterpreter:
         return kb
 
     async def interact_async(self, banner: Optional[str] = None) -> None:
-        logo_lines = [
-            "██████╗ ██╗   ██╗██████╗  ██████╗ ██╗      █████╗ ",
-            "██╔══██╗╚██╗ ██╔╝██╔══██╗██╔═══██╗██║     ██╔══██╗",
-            "██████╔╝ ╚████╔╝ ██████╔╝██║   ██║██║     ███████║",
-            "██╔═══╝   ╚██╔╝  ██╔══██╗██║   ██║██║     ██╔══██║",
-            "██║        ██║   ██║  ██║╚██████╔╝███████╗██║  ██║",
-            "╚═╝        ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝",
-        ]
-        logo = _gradient_ansi_lines(logo_lines, (255, 196, 107), (255, 108, 0))
-        print_formatted_text(ANSI(logo))
-        print_formatted_text(
-            HTML(
-                f"<orange>\n    Welcome to Pyrola! kernel</orange> <ansired>{self.kernelname}</ansired> <orange>initialized!\n</orange>"
-            ),
-            style=self.style,
-        )
-
         while True:
             try:
                 if self._nvim_address:
@@ -345,10 +294,6 @@ class ReplInterpreter:
                 code = await self.session.prompt_async()
 
                 if code.strip() in ("exit", "quit"):
-                    print_formatted_text(
-                        HTML("<orange>Shutting down kernel...</orange>"),
-                        style=self.style,
-                    )
                     break
 
                 if code.strip():
@@ -374,18 +319,19 @@ class ReplInterpreter:
             except EOFError:
                 break
 
-        if hasattr(self, "client") and self.client is not None:
+        if self.client is not None:
             self.client.shutdown()
             self.client.stop_channels()
 
     def init_kernel_info(self) -> None:
         timeout = 10
         tic = time.time()
-        msg_id = self.client.kernel_info()
+        client = self._get_client()
+        msg_id = client.kernel_info()
 
         while True:
             try:
-                reply = self.client.get_shell_msg(timeout=1)
+                reply = client.get_shell_msg(timeout=1)
                 if reply["parent_header"].get("msg_id") == msg_id:
                     self.kernel_info = reply["content"]
                     return
@@ -400,19 +346,21 @@ class ReplInterpreter:
         if self._executing:
             self._interrupt_requested = True
             try:
-                self.client.interrupt_kernel()
+                client = self._get_client()
+                client.interrupt_kernel()
             except Exception as e:
                 print(f"\nFailed to interrupt kernel: {e}", file=sys.stderr)
         else:
             print("\nKeyboardInterrupt")
 
     def handle_is_complete(self, code: str) -> tuple[str, str]:
-        while self.client.shell_channel.msg_ready():
-            self.client.get_shell_msg()
+        client = self._get_client()
+        while client.shell_channel.msg_ready():
+            client.get_shell_msg()
 
-        msg_id = self.client.is_complete(code)
+        msg_id = client.is_complete(code)
         try:
-            reply = self.client.get_shell_msg(timeout=0.5)
+            reply = client.get_shell_msg(timeout=0.5)
             if reply["parent_header"].get("msg_id") == msg_id:
                 status = reply["content"]["status"]
                 indent = reply["content"].get("indent", "")
@@ -424,15 +372,16 @@ class ReplInterpreter:
     async def handle_execute(self, code: str) -> bool:
         self._interrupt_requested = False
 
-        while self.client.shell_channel.msg_ready():
-            self.client.get_shell_msg()
+        client = self._get_client()
+        while client.shell_channel.msg_ready():
+            client.get_shell_msg()
 
-        msg_id = self.client.execute(code)
+        msg_id = client.execute(code)
         self._executing = True
         self._execution_state = "busy"
 
         try:
-            while self._execution_state != "idle" and self.client.is_alive():
+            while self._execution_state != "idle" and client.is_alive():
                 if self._interrupt_requested:
                     print("\nKeyboardInterrupt")
                     self._interrupt_requested = False
@@ -445,14 +394,14 @@ class ReplInterpreter:
 
                 await asyncio.sleep(0.05)
 
-            while self.client.is_alive():
+            while client.is_alive():
                 if self._interrupt_requested:
                     print("\nKeyboardInterrupt")
                     self._interrupt_requested = False
                     return False
 
                 try:
-                    msg = self.client.get_shell_msg(timeout=0.05)
+                    msg = client.get_shell_msg(timeout=0.05)
                     if msg["parent_header"].get("msg_id") == msg_id:
                         await self.handle_iopub_msgs(msg_id)
                         content = msg["content"]
@@ -470,16 +419,16 @@ class ReplInterpreter:
         return False
 
     async def handle_input_request(self, msg_id, timeout: float = 0.1) -> None:
-        msg = self.client.get_stdin_msg(timeout=timeout)
+        client = self._get_client()
+        msg = client.get_stdin_msg(timeout=timeout)
         if msg_id == msg["parent_header"].get("msg_id"):
             content = msg["content"]
             try:
                 raw_data = await self.session.prompt_async(content["prompt"])
                 if not (
-                    self.client.stdin_channel.msg_ready()
-                    or self.client.shell_channel.msg_ready()
+                    client.stdin_channel.msg_ready() or client.shell_channel.msg_ready()
                 ):
-                    self.client.input(raw_data)
+                    client.input(raw_data)
             except (EOFError, KeyboardInterrupt):
                 print("\n")
                 return
@@ -505,9 +454,8 @@ class ReplInterpreter:
                             continue
                         try:
                             with self.nvim_lock:
-                                self.nvim.command(
-                                    'lua require("pyrola")._on_repl_ready()'
-                                )
+                                nvim = cast(pynvim.Nvim, self.nvim)
+                                nvim.command('lua require("pyrola")._on_repl_ready()')
                         except Exception as e:
                             if self._handle_nvim_disconnect(e, "repl_ready"):
                                 continue
@@ -529,13 +477,10 @@ class ReplInterpreter:
                         continue
                     try:
                         with self.nvim_lock:
+                            nvim = cast(pynvim.Nvim, self.nvim)
                             dimensions = {
-                                "width": self.nvim.lua.vim.api.nvim_get_option(
-                                    "columns"
-                                ),
-                                "height": self.nvim.lua.vim.api.nvim_get_option(
-                                    "lines"
-                                ),
+                                "width": nvim.lua.vim.api.nvim_get_option("columns"),
+                                "height": nvim.lua.vim.api.nvim_get_option("lines"),
                             }
                     except Exception as e:
                         if self._handle_nvim_disconnect(e, "image sync"):
@@ -669,8 +614,9 @@ class ReplInterpreter:
             self._temp_dir = None
 
     async def handle_iopub_msgs(self, msg_id) -> None:
-        while self.client.iopub_channel.msg_ready():
-            msg = self.client.get_iopub_msg()
+        client = self._get_client()
+        while client.iopub_channel.msg_ready():
+            msg = client.get_iopub_msg()
             msg_type = msg["header"]["msg_type"]
             parent_id = msg["parent_header"].get("msg_id")
 
