@@ -2,7 +2,6 @@ local api, fn, ts = vim.api, vim.fn, vim.treesitter
 
 local M = {
     config = {
-        kernel_name = "python",
         split_horizontal = false,
         split_ratio = 0.65,
         image = {
@@ -18,6 +17,7 @@ local M = {
         bufid = 0,
         chanid = 0
     },
+    kernelname = nil,
     send_queue = {},
     send_flushing = false,
     repl_ready = false
@@ -27,11 +27,15 @@ local function is_vim_nil(value)
     return vim.NIL ~= nil and value == vim.NIL
 end
 
-local function resolve_python_executable()
-    local host_prog = vim.g.python3_host_prog
-    if is_vim_nil(host_prog) then
-        host_prog = nil
+local function normalize_vim_value(value)
+    if is_vim_nil(value) then
+        return nil
     end
+    return value
+end
+
+local function resolve_python_executable()
+    local host_prog = normalize_vim_value(vim.g.python3_host_prog)
     if type(host_prog) == "string" and host_prog ~= "" then
         return vim.fn.expand(host_prog)
     end
@@ -42,20 +46,21 @@ local function validate_python_host()
     local host_prog = vim.g.python3_host_prog
     if is_vim_nil(host_prog) then
         vim.notify(
-            "Pyrola: g:python3_host_prog is v:null. Unset it or set a valid python3 path.",
+            "Pyrepl: g:python3_host_prog is v:null. Unset it or set a valid python3 path.",
             vim.log.levels.ERROR
         )
         return nil
     end
+    host_prog = normalize_vim_value(host_prog)
     if host_prog ~= nil and type(host_prog) ~= "string" then
-        vim.notify("Pyrola: g:python3_host_prog must be a string path to python3.", vim.log.levels.ERROR)
+        vim.notify("Pyrepl: g:python3_host_prog must be a string path to python3.", vim.log.levels.ERROR)
         return nil
     end
     local python_executable = resolve_python_executable()
     if fn.executable(python_executable) == 0 then
         vim.notify(
             string.format(
-                "Pyrola: python3 executable not found (%s). Set g:python3_host_prog to a valid python3 path.",
+                "Pyrepl: python3 executable not found (%s). Set g:python3_host_prog to a valid python3 path.",
                 python_executable
             ),
             vim.log.levels.ERROR
@@ -65,21 +70,182 @@ local function validate_python_host()
     return python_executable
 end
 
+local function normalize_path(path)
+    if not path or path == "" then
+        return nil
+    end
+    local normalized = path
+    if vim.fs and vim.fs.normalize then
+        local ok, value = pcall(vim.fs.normalize, path)
+        if ok and value then
+            normalized = value
+        end
+    else
+        normalized = fn.fnamemodify(path, ":p")
+    end
+    normalized = normalized:gsub("/+$", "")
+    return normalized
+end
+
+local function has_path_prefix(path, prefix)
+    if not path or not prefix then
+        return false
+    end
+    if path == prefix then
+        return true
+    end
+    local sep = "/"
+    if prefix:sub(-1) ~= sep then
+        prefix = prefix .. sep
+    end
+    return path:sub(1, #prefix) == prefix
+end
+
+local function get_active_venv()
+    local venv = vim.env.VIRTUAL_ENV
+    if venv and venv ~= "" then
+        return venv
+    end
+    local conda = vim.env.CONDA_PREFIX
+    if conda and conda ~= "" then
+        return conda
+    end
+    return nil
+end
+
+local function list_kernels()
+    local ok, result = pcall(fn.ListKernels)
+    if not ok then
+        if string.find(result, "Unknown function") then
+            vim.notify(
+                "Pyrepl: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim.",
+                vim.log.levels.ERROR
+            )
+        else
+            vim.notify(string.format("Pyrepl: Failed to list kernels: %s", result), vim.log.levels.ERROR)
+        end
+        return nil
+    end
+
+    result = normalize_vim_value(result)
+    if type(result) ~= "table" or #result == 0 then
+        vim.notify("Pyrepl: No kernels found. Install ipykernel first.", vim.log.levels.ERROR)
+        return nil
+    end
+
+    local kernels = {}
+    for _, item in ipairs(result) do
+        if type(item) == "table" then
+            local name = item.name
+            if type(name) == "string" and name ~= "" then
+                table.insert(kernels, {
+                    name = name,
+                    path = item.path or "",
+                    argv0 = item.argv0 or ""
+                })
+            end
+        end
+    end
+
+    if #kernels == 0 then
+        vim.notify("Pyrepl: No kernels found. Install ipykernel first.", vim.log.levels.ERROR)
+        return nil
+    end
+
+    table.sort(kernels, function(a, b)
+        return a.name < b.name
+    end)
+
+    return kernels
+end
+
+local function preferred_kernel_index(kernels)
+    local venv = get_active_venv()
+    if not venv then
+        return 1
+    end
+    local venv_path = normalize_path(venv)
+    if not venv_path then
+        return 1
+    end
+    for idx, kernel in ipairs(kernels) do
+        local kernel_path = normalize_path(kernel.path)
+        local argv0 = normalize_path(kernel.argv0)
+        if has_path_prefix(kernel_path, venv_path) or has_path_prefix(argv0, venv_path) then
+            return idx
+        end
+    end
+    return 1
+end
+
+local function prompt_kernel_choice(on_choice)
+    local kernels = list_kernels()
+    if not kernels then
+        return
+    end
+
+    local preferred = preferred_kernel_index(kernels)
+    if preferred > 1 then
+        local selected = table.remove(kernels, preferred)
+        table.insert(kernels, 1, selected)
+    end
+
+    local function handle_choice(choice)
+        if not choice then
+            vim.notify("Pyrepl: Kernel selection cancelled.", vim.log.levels.WARN)
+            return
+        end
+        on_choice(choice.name)
+    end
+
+    if vim.ui and vim.ui.select then
+        vim.ui.select(
+            kernels,
+            {
+                prompt = "Pyrepl: Select Jupyter kernel",
+                format_item = function(item)
+                    local path = item.path
+                    if type(path) ~= "string" or path == "" then
+                        return item.name
+                    end
+                    return string.format("%s  (%s)", item.name, path)
+                end
+            },
+            handle_choice
+        )
+        return
+    end
+
+    local choices = { "Select Jupyter kernel:" }
+    for _, item in ipairs(kernels) do
+        local label = item.name
+        if item.path and item.path ~= "" then
+            label = string.format("%s (%s)", item.name, item.path)
+        end
+        table.insert(choices, label)
+    end
+    local selection = fn.inputlist(choices)
+    if selection < 1 or selection > #kernels then
+        vim.notify("Pyrepl: Kernel selection cancelled.", vim.log.levels.WARN)
+        return
+    end
+    handle_choice(kernels[selection])
+end
+
 local function repl_ready()
     return M.term.opened == 1 and M.term.chanid ~= 0 and M.connection_file_path
 end
 
-local function get_plugin_path()
-    if M.plugin_path then
-        return M.plugin_path
+local function get_console_path()
+    if M.console_path then
+        return M.console_path
     end
-    local runtime_paths = api.nvim_list_runtime_paths()
-    for _, path in ipairs(runtime_paths) do
-        if path:match("pyrola.nvim$") then
-            M.plugin_path = path
-            return path
-        end
+    local candidates = api.nvim_get_runtime_file("rplugin/python3/console.py", false)
+    if candidates and #candidates > 0 then
+        M.console_path = candidates[1]
+        return M.console_path
     end
+    return nil
 end
 
 local function register_kernel_cleanup()
@@ -90,8 +256,8 @@ local function register_kernel_cleanup()
         "VimLeavePre",
         {
             callback = function()
-                if M.filetype and M.connection_file_path then
-                    fn.ShutdownKernel(M.filetype, M.connection_file_path)
+                if M.connection_file_path then
+                    fn.ShutdownKernel(M.connection_file_path)
                     os.remove(M.connection_file_path)
                 end
             end,
@@ -106,24 +272,64 @@ local function init_kernel(kernelname)
     if not success then
         if string.find(result, "Unknown function") then
             vim.notify(
-                "Pyrola: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim.",
+                "Pyrepl: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim.",
                 vim.log.levels.ERROR
             )
-        elseif string.find(result, "No such kernel") then
+        else
+            vim.notify(string.format("Pyrepl: Kernel initialization failed: %s", result), vim.log.levels.ERROR)
+        end
+        return nil
+    end
+    result = normalize_vim_value(result)
+    if type(result) == "table" then
+        if result.ok == true then
+            local connection_file = normalize_vim_value(result.connection_file)
+            if type(connection_file) ~= "string" or connection_file == "" then
+                vim.notify("Pyrepl: Kernel initialization failed with empty connection file.", vim.log.levels.ERROR)
+                return nil
+            end
+            return connection_file
+        end
+
+        local error_type = normalize_vim_value(result.error_type)
+        local error_message = normalize_vim_value(result.error)
+        local requested_kernel_name = normalize_vim_value(result.requested_kernel_name)
+        local effective_kernel_name = normalize_vim_value(result.effective_kernel_name)
+        local spec_argv0 = normalize_vim_value(result.spec_argv0)
+
+        local debug_parts = {}
+        if type(requested_kernel_name) == "string" and requested_kernel_name ~= "" then
+            table.insert(debug_parts, string.format("requested: %s", requested_kernel_name))
+        end
+        if type(effective_kernel_name) == "string" and effective_kernel_name ~= "" then
+            table.insert(debug_parts, string.format("effective: %s", effective_kernel_name))
+        end
+        if type(spec_argv0) == "string" and spec_argv0 ~= "" then
+            table.insert(debug_parts, string.format("argv0: %s", spec_argv0))
+        end
+        local debug_suffix = ""
+        if #debug_parts > 0 then
+            debug_suffix = string.format(" (%s)", table.concat(debug_parts, "; "))
+        end
+
+        if error_type == "no_such_kernel" then
             vim.notify(
                 string.format(
-                    "Pyrola: Kernel '%s' not found. Please install it manually (see README) and update setup config.",
+                    "Pyrepl: Kernel '%s' not found. Please install it manually (see README) and try again.",
                     kernelname
                 ),
                 vim.log.levels.ERROR
             )
+        elseif error_type == "missing_kernel_name" then
+            vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
         else
-            vim.notify(string.format("Pyrola: Kernel initialization failed: %s", result), vim.log.levels.ERROR)
+            local message = error_message or "Unknown error"
+            vim.notify(string.format("Pyrepl: Kernel initialization failed: %s%s", message, debug_suffix), vim.log.levels.ERROR)
         end
         return nil
     end
     if not result or result == "" then
-        vim.notify("Pyrola: Kernel initialization failed with empty connection file.", vim.log.levels.ERROR)
+        vim.notify("Pyrepl: Kernel initialization failed with empty connection file.", vim.log.levels.ERROR)
         return nil
     end
     return result
@@ -137,23 +343,23 @@ local function build_repl_env()
     local max_height_ratio = tonumber(image.max_height_ratio) or 0.5
 
     return {
-        PYROLA_IMAGE_CELL_WIDTH = tostring(cell_width),
-        PYROLA_IMAGE_CELL_HEIGHT = tostring(cell_height),
-        PYROLA_IMAGE_MAX_WIDTH_RATIO = tostring(max_width_ratio),
-        PYROLA_IMAGE_MAX_HEIGHT_RATIO = tostring(max_height_ratio)
+        PYREPL_IMAGE_CELL_WIDTH = tostring(cell_width),
+        PYREPL_IMAGE_CELL_HEIGHT = tostring(cell_height),
+        PYREPL_IMAGE_MAX_WIDTH_RATIO = tostring(max_width_ratio),
+        PYREPL_IMAGE_MAX_HEIGHT_RATIO = tostring(max_height_ratio)
     }
 end
 
-local function open_terminal(python_executable)
-    M.filetype = vim.bo.filetype
+local function open_terminal(python_executable, kernelname)
     local origin_win = api.nvim_get_current_win()
-    if M.filetype ~= "python" then
-        vim.notify("Pyrola: Only Python filetype is supported.", vim.log.levels.WARN)
+    local filetype = vim.bo.filetype
+    if filetype ~= "python" then
+        vim.notify("Pyrepl: Only Python filetype is supported.", vim.log.levels.WARN)
         return
     end
-    local kernelname = M.config.kernel_name
+    kernelname = kernelname or M.kernelname
     if not kernelname or kernelname == "" then
-        vim.notify("Pyrola: kernel_name is missing in setup config.", vim.log.levels.ERROR)
+        vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
         return
     end
 
@@ -163,6 +369,7 @@ local function open_terminal(python_executable)
             return
         end
         M.connection_file_path = connection_file
+        M.kernelname = kernelname
         register_kernel_cleanup()
     end
 
@@ -194,13 +401,20 @@ local function open_terminal(python_executable)
     local statusline_format = string.format("Kernel: %s  |  Line : %%l ", kernelname)
     vim.wo[winid].statusline = statusline_format
 
-    local console_path = get_plugin_path()
+    local console_path = get_console_path()
+    if not console_path then
+        vim.notify(
+            "Pyrepl: Console script not found. Run :UpdateRemotePlugins and restart Neovim.",
+            vim.log.levels.ERROR
+        )
+        return
+    end
 
     if M.connection_file_path then
         local nvim_socket = vim.v.servername
         local term_cmd = {
             python_executable,
-            string.format("%s/rplugin/python3/console.py", console_path),
+            console_path,
             "--existing",
             M.connection_file_path,
             "--nvim-socket",
@@ -393,7 +607,7 @@ local function check_and_install_dependencies(python_executable)
 
         local choice = fn.confirm(
             string.format(
-                "Pyrola: Missing packages. Install?\n\nPython: %s\nPip: %s\nInstall path: %s",
+                "Pyrepl: Missing packages. Install?\n\nPython: %s\nPip: %s\nInstall path: %s",
                 python_executable,
                 pip_path,
                 install_path
@@ -462,11 +676,11 @@ local function check_and_install_dependencies(python_executable)
                         if return_val == 0 then
                             vim.cmd("UpdateRemotePlugins")
                             vim.notify(
-                                "Pyrola: Dependencies installed and remote plugins updated. Please restart Neovim.",
+                                "Pyrepl: Dependencies installed and remote plugins updated. Please restart Neovim.",
                                 vim.log.levels.INFO)
                         else
                             vim.notify(string.format(
-                                "Pyrola: Failed to install dependencies (exit code: %d)\nPython: %s\nCheck output above for details.",
+                                "Pyrepl: Failed to install dependencies (exit code: %d)\nPython: %s\nCheck output above for details.",
                                 return_val, python_executable), vim.log.levels.ERROR)
                         end
                     end)
@@ -482,13 +696,9 @@ function M.setup(opts)
     vim.env.PYTHONDONTWRITEBYTECODE = "1"
     M.config = vim.tbl_deep_extend("force", M.config, opts or {})
     if not M.commands_set then
-        api.nvim_create_user_command("Pyrola", function(cmd)
-            if cmd.args == "init" then
-                M.init()
-                return
-            end
-            vim.notify("Pyrola: Unknown command. Try :Pyrola init", vim.log.levels.WARN)
-        end, { nargs = 1 })
+        api.nvim_create_user_command("Pyrepl", function()
+            M.init()
+        end, { nargs = 0 })
         M.commands_set = true
     end
     return M
@@ -504,23 +714,28 @@ function M.init()
     end
     local filetype = vim.bo.filetype
     if filetype ~= "python" then
-        vim.notify("Pyrola: Only Python filetype is supported.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: Only Python filetype is supported.", vim.log.levels.WARN)
         return
     end
-    local kernelname = M.config.kernel_name
-    if not kernelname or kernelname == "" then
-        vim.notify("Pyrola: kernel_name is missing in setup config.", vim.log.levels.ERROR)
+    if M.connection_file_path then
+        open_terminal(python_executable, M.kernelname)
         return
     end
-    if not M.connection_file_path then
+
+    prompt_kernel_choice(function(kernelname)
+        if not kernelname or kernelname == "" then
+            vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
+            return
+        end
         local connection_file = init_kernel(kernelname)
         if not connection_file then
             return
         end
         M.connection_file_path = connection_file
+        M.kernelname = kernelname
         register_kernel_cleanup()
-    end
-    open_terminal(python_executable)
+        open_terminal(python_executable, kernelname)
+    end)
 end
 
 function M.send_visual_to_repl()
@@ -539,7 +754,6 @@ function M.send_buffer_to_repl()
     if not repl_ready() then
         return
     end
-    M.filetype = vim.bo.filetype
     local current_winid = api.nvim_get_current_win()
     local lines = api.nvim_buf_get_lines(0, 0, -1, false)
     if not lines or #lines == 0 then
@@ -621,7 +835,7 @@ function M.send_statement_definition()
     handle_cursor_move()
     local ok_parser, parser = pcall(ts.get_parser, 0)
     if not ok_parser or not parser then
-        vim.notify("Pyrola: Tree-sitter parser not available for this buffer.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: Tree-sitter parser not available for this buffer.", vim.log.levels.WARN)
         return
     end
     local tree = parser:parse()[1]
@@ -694,28 +908,28 @@ end
 
 -- Image history functions
 function M.open_history_manager()
-    require("pyrola.image").open_history_manager()
+    require("pyrepl.image").open_history_manager()
 end
 
 function M.show_last_image()
     if M.term.opened == 0 or M.term.chanid == 0 then
         return
     end
-    require("pyrola.image").show_last_image()
+    require("pyrepl.image").show_last_image()
 end
 
 function M.show_previous_image()
     if M.term.opened == 0 or M.term.chanid == 0 then
         return
     end
-    require("pyrola.image").show_previous_image()
+    require("pyrepl.image").show_previous_image()
 end
 
 function M.show_next_image()
     if M.term.opened == 0 or M.term.chanid == 0 then
         return
     end
-    require("pyrola.image").show_next_image()
+    require("pyrepl.image").show_next_image()
 end
 
 return M

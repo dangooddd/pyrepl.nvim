@@ -13,9 +13,13 @@ local default_image_config = {
 local image_config = vim.deepcopy(default_image_config)
 
 local function refresh_image_config()
-    local ok, pyrola = pcall(require, "pyrola")
-    if ok and pyrola.config and pyrola.config.image then
-        image_config = vim.tbl_deep_extend("force", vim.deepcopy(default_image_config), pyrola.config.image)
+    local ok, pyrepl = pcall(require, "pyrepl")
+    if ok and pyrepl.config and pyrepl.config.image then
+        image_config = vim.tbl_deep_extend(
+            "force",
+            vim.deepcopy(default_image_config),
+            pyrepl.config.image
+        )
     else
         image_config = vim.deepcopy(default_image_config)
     end
@@ -26,7 +30,10 @@ local function ensure_image_module()
     if ok then
         return image
     end
-    vim.notify("Pyrola: image.nvim not available. Install '3rd/image.nvim' to render images.", vim.log.levels.WARN)
+    vim.notify(
+        "Pyrepl: image.nvim not available. Install '3rd/image.nvim' to render images.",
+        vim.log.levels.WARN
+    )
     return nil
 end
 
@@ -82,9 +89,9 @@ local function create_image_float(width_cells, height_cells, focus)
 
     local winid = api.nvim_open_win(bufnr, focus or false, opts)
 
-    local border_hl = "PyrolaImageBorder"
-    local title_hl = "PyrolaImageTitle"
-    local normal_hl = "PyrolaImageNormal"
+    local border_hl = "PyreplImageBorder"
+    local title_hl = "PyreplImageTitle"
+    local normal_hl = "PyreplImageNormal"
 
     if not M._image_highlights_set then
         local border_target = fn.hlexists("FloatBorder") == 1 and "FloatBorder" or "WinSeparator"
@@ -140,19 +147,19 @@ local function clear_current()
 end
 
 local function setup_cursor_autocmd()
-    local group = api.nvim_create_augroup("PyrolaImageClear", { clear = true })
+    local group = api.nvim_create_augroup("PyreplImageClear", { clear = true })
     api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
         group = group,
         callback = function()
             clear_current()
-            api.nvim_del_augroup_by_name("PyrolaImageClear")
+            api.nvim_del_augroup_by_name("PyreplImageClear")
         end,
         once = true
     })
 end
 
 local function setup_manager_autocmd(bufnr, winid)
-    local group = api.nvim_create_augroup("PyrolaImageManagerClose", { clear = false })
+    local group = api.nvim_create_augroup("PyreplImageManagerClose", { clear = false })
     api.nvim_create_autocmd("BufWipeout", {
         group = group,
         buffer = bufnr,
@@ -251,7 +258,7 @@ end
 
 local function show_history_at(index, focus, auto_clear)
     if #M.history == 0 then
-        vim.notify("Pyrola: No image history available.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: No image history available.", vim.log.levels.WARN)
         return
     end
     if index < 1 or index > #M.history then
@@ -264,7 +271,7 @@ end
 
 function M.show_image_file(path, width, height)
     if type(path) ~= "string" or path == "" then
-        vim.notify("Pyrola: Image path missing or invalid.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: Image path missing or invalid.", vim.log.levels.WARN)
         return
     end
     local width_num = tonumber(width)
@@ -281,7 +288,7 @@ end
 
 function M.open_history_manager()
     if #M.history == 0 then
-        vim.notify("Pyrola: No image history available.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: No image history available.", vim.log.levels.WARN)
         return
     end
     show_history_at(#M.history, true, false)
@@ -293,12 +300,12 @@ end
 
 function M.show_previous_image(focus)
     if #M.history == 0 then
-        vim.notify("Pyrola: No image history available.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: No image history available.", vim.log.levels.WARN)
         return
     end
     if M.history_index <= 1 then
         M.history_index = 1
-        vim.notify("Pyrola: Already at oldest image.", vim.log.levels.INFO)
+        vim.notify("Pyrepl: Already at oldest image.", vim.log.levels.INFO)
         return
     end
     show_history_at(M.history_index - 1, focus or M.manager_active, not (focus or M.manager_active))
@@ -306,12 +313,12 @@ end
 
 function M.show_next_image(focus)
     if #M.history == 0 then
-        vim.notify("Pyrola: No image history available.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: No image history available.", vim.log.levels.WARN)
         return
     end
     if M.history_index >= #M.history then
         M.history_index = #M.history
-        vim.notify("Pyrola: Already at newest image.", vim.log.levels.INFO)
+        vim.notify("Pyrepl: Already at newest image.", vim.log.levels.INFO)
         return
     end
     show_history_at(M.history_index + 1, focus or M.manager_active, not (focus or M.manager_active))

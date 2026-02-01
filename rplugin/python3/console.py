@@ -85,20 +85,20 @@ class ReplInterpreter:
         self.kernel_info = {}
         self.in_multiline = False
         self._interrupt_requested = False
-        self._image_debug = os.environ.get("PYROLA_IMAGE_DEBUG", "0") == "1"
-        self._auto_indent = os.environ.get("PYROLA_AUTO_INDENT", "0") == "1"
-        self._cell_width = _read_env_int("PYROLA_IMAGE_CELL_WIDTH", 10)
-        self._cell_height = _read_env_int("PYROLA_IMAGE_CELL_HEIGHT", 20)
+        self._image_debug = os.environ.get("PYREPL_IMAGE_DEBUG", "0") == "1"
+        self._auto_indent = os.environ.get("PYREPL_AUTO_INDENT", "0") == "1"
+        self._cell_width = _read_env_int("PYREPL_IMAGE_CELL_WIDTH", 10)
+        self._cell_height = _read_env_int("PYREPL_IMAGE_CELL_HEIGHT", 20)
         self._image_max_width_ratio = _read_env_float(
-            "PYROLA_IMAGE_MAX_WIDTH_RATIO", 0.5
+            "PYREPL_IMAGE_MAX_WIDTH_RATIO", 0.5
         )
         self._image_max_height_ratio = _read_env_float(
-            "PYROLA_IMAGE_MAX_HEIGHT_RATIO", 0.5
+            "PYREPL_IMAGE_MAX_HEIGHT_RATIO", 0.5
         )
         self._temp_paths = set()
         try:
             self._temp_dir: Optional[tempfile.TemporaryDirectory[str]] = (
-                tempfile.TemporaryDirectory(prefix="pyrola-")
+                tempfile.TemporaryDirectory(prefix="pyrepl-")
             )
         except Exception:
             self._temp_dir = None
@@ -204,7 +204,7 @@ class ReplInterpreter:
         self.nvim = None
         if self._image_debug:
             print(
-                f"[pyrola] Neovim connection closed during {context}.",
+                f"[pyrepl] Neovim connection closed during {context}.",
                 file=sys.stderr,
             )
         return True
@@ -231,15 +231,15 @@ class ReplInterpreter:
         try:
             with self.nvim_lock:
                 nvim = cast(pynvim.Nvim, self.nvim)
-                nvim.command(f'let g:pyrola_image_path = "{escaped_path}"')
-                nvim.command(f"let g:pyrola_image_width = {width_val}")
-                nvim.command(f"let g:pyrola_image_height = {height_val}")
+                nvim.command(f'let g:pyrepl_image_path = "{escaped_path}"')
+                nvim.command(f"let g:pyrepl_image_width = {width_val}")
+                nvim.command(f"let g:pyrepl_image_height = {height_val}")
                 nvim.command(
-                    'lua require("pyrola.image").show_image_file(vim.g.pyrola_image_path, vim.g.pyrola_image_width, vim.g.pyrola_image_height)'
+                    'lua require("pyrepl.image").show_image_file(vim.g.pyrepl_image_path, vim.g.pyrepl_image_width, vim.g.pyrepl_image_height)'
                 )
-                nvim.command("unlet g:pyrola_image_path")
-                nvim.command("unlet g:pyrola_image_width")
-                nvim.command("unlet g:pyrola_image_height")
+                nvim.command("unlet g:pyrepl_image_path")
+                nvim.command("unlet g:pyrepl_image_width")
+                nvim.command("unlet g:pyrepl_image_height")
         except Exception as e:
             if self._handle_nvim_disconnect(e, "image sync"):
                 return
@@ -458,7 +458,7 @@ class ReplInterpreter:
                         try:
                             with self.nvim_lock:
                                 nvim = cast(pynvim.Nvim, self.nvim)
-                                nvim.command('lua require("pyrola")._on_repl_ready()')
+                                nvim.command('lua require("pyrepl")._on_repl_ready()')
                         except Exception as e:
                             if self._handle_nvim_disconnect(e, "repl_ready"):
                                 continue
@@ -570,7 +570,7 @@ class ReplInterpreter:
                             self._register_temp_path(tmp_path)
                             if self._image_debug:
                                 print(
-                                    f"[pyrola] wrote image temp: {tmp_path}",
+                                    f"[pyrepl] wrote image temp: {tmp_path}",
                                     file=sys.stderr,
                                 )
                             self._send_image_to_nvim(tmp_path, new_width, new_height)
@@ -674,7 +674,7 @@ class ReplInterpreter:
                         continue
                     if self._image_debug:
                         print(
-                            f"[pyrola] image mime={image_mime} b64len={len(image_data)}",
+                            f"[pyrepl] image mime={image_mime} b64len={len(image_data)}",
                             file=sys.stderr,
                         )
                     if self._nvim_address:

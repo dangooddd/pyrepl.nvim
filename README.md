@@ -5,16 +5,16 @@
 
 ---
 
-# Pyrola
+# pyrepl.nvim
 
-If you are seeking an alternative to **Jupyter**, **Spyder**, or **RStudio** in Neovim, **Pyrola** is the solution.
+If you are seeking an alternative to **Jupyter**, **Spyder**, or **RStudio** in Neovim, **pyrepl.nvim** is the solution.
 
-Pyrola delivers a **Python REPL (Read–Eval–Print Loop)** experience inside **Neovim**. It is designed for interactive programming, especially for **data scientists**, and supports:
+pyrepl.nvim delivers a **Python REPL (Read–Eval–Print Loop)** experience inside **Neovim**. It is designed for interactive programming, especially for **data scientists**, and supports:
 
 * Real-time code execution
 * Image visualization
 
-Pyrola is built on the Jupyter kernel stack and focuses exclusively on **Python** for simplicity.
+pyrepl.nvim is built on the Jupyter kernel stack and focuses exclusively on **Python** for simplicity.
 
 ---
 
@@ -40,18 +40,17 @@ Pyrola is built on the Jupyter kernel stack and focuses exclusively on **Python*
 
 ### 1) Default setup
 
-Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided below:
+Add pyrepl.nvim to your plugin manager. An example using `lazy.nvim` is provided below:
 
 ```lua
 {
-  "matarina/pyrola.nvim",
+  "matarina/pyrepl.nvim",
   dependencies = { "nvim-treesitter/nvim-treesitter", "3rd/image.nvim" },
   build = ":UpdateRemotePlugins",
   config = function()
-    local pyrola = require("pyrola")
+    local pyrepl = require("pyrepl")
 
-    pyrola.setup({
-      kernel_name = "python3", -- Jupyter kernel name
+    pyrepl.setup({
       split_horizontal = false,
       split_ratio = 0.65, -- width of split REPL terminal
       image = {
@@ -66,22 +65,22 @@ Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided belo
 
     -- Send semantic code block under cursor
     vim.keymap.set("n", "<CR>", function()
-      pyrola.send_statement_definition()
+      pyrepl.send_statement_definition()
     end, { noremap = true })
 
     -- Send visual selection
     vim.keymap.set("v", "<leader>vs", function()
-      pyrola.send_visual_to_repl()
+      pyrepl.send_visual_to_repl()
     end, { noremap = true })
 
     -- Send entire buffer
     vim.keymap.set("n", "<leader>vb", function()
-      pyrola.send_buffer_to_repl()
+      pyrepl.send_buffer_to_repl()
     end, { noremap = true })
 
     -- Open history image viewer
     vim.keymap.set("n", "<leader>im", function()
-      pyrola.open_history_manager()
+      pyrepl.open_history_manager()
     end, { noremap = true })
   end,
 },
@@ -108,16 +107,16 @@ Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided belo
 Highlight groups are theme-aware by default (linked to `FloatBorder`, `FloatTitle`, and `NormalFloat`). Override them if you want custom colors:
 
 ```lua
-vim.api.nvim_set_hl(0, "PyrolaImageBorder", { link = "FloatBorder" })
-vim.api.nvim_set_hl(0, "PyrolaImageTitle", { link = "FloatTitle" })
-vim.api.nvim_set_hl(0, "PyrolaImageNormal", { link = "NormalFloat" })
+vim.api.nvim_set_hl(0, "PyreplImageBorder", { link = "FloatBorder" })
+vim.api.nvim_set_hl(0, "PyreplImageTitle", { link = "FloatTitle" })
+vim.api.nvim_set_hl(0, "PyreplImageNormal", { link = "NormalFloat" })
 ```
 
 ### 2) Python + Pip in PATH
 
-Pyrola is built on `pynvim`, so ensure `python` and `pip` are available in your PATH. Virtual environments (like Conda) are highly recommended.
+pyrepl.nvim is built on `pynvim`, so ensure `python` and `pip` are available in your PATH. Virtual environments (like Conda) are highly recommended.
 
-after setting up your `init.lua` and then activate a Conda environment,  Pyrola will automatically prompt you to install the related Python dependencies when first time run 'Pyrola init',. Alternatively, you can install them manually:
+after setting up your `init.lua` and then activate a Conda environment, pyrepl.nvim will automatically prompt you to install the related Python dependencies when first time run `:Pyrepl`. Alternatively, you can install them manually:
 
 ```bash
 python3 -m pip install pynvim jupyter-client prompt-toolkit pillow pygments
@@ -129,13 +128,12 @@ Then, install a Python Jupyter kernel:
 ```bash
 python3 -m pip install ipykernel
 python3 -m ipykernel install --user --name python3
-# Note: The name "python3" must be identical to the name used in 'kernel_name' in your Lua config.
 
 ```
 
 ### 3) Image Rendering (Recommended)
 
-Pyrola renders images using [image.nvim](https://github.com/3rd/image.nvim). Install it and its dependencies:
+pyrepl.nvim renders images using [image.nvim](https://github.com/3rd/image.nvim). Install it and its dependencies:
 
 - A supported terminal (Kitty recommended) or ueberzugpp backend
 - ImageMagick
@@ -164,11 +162,13 @@ set -g allow-passthrough all
 ```
 
 
-2. Start the kernel and REPL:
+2. Start the kernel and REPL (you will be prompted to select a kernel):
 ```vim
-:Pyrola init
+:Pyrepl
 
 ```
+
+pyrepl.nvim prefers the active `VIRTUAL_ENV` kernel first, then `CONDA_PREFIX`, when available.
 
 
 
@@ -176,21 +176,21 @@ set -g allow-passthrough all
 
 * **Current semantic block**:
 ```lua
-pyrola.send_statement_definition()
+pyrepl.send_statement_definition()
 
 ```
 
 
 * **Visual selection**:
 ```lua
-pyrola.send_visual_to_repl()
+pyrepl.send_visual_to_repl()
 
 ```
 
 
 * **Whole buffer**:
 ```lua
-pyrola.send_buffer_to_repl()
+pyrepl.send_buffer_to_repl()
 
 ```
 
@@ -209,11 +209,11 @@ When focused:
 ## Credits
 
 * [Jupyter Team](https://github.com/jupyter/jupyter)
-* [nvim-python-repl](https://github.com/geg2102/nvim-python-repl) — Pyrola draws inspiration from this project.
+* [nvim-python-repl](https://github.com/geg2102/nvim-python-repl) — pyrepl.nvim draws inspiration from this project.
 
 ## Contributing
 
-Contributions are welcome! Pyrola is in its early stages and actively maintained. Issues and pull requests will receive prompt attention.
+Contributions are welcome! pyrepl.nvim is in its early stages and actively maintained. Issues and pull requests will receive prompt attention.
 
 **Note:** For enhanced image rendering, terminal graphic protocols such as **Sixel** are not yet supported inside Neovim terminal buffers due to upstream limitations (see [Neovim Issue #30889](https://github.com/neovim/neovim/issues/30889)).
 
