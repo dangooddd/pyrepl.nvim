@@ -335,21 +335,6 @@ local function init_kernel(kernelname)
     return result
 end
 
-local function build_repl_env()
-    local image = M.config.image or {}
-    local cell_width = tonumber(image.cell_width) or 10
-    local cell_height = tonumber(image.cell_height) or 20
-    local max_width_ratio = tonumber(image.max_width_ratio) or 0.5
-    local max_height_ratio = tonumber(image.max_height_ratio) or 0.5
-
-    return {
-        PYREPL_IMAGE_CELL_WIDTH = tostring(cell_width),
-        PYREPL_IMAGE_CELL_HEIGHT = tostring(cell_height),
-        PYREPL_IMAGE_MAX_WIDTH_RATIO = tostring(max_width_ratio),
-        PYREPL_IMAGE_MAX_HEIGHT_RATIO = tostring(max_height_ratio)
-    }
-end
-
 local function open_terminal(python_executable, kernelname)
     local origin_win = api.nvim_get_current_win()
     kernelname = kernelname or M.kernelname
@@ -406,6 +391,11 @@ local function open_terminal(python_executable, kernelname)
     end
 
     if M.connection_file_path then
+        local image = M.config.image or {}
+        local cell_width = tonumber(image.cell_width) or 10
+        local cell_height = tonumber(image.cell_height) or 20
+        local max_width_ratio = tonumber(image.max_width_ratio) or 0.5
+        local max_height_ratio = tonumber(image.max_height_ratio) or 0.5
         local nvim_socket = vim.v.servername
         local term_cmd = {
             python_executable,
@@ -413,12 +403,19 @@ local function open_terminal(python_executable, kernelname)
             "--connection-file",
             M.connection_file_path,
             "--nvim-socket",
-            nvim_socket
+            nvim_socket,
+            "--image-cell-width",
+            tostring(cell_width),
+            "--image-cell-height",
+            tostring(cell_height),
+            "--image-max-width-ratio",
+            tostring(max_width_ratio),
+            "--image-max-height-ratio",
+            tostring(max_height_ratio)
         }
 
-        -- Open terminal with environment and options
-        local chanid =
-            fn.termopen(term_cmd, { env = build_repl_env() })
+        -- Open terminal with options
+        local chanid = fn.termopen(term_cmd)
 
         M.term = {
             opened = 1,

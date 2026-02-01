@@ -52,32 +52,17 @@ def _extract_image_data(value: object) -> str:
     return ""
 
 
-def _read_env_int(name: str, default: int) -> int:
-    raw = os.environ.get(name)
-    if raw is None:
-        return default
-    try:
-        value = int(raw)
-    except Exception:
-        return default
-    return value if value > 0 else default
-
-
-def _read_env_float(name: str, default: float) -> float:
-    raw = os.environ.get(name)
-    if raw is None:
-        return default
-    try:
-        value = float(raw)
-    except Exception:
-        return default
-    if value <= 0:
-        return default
-    return min(value, 1.0)
-
-
 class ReplInterpreter:
-    def __init__(self, connection_file: Optional[str] = None):
+    def __init__(
+        self,
+        connection_file: Optional[str] = None,
+        image_debug: bool = False,
+        auto_indent: bool = False,
+        cell_width: int = 10,
+        cell_height: int = 20,
+        image_max_width_ratio: float = 0.5,
+        image_max_height_ratio: float = 0.5,
+    ):
         self.buffer: list[str] = []
         self._pending_clearoutput = False
         self._executing = False
@@ -85,16 +70,12 @@ class ReplInterpreter:
         self.kernel_info = {}
         self.in_multiline = False
         self._interrupt_requested = False
-        self._image_debug = os.environ.get("PYREPL_IMAGE_DEBUG", "0") == "1"
-        self._auto_indent = os.environ.get("PYREPL_AUTO_INDENT", "0") == "1"
-        self._cell_width = _read_env_int("PYREPL_IMAGE_CELL_WIDTH", 10)
-        self._cell_height = _read_env_int("PYREPL_IMAGE_CELL_HEIGHT", 20)
-        self._image_max_width_ratio = _read_env_float(
-            "PYREPL_IMAGE_MAX_WIDTH_RATIO", 0.5
-        )
-        self._image_max_height_ratio = _read_env_float(
-            "PYREPL_IMAGE_MAX_HEIGHT_RATIO", 0.5
-        )
+        self._image_debug = image_debug
+        self._auto_indent = auto_indent
+        self._cell_width = cell_width
+        self._cell_height = cell_height
+        self._image_max_width_ratio = image_max_width_ratio
+        self._image_max_height_ratio = image_max_height_ratio
         self._temp_paths = set()
         try:
             self._temp_dir: Optional[tempfile.TemporaryDirectory[str]] = (
@@ -698,18 +679,83 @@ class ReplInterpreter:
 
 def main():
     parser = argparse.ArgumentParser(description="Jupyter Console")
+
     parser.add_argument(
         "--connection-file",
         type=str,
         help="path to an existing kernel connection file.",
     )
-    parser.add_argument("--nvim-socket", type=str, help="Neovim socket address")
+
+    parser.add_argument(
+        "--nvim-socket",
+        type=str,
+        help="Neovim socket address",
+    )
+
+    parser.add_argument(
+        "--image-cell-width",
+        type=int,
+        default=10,
+        help="Approximate terminal cell width in pixels",
+    )
+
+    parser.add_argument(
+        "--image-cell-height",
+        type=int,
+        default=20,
+        help="Approximate terminal cell height in pixels",
+    )
+
+    parser.add_argument(
+        "--image-max-width-ratio",
+        type=float,
+        default=0.5,
+        help="Max image width as a fraction of editor columns",
+    )
+
+    parser.add_argument(
+        "--image-max-height-ratio",
+        type=float,
+        default=0.5,
+        help="Max image height as a fraction of editor lines",
+    )
+
+    parser.add_argument(
+        "--image-debug",
+        action="store_true",
+        help="Enable image debug logging",
+    )
+
+    parser.add_argument(
+        "--auto-indent",
+        action="store_true",
+        help="Enable auto indentation in the prompt",
+    )
+
     args = parser.parse_args()
+
+    if args.image_cell_width <= 0:
+        parser.error("--image-cell-width must be > 0")
+    if args.image_cell_height <= 0:
+        parser.error("--image-cell-height must be > 0")
+    if args.image_max_width_ratio <= 0 or args.image_max_width_ratio > 1:
+        parser.error("--image-max-width-ratio must be > 0 and <= 1")
+    if args.image_max_height_ratio <= 0 or args.image_max_height_ratio > 1:
+        parser.error("--image-max-height-ratio must be > 0 and <= 1")
 
     if args.nvim_socket:
         os.environ["NVIM_LISTEN_ADDRESS"] = args.nvim_socket
 
-    interpreter = ReplInterpreter(connection_file=args.connection_file)
+    interpreter = ReplInterpreter(
+        connection_file=args.connection_file,
+        image_debug=args.image_debug,
+        auto_indent=args.auto_indent,
+        cell_width=args.image_cell_width,
+        cell_height=args.image_cell_height,
+        image_max_width_ratio=args.image_max_width_ratio,
+        image_max_height_ratio=args.image_max_height_ratio,
+    )
+
     try:
         interpreter.interact()
     finally:
