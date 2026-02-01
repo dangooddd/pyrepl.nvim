@@ -2,7 +2,7 @@ local api, fn, ts = vim.api, vim.fn, vim.treesitter
 
 local M = {
     config = {
-        kernel_name = "python3",
+        kernel_name = "python",
         split_horizontal = false,
         split_ratio = 0.65,
         image = {
