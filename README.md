@@ -34,7 +34,7 @@ pyrepl.nvim is built on the Jupyter kernel stack and focuses exclusively on **Py
 
 - **Image Viewer**: Preview image outputs inside Neovim using `image.nvim`, providing a clean, dedicated floating window for plots and figures.
 
-- **History Image Viewer**: Stores historical images and allows browsing previously plotted images in a Neovim floating window.
+- **Images Manager**: Stores historical images and allows browsing previously plotted images in a Neovim floating window.
 
 ## Installation
 
@@ -65,22 +65,22 @@ Add pyrepl.nvim to your plugin manager. An example using `lazy.nvim` is provided
 
     -- Send semantic code block under cursor
     vim.keymap.set("n", "<CR>", function()
-      pyrepl.send_statement_definition()
+      pyrepl.send_statement()
     end, { noremap = true })
 
     -- Send visual selection
     vim.keymap.set("v", "<leader>vs", function()
-      pyrepl.send_visual_to_repl()
+      pyrepl.send_visual()
     end, { noremap = true })
 
     -- Send entire buffer
     vim.keymap.set("n", "<leader>vb", function()
-      pyrepl.send_buffer_to_repl()
+      pyrepl.send_buffer()
     end, { noremap = true })
 
-    -- Open history image viewer
+    -- Open images manager
     vim.keymap.set("n", "<leader>im", function()
-      pyrepl.open_history_manager()
+      pyrepl.open_images()
     end, { noremap = true })
   end,
 },
@@ -107,16 +107,30 @@ Add pyrepl.nvim to your plugin manager. An example using `lazy.nvim` is provided
 Highlight groups are theme-aware by default (linked to `FloatBorder`, `FloatTitle`, and `NormalFloat`). Override them if you want custom colors:
 
 ```lua
-vim.api.nvim_set_hl(0, "PyreplImageBorder", { link = "FloatBorder" })
-vim.api.nvim_set_hl(0, "PyreplImageTitle", { link = "FloatTitle" })
-vim.api.nvim_set_hl(0, "PyreplImageNormal", { link = "NormalFloat" })
+vim.api.nvim_set_hl(0, "PyREPLImageBorder", { link = "FloatBorder" })
+vim.api.nvim_set_hl(0, "PyREPLImageTitle", { link = "FloatTitle" })
+vim.api.nvim_set_hl(0, "PyREPLImageNormal", { link = "NormalFloat" })
+```
+
+Vim help is available after running `:helptags` in the plugin `doc` directory:
+
+```vim
+:help pyrepl
+
 ```
 
 ### 2) Python + Pip in PATH
 
 pyrepl.nvim is built on `pynvim`, so ensure `python` and `pip` are available in your PATH. Virtual environments (like Conda) are highly recommended.
 
-after setting up your `init.lua` and then activate a Conda environment, pyrepl.nvim will automatically prompt you to install the related Python dependencies when first time run `:Pyrepl`. Alternatively, you can install them manually:
+If you use uv (recommended for this repo), install the package in editable mode:
+
+```bash
+uv pip install -e .
+
+```
+
+after setting up your `init.lua` and then activate a Conda environment, pyrepl.nvim will automatically prompt you to install the related Python dependencies when first time run `:PyREPL`. Alternatively, you can install them manually:
 
 ```bash
 python3 -m pip install pynvim jupyter-client prompt-toolkit pillow pygments
@@ -164,7 +178,7 @@ set -g allow-passthrough all
 
 2. Start the kernel and REPL (you will be prompted to select a kernel):
 ```vim
-:Pyrepl
+:PyREPL
 
 ```
 
@@ -176,29 +190,29 @@ pyrepl.nvim prefers the active `VIRTUAL_ENV` kernel first, then `CONDA_PREFIX`, 
 
 * **Current semantic block**:
 ```lua
-pyrepl.send_statement_definition()
+pyrepl.send_statement()
 
 ```
 
 
 * **Visual selection**:
 ```lua
-pyrepl.send_visual_to_repl()
+pyrepl.send_visual()
 
 ```
 
 
 * **Whole buffer**:
 ```lua
-pyrepl.send_buffer_to_repl()
+pyrepl.send_buffer()
 
 ```
 
 
 
-### Image History Manager
+### Images Manager
 
-Press `<leader>im` (or your configured key) to open the image manager.
+Press `<leader>im` (or your configured key) to open the images manager.
 
 When focused:
 
@@ -206,15 +220,34 @@ When focused:
 * `l` — Next image
 * `q` — Close
   
+## Tests
+
+### Python
+
+```bash
+python3 -m pip install pytest
+
+python3 -m pytest tests/python
+
+```
+
+### Lua (mini.test)
+
+```bash
+nvim --headless -u tests/minimal_init.lua -c "lua MiniTest.run()"
+
+```
+
+### Makefile
+
+```bash
+make test
+
+```
+
+The Lua test runner will bootstrap `mini.nvim` into `tests/deps/mini.nvim` if it's missing (requires `git`).
+
 ## Credits
 
 * [Jupyter Team](https://github.com/jupyter/jupyter)
 * [nvim-python-repl](https://github.com/geg2102/nvim-python-repl) — pyrepl.nvim draws inspiration from this project.
-
-## Contributing
-
-Contributions are welcome! pyrepl.nvim is in its early stages and actively maintained. Issues and pull requests will receive prompt attention.
-
-**Note:** For enhanced image rendering, terminal graphic protocols such as **Sixel** are not yet supported inside Neovim terminal buffers due to upstream limitations (see [Neovim Issue #30889](https://github.com/neovim/neovim/issues/30889)).
-
-Stay tuned for future improvements! 🚀

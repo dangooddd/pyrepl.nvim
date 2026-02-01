@@ -1,0 +1,128 @@
+*pyrepl.txt*  Python REPL for Neovim
+
+===============================================================================
+INTRODUCTION                                                     *pyrepl*
+
+Pyrepl provides a Python REPL inside Neovim using the Jupyter kernel stack.
+It lets you send code from buffers, see results immediately, and view image
+outputs.
+
+Project: https://github.com/dangooddd/pyrepl.nvim
+
+===============================================================================
+COMMANDS                                                        *pyrepl-commands*
+
+:PyREPL                                                         *PyREPL*
+    Start (or attach to) a REPL for the current Python buffer. When invoked,
+    you are prompted to select a Jupyter kernel. The REPL opens in a split
+    terminal.
+
+    Notes:
+    - Only works when the current buffer has 'filetype' set to "python".
+    - Requires :UpdateRemotePlugins after installation.
+
+===============================================================================
+LUA API                                                         *pyrepl-api*
+
+require("pyrepl").setup({opts})                                 *pyrepl.setup*
+    Configure Pyrepl and register :PyREPL. Returns the module table.
+
+require("pyrepl").init()                                        *pyrepl.init*
+    Same as :PyREPL. Starts the kernel selection and opens the REPL.
+
+require("pyrepl").send_statement()                              *pyrepl.send_statement*
+    Send the top-level statement under the cursor using Tree-sitter.
+
+require("pyrepl").send_visual()                                 *pyrepl.send_visual*
+    Send the current visual selection to the REPL.
+
+require("pyrepl").send_buffer()                                 *pyrepl.send_buffer*
+    Send the entire buffer to the REPL.
+
+require("pyrepl").open_images()                                 *pyrepl.open_images*
+    Open the images manager.
+
+require("pyrepl").show_last_image()                             *pyrepl.show_last_image*
+require("pyrepl").show_previous_image()                         *pyrepl.show_previous_image*
+require("pyrepl").show_next_image()                             *pyrepl.show_next_image*
+    Navigate image history.
+
+===============================================================================
+CONFIGURATION                                                   *pyrepl-config*
+
+Default configuration:
+>
+  require("pyrepl").setup({
+    split_horizontal = false,
+    split_ratio = 0.65,
+    image = {
+      cell_width = 10,
+      cell_height = 20,
+      max_width_ratio = 0.5,
+      max_height_ratio = 0.5,
+    },
+  })
+<
+
+Options:
+  split_horizontal (boolean)
+      Use a horizontal split for the REPL terminal. Default: false.
+  split_ratio (number)
+      Fraction of screen used by the REPL split. Default: 0.65.
+  image.cell_width (number)
+      Approximate terminal cell width in pixels. Default: 10.
+  image.cell_height (number)
+      Approximate terminal cell height in pixels. Default: 20.
+  image.max_width_ratio (number)
+      Max image width as a fraction of editor columns. Default: 0.5.
+  image.max_height_ratio (number)
+      Max image height as a fraction of editor lines. Default: 0.5.
+
+===============================================================================
+IMAGES                                                         *pyrepl-images*
+
+Image rendering requires image.nvim and its dependencies:
+https://github.com/3rd/image.nvim
+
+The images manager can be opened with:
+>
+  require("pyrepl").open_images()
+<
+
+While focused in the image window:
+  h - previous image
+  l - next image
+  q - close window
+
+===============================================================================
+HIGHLIGHTS                                                     *pyrepl-highlights*
+
+PyREPL defines these highlight groups (linked by default):
+  PyREPLImageBorder
+  PyREPLImageTitle
+  PyREPLImageNormal
+
+Override example:
+>
+  vim.api.nvim_set_hl(0, "PyREPLImageBorder", { link = "FloatBorder" })
+  vim.api.nvim_set_hl(0, "PyREPLImageTitle", { link = "FloatTitle" })
+  vim.api.nvim_set_hl(0, "PyREPLImageNormal", { link = "NormalFloat" })
+<
+
+===============================================================================
+TROUBLESHOOTING                                                *pyrepl-troubleshooting*
+
+- Ensure your Python provider is configured. If needed, set:
+>
+  let g:python3_host_prog = "/path/to/python3"
+<
+- After installing, run :UpdateRemotePlugins and restart Neovim.
+- If no kernels are found, install ipykernel:
+>
+  python3 -m pip install ipykernel
+  python3 -m ipykernel install --user --name python3
+<
+===============================================================================
+END
+
+vim:tw=78:ts=8:noet:ft=help:norl:

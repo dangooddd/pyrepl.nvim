@@ -1,5 +1,4 @@
 import json
-import json
 import sys
 import time
 from typing import Any, Dict, List, Optional, cast
@@ -131,7 +130,7 @@ class PyreplPlugin:
             kernels.sort(key=lambda item: item.get("name", ""))
             return kernels
         except Exception as exc:
-            self.nvim.err_write(f"Pyrepl: Failed to list kernels: {exc}\n")
+            self.nvim.err_write(f"PyREPL: Failed to list kernels: {exc}\n")
             return []
 
     def _connect_kernel(self, connection_file: str) -> None:

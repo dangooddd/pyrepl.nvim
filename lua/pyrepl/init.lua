@@ -46,21 +46,21 @@ local function validate_python_host()
     local host_prog = vim.g.python3_host_prog
     if is_vim_nil(host_prog) then
         vim.notify(
-            "Pyrepl: g:python3_host_prog is v:null. Unset it or set a valid python3 path.",
+            "PyREPL: g:python3_host_prog is v:null. Unset it or set a valid python3 path.",
             vim.log.levels.ERROR
         )
         return nil
     end
     host_prog = normalize_vim_value(host_prog)
     if host_prog ~= nil and type(host_prog) ~= "string" then
-        vim.notify("Pyrepl: g:python3_host_prog must be a string path to python3.", vim.log.levels.ERROR)
+        vim.notify("PyREPL: g:python3_host_prog must be a string path to python3.", vim.log.levels.ERROR)
         return nil
     end
     local python_executable = resolve_python_executable()
     if fn.executable(python_executable) == 0 then
         vim.notify(
             string.format(
-                "Pyrepl: python3 executable not found (%s). Set g:python3_host_prog to a valid python3 path.",
+                "PyREPL: python3 executable not found (%s). Set g:python3_host_prog to a valid python3 path.",
                 python_executable
             ),
             vim.log.levels.ERROR
@@ -118,18 +118,18 @@ local function list_kernels()
     if not ok then
         if string.find(result, "Unknown function") then
             vim.notify(
-                "Pyrepl: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim.",
+                "PyREPL: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim.",
                 vim.log.levels.ERROR
             )
         else
-            vim.notify(string.format("Pyrepl: Failed to list kernels: %s", result), vim.log.levels.ERROR)
+            vim.notify(string.format("PyREPL: Failed to list kernels: %s", result), vim.log.levels.ERROR)
         end
         return nil
     end
 
     result = normalize_vim_value(result)
     if type(result) ~= "table" or #result == 0 then
-        vim.notify("Pyrepl: No kernels found. Install ipykernel first.", vim.log.levels.ERROR)
+        vim.notify("PyREPL: No kernels found. Install ipykernel first.", vim.log.levels.ERROR)
         return nil
     end
 
@@ -148,7 +148,7 @@ local function list_kernels()
     end
 
     if #kernels == 0 then
-        vim.notify("Pyrepl: No kernels found. Install ipykernel first.", vim.log.levels.ERROR)
+        vim.notify("PyREPL: No kernels found. Install ipykernel first.", vim.log.levels.ERROR)
         return nil
     end
 
@@ -192,7 +192,7 @@ local function prompt_kernel_choice(on_choice)
 
     local function handle_choice(choice)
         if not choice then
-            vim.notify("Pyrepl: Kernel selection cancelled.", vim.log.levels.WARN)
+            vim.notify("PyREPL: Kernel selection cancelled.", vim.log.levels.WARN)
             return
         end
         on_choice(choice.name)
@@ -202,7 +202,7 @@ local function prompt_kernel_choice(on_choice)
         vim.ui.select(
             kernels,
             {
-                prompt = "Pyrepl: Select Jupyter kernel",
+                prompt = "PyREPL: Select Jupyter kernel",
                 format_item = function(item)
                     local path = item.path
                     if type(path) ~= "string" or path == "" then
@@ -226,7 +226,7 @@ local function prompt_kernel_choice(on_choice)
     end
     local selection = fn.inputlist(choices)
     if selection < 1 or selection > #kernels then
-        vim.notify("Pyrepl: Kernel selection cancelled.", vim.log.levels.WARN)
+        vim.notify("PyREPL: Kernel selection cancelled.", vim.log.levels.WARN)
         return
     end
     handle_choice(kernels[selection])
@@ -272,11 +272,11 @@ local function init_kernel(kernelname)
     if not success then
         if string.find(result, "Unknown function") then
             vim.notify(
-                "Pyrepl: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim.",
+                "PyREPL: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim.",
                 vim.log.levels.ERROR
             )
         else
-            vim.notify(string.format("Pyrepl: Kernel initialization failed: %s", result), vim.log.levels.ERROR)
+            vim.notify(string.format("PyREPL: Kernel initialization failed: %s", result), vim.log.levels.ERROR)
         end
         return nil
     end
@@ -285,7 +285,7 @@ local function init_kernel(kernelname)
         if result.ok == true then
             local connection_file = normalize_vim_value(result.connection_file)
             if type(connection_file) ~= "string" or connection_file == "" then
-                vim.notify("Pyrepl: Kernel initialization failed with empty connection file.", vim.log.levels.ERROR)
+                vim.notify("PyREPL: Kernel initialization failed with empty connection file.", vim.log.levels.ERROR)
                 return nil
             end
             return connection_file
@@ -315,21 +315,21 @@ local function init_kernel(kernelname)
         if error_type == "no_such_kernel" then
             vim.notify(
                 string.format(
-                    "Pyrepl: Kernel '%s' not found. Please install it manually (see README) and try again.",
+                    "PyREPL: Kernel '%s' not found. Please install it manually (see README) and try again.",
                     kernelname
                 ),
                 vim.log.levels.ERROR
             )
         elseif error_type == "missing_kernel_name" then
-            vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
+            vim.notify("PyREPL: Kernel name is missing.", vim.log.levels.ERROR)
         else
             local message = error_message or "Unknown error"
-            vim.notify(string.format("Pyrepl: Kernel initialization failed: %s%s", message, debug_suffix), vim.log.levels.ERROR)
+            vim.notify(string.format("PyREPL: Kernel initialization failed: %s%s", message, debug_suffix), vim.log.levels.ERROR)
         end
         return nil
     end
     if not result or result == "" then
-        vim.notify("Pyrepl: Kernel initialization failed with empty connection file.", vim.log.levels.ERROR)
+        vim.notify("PyREPL: Kernel initialization failed with empty connection file.", vim.log.levels.ERROR)
         return nil
     end
     return result
@@ -352,14 +352,9 @@ end
 
 local function open_terminal(python_executable, kernelname)
     local origin_win = api.nvim_get_current_win()
-    local filetype = vim.bo.filetype
-    if filetype ~= "python" then
-        vim.notify("Pyrepl: Only Python filetype is supported.", vim.log.levels.WARN)
-        return
-    end
     kernelname = kernelname or M.kernelname
     if not kernelname or kernelname == "" then
-        vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
+        vim.notify("PyREPL: Kernel name is missing.", vim.log.levels.ERROR)
         return
     end
 
@@ -404,7 +399,7 @@ local function open_terminal(python_executable, kernelname)
     local console_path = get_console_path()
     if not console_path then
         vim.notify(
-            "Pyrepl: Console script not found. Run :UpdateRemotePlugins and restart Neovim.",
+            "PyREPL: Console script not found. Run :UpdateRemotePlugins and restart Neovim.",
             vim.log.levels.ERROR
         )
         return
@@ -415,7 +410,7 @@ local function open_terminal(python_executable, kernelname)
         local term_cmd = {
             python_executable,
             console_path,
-            "--existing",
+            "--connection-file",
             M.connection_file_path,
             "--nvim-socket",
             nvim_socket
@@ -423,14 +418,7 @@ local function open_terminal(python_executable, kernelname)
 
         -- Open terminal with environment and options
         local chanid =
-            fn.termopen(
-                term_cmd,
-                {
-                    env = build_repl_env(),
-                    on_exit = function()
-                    end
-                }
-            )
+            fn.termopen(term_cmd, { env = build_repl_env() })
 
         M.term = {
             opened = 1,
@@ -443,7 +431,7 @@ local function open_terminal(python_executable, kernelname)
             api.nvim_set_current_win(origin_win)
         end
     else
-        api.nvim_err_writeln("Failed to initialize kernel")
+        api.nvim_err_writeln("PyREPL: Failed to initialize kernel")
     end
 end
 
@@ -607,7 +595,7 @@ local function check_and_install_dependencies(python_executable)
 
         local choice = fn.confirm(
             string.format(
-                "Pyrepl: Missing packages. Install?\n\nPython: %s\nPip: %s\nInstall path: %s",
+                "PyREPL: Missing packages. Install?\n\nPython: %s\nPip: %s\nInstall path: %s",
                 python_executable,
                 pip_path,
                 install_path
@@ -676,11 +664,11 @@ local function check_and_install_dependencies(python_executable)
                         if return_val == 0 then
                             vim.cmd("UpdateRemotePlugins")
                             vim.notify(
-                                "Pyrepl: Dependencies installed and remote plugins updated. Please restart Neovim.",
+                                "PyREPL: Dependencies installed and remote plugins updated. Please restart Neovim.",
                                 vim.log.levels.INFO)
                         else
                             vim.notify(string.format(
-                                "Pyrepl: Failed to install dependencies (exit code: %d)\nPython: %s\nCheck output above for details.",
+                                "PyREPL: Failed to install dependencies (exit code: %d)\nPython: %s\nCheck output above for details.",
                                 return_val, python_executable), vim.log.levels.ERROR)
                         end
                     end)
@@ -696,7 +684,7 @@ function M.setup(opts)
     vim.env.PYTHONDONTWRITEBYTECODE = "1"
     M.config = vim.tbl_deep_extend("force", M.config, opts or {})
     if not M.commands_set then
-        api.nvim_create_user_command("Pyrepl", function()
+        api.nvim_create_user_command("PyREPL", function()
             M.init()
         end, { nargs = 0 })
         M.commands_set = true
@@ -714,7 +702,7 @@ function M.init()
     end
     local filetype = vim.bo.filetype
     if filetype ~= "python" then
-        vim.notify("Pyrepl: Only Python filetype is supported.", vim.log.levels.WARN)
+        vim.notify("PyREPL: Only Python filetype is supported.", vim.log.levels.WARN)
         return
     end
     if M.connection_file_path then
@@ -724,7 +712,7 @@ function M.init()
 
     prompt_kernel_choice(function(kernelname)
         if not kernelname or kernelname == "" then
-            vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
+            vim.notify("PyREPL: Kernel name is missing.", vim.log.levels.ERROR)
             return
         end
         local connection_file = init_kernel(kernelname)
@@ -738,7 +726,7 @@ function M.init()
     end)
 end
 
-function M.send_visual_to_repl()
+function M.send_visual()
     if not repl_ready() then
         return
     end
@@ -750,7 +738,7 @@ function M.send_visual_to_repl()
     api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
 end
 
-function M.send_buffer_to_repl()
+function M.send_buffer()
     if not repl_ready() then
         return
     end
@@ -823,7 +811,7 @@ local function handle_cursor_move()
     end
 end
 
-function M.send_statement_definition()
+function M.send_statement()
     if not repl_ready() then
         api.nvim_feedkeys(
             api.nvim_replace_termcodes("<CR>", true, false, true),
@@ -835,7 +823,7 @@ function M.send_statement_definition()
     handle_cursor_move()
     local ok_parser, parser = pcall(ts.get_parser, 0)
     if not ok_parser or not parser then
-        vim.notify("Pyrepl: Tree-sitter parser not available for this buffer.", vim.log.levels.WARN)
+        vim.notify("PyREPL: Tree-sitter parser not available for this buffer.", vim.log.levels.WARN)
         return
     end
     local tree = parser:parse()[1]
@@ -906,9 +894,9 @@ function M.send_statement_definition()
     move_cursor_to_next_line(end_row)
 end
 
--- Image history functions
-function M.open_history_manager()
-    require("pyrepl.image").open_history_manager()
+-- Images manager functions
+function M.open_images()
+    require("pyrepl.image").open_images()
 end
 
 function M.show_last_image()

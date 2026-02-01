@@ -698,15 +698,18 @@ class ReplInterpreter:
 
 def main():
     parser = argparse.ArgumentParser(description="Jupyter Console")
-    parser.add_argument("--existing", type=str, help="an existing kernel full path.")
+    parser.add_argument(
+        "--connection-file",
+        type=str,
+        help="path to an existing kernel connection file.",
+    )
     parser.add_argument("--nvim-socket", type=str, help="Neovim socket address")
     args = parser.parse_args()
 
-    # Set NVIM_LISTEN_ADDRESS environment variable
     if args.nvim_socket:
         os.environ["NVIM_LISTEN_ADDRESS"] = args.nvim_socket
 
-    interpreter = ReplInterpreter(connection_file=args.existing)
+    interpreter = ReplInterpreter(connection_file=args.connection_file)
     try:
         interpreter.interact()
     finally:
