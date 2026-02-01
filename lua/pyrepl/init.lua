@@ -4,6 +4,7 @@ local M = {
     config = {
         split_horizontal = false,
         split_ratio = 0.65,
+        style = "default",
         image = {
             cell_width = 10,
             cell_height = 20,
@@ -391,6 +392,7 @@ local function open_terminal(python_executable, kernelname)
     end
 
     if M.connection_file_path then
+        local style = M.config.style or "default"
         local image = M.config.image or {}
         local cell_width = tonumber(image.cell_width) or 10
         local cell_height = tonumber(image.cell_height) or 20
@@ -404,6 +406,8 @@ local function open_terminal(python_executable, kernelname)
             M.connection_file_path,
             "--nvim-socket",
             nvim_socket,
+            "--pygments-style",
+            tostring(style),
             "--image-cell-width",
             tostring(cell_width),
             "--image-cell-height",

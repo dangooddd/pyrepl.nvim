@@ -12,43 +12,6 @@ def test_extract_image_data(console_module) -> None:
     assert extract([]) == ""
 
 
-def test_read_env_int(console_module, monkeypatch) -> None:
-    read_int = console_module._read_env_int
-    key = "PYREPL_TEST_INT"
-
-    monkeypatch.delenv(key, raising=False)
-    assert read_int(key, 10) == 10
-
-    monkeypatch.setenv(key, "12")
-    assert read_int(key, 10) == 12
-
-    monkeypatch.setenv(key, "0")
-    assert read_int(key, 10) == 10
-
-    monkeypatch.setenv(key, "bad")
-    assert read_int(key, 10) == 10
-
-
-def test_read_env_float(console_module, monkeypatch) -> None:
-    read_float = console_module._read_env_float
-    key = "PYREPL_TEST_FLOAT"
-
-    monkeypatch.delenv(key, raising=False)
-    assert read_float(key, 0.5) == 0.5
-
-    monkeypatch.setenv(key, "0.25")
-    assert read_float(key, 0.5) == 0.25
-
-    monkeypatch.setenv(key, "0")
-    assert read_float(key, 0.5) == 0.5
-
-    monkeypatch.setenv(key, "2.5")
-    assert read_float(key, 0.5) == 1.0
-
-    monkeypatch.setenv(key, "bad")
-    assert read_float(key, 0.5) == 0.5
-
-
 def test_disconnect_detection(console_module) -> None:
     interpreter = console_module.ReplInterpreter.__new__(console_module.ReplInterpreter)
 

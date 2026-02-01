@@ -53,6 +53,7 @@ Add pyrepl.nvim to your plugin manager. An example using `lazy.nvim` is provided
     pyrepl.setup({
       split_horizontal = false,
       split_ratio = 0.65, -- width of split REPL terminal
+      style = "default", -- pygments style for REPL highlighting
       image = {
         cell_width = 10, -- approximate terminal cell width in pixels
         cell_height = 20, -- approximate terminal cell height in pixels
@@ -110,6 +111,14 @@ Highlight groups are theme-aware by default (linked to `FloatBorder`, `FloatTitl
 vim.api.nvim_set_hl(0, "PyREPLImageBorder", { link = "FloatBorder" })
 vim.api.nvim_set_hl(0, "PyREPLImageTitle", { link = "FloatTitle" })
 vim.api.nvim_set_hl(0, "PyREPLImageNormal", { link = "NormalFloat" })
+```
+
+REPL syntax highlighting uses Pygments styles. Set the style name in your config:
+
+```lua
+pyrepl.setup({
+  style = "monokai",
+})
 ```
 
 Vim help is available after running `:helptags` in the plugin `doc` directory:

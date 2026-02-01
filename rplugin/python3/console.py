@@ -20,7 +20,10 @@ from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.shortcuts import PromptSession
+from prompt_toolkit.styles.pygments import style_from_pygments_cls
 from pygments.lexers.python import PythonLexer
+from pygments.styles import get_style_by_name
+from pygments.util import ClassNotFound
 
 IMAGE_MIME_TYPES = (
     "image/png",
@@ -52,7 +55,7 @@ def _extract_image_data(value: object) -> str:
     return ""
 
 
-class ReplInterpreter:
+class REPLInterpreter:
     def __init__(
         self,
         connection_file: Optional[str] = None,
@@ -62,13 +65,15 @@ class ReplInterpreter:
         cell_height: int = 20,
         image_max_width_ratio: float = 0.5,
         image_max_height_ratio: float = 0.5,
+        pygments_style: str = "default",
     ):
         self.buffer: list[str] = []
+        self.kernel_info = {}
+        self.in_multiline = False
+
         self._pending_clearoutput = False
         self._executing = False
         self._execution_state = "idle"
-        self.kernel_info = {}
-        self.in_multiline = False
         self._interrupt_requested = False
         self._image_debug = image_debug
         self._auto_indent = auto_indent
@@ -76,7 +81,9 @@ class ReplInterpreter:
         self._cell_height = cell_height
         self._image_max_width_ratio = image_max_width_ratio
         self._image_max_height_ratio = image_max_height_ratio
+        self._pygments_style = pygments_style
         self._temp_paths = set()
+
         try:
             self._temp_dir: Optional[tempfile.TemporaryDirectory[str]] = (
                 tempfile.TemporaryDirectory(prefix="pyrepl-")
@@ -87,21 +94,16 @@ class ReplInterpreter:
         # Setup prompt toolkit
         self.history = InMemoryHistory()
         self.bindings = self._create_keybindings()
-
         self.lexer = PygmentsLexer(PythonLexer)
-
         self.nvim: Optional[pynvim.Nvim] = None
         self.nvim_queue: Queue[Optional[tuple[str, Any]]] = Queue()
         self.nvim_thread: Optional[Thread] = None
         self.nvim_lock = Lock()
-        self._nvim_address = os.environ.get("NVIM_LISTEN_ADDRESS")
         self.client: Optional[BlockingKernelClient] = None
+        self._nvim_address = os.environ.get("NVIM_LISTEN_ADDRESS")
 
         if self._nvim_address:
             self._start_nvim_thread()
-
-        def continuation_prompt(width, line_number, is_soft_wrap):
-            return ".. "
 
         self.session = PromptSession(
             history=self.history,
@@ -109,10 +111,12 @@ class ReplInterpreter:
             enable_history_search=True,
             multiline=True,
             lexer=self.lexer,
-            prompt_continuation=continuation_prompt,
-            message=lambda: ">>> ",
+            style=self._build_pygments_style(),
+            prompt_continuation="... ",
+            message=">>> ",
             include_default_pygments_style=True,
         )
+
         try:
             buffer = cast(Any, self.session.default_buffer)
             buffer.auto_indent = self._auto_indent
@@ -141,10 +145,13 @@ class ReplInterpreter:
 
     def _attach_nvim(self, log_failure=False):
         address = self._nvim_address or os.environ.get("NVIM_LISTEN_ADDRESS")
+
         if not address:
             self.nvim = None
             return False
+
         self._nvim_address = address
+
         try:
             self.nvim = pynvim.attach("socket", path=address)
             return True
@@ -401,6 +408,18 @@ class ReplInterpreter:
             self.in_multiline = False  # Ensure it's set to False in case of errors
 
         return False
+
+    def _build_pygments_style(self):
+        style_name = self._pygments_style or "default"
+        try:
+            pygments_style = get_style_by_name(style_name)
+        except ClassNotFound:
+            print(
+                f"Unknown Pygments style '{style_name}', falling back to 'default'.",
+                file=sys.stderr,
+            )
+            pygments_style = get_style_by_name("default")
+        return style_from_pygments_cls(pygments_style)
 
     async def handle_input_request(self, msg_id, timeout: float = 0.1) -> None:
         client = self._get_client()
@@ -732,6 +751,13 @@ def main():
         help="Enable auto indentation in the prompt",
     )
 
+    parser.add_argument(
+        "--pygments-style",
+        type=str,
+        default="default",
+        help="Pygments style name for REPL syntax highlighting",
+    )
+
     args = parser.parse_args()
 
     if args.image_cell_width <= 0:
@@ -746,7 +772,7 @@ def main():
     if args.nvim_socket:
         os.environ["NVIM_LISTEN_ADDRESS"] = args.nvim_socket
 
-    interpreter = ReplInterpreter(
+    interpreter = REPLInterpreter(
         connection_file=args.connection_file,
         image_debug=args.image_debug,
         auto_indent=args.auto_indent,
@@ -754,6 +780,7 @@ def main():
         cell_height=args.image_cell_height,
         image_max_width_ratio=args.image_max_width_ratio,
         image_max_height_ratio=args.image_max_height_ratio,
+        pygments_style=args.pygments_style,
     )
 
     try:

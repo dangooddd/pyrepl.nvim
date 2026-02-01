@@ -189,6 +189,9 @@ local function set_manager_keymaps(bufnr)
     vim.keymap.set("n", "q", function()
         clear_current()
     end, opts)
+    vim.keymap.set("n", "<Esc>", function()
+        clear_current()
+    end, opts)
 end
 
 local function render_image(entry, focus, auto_clear)
