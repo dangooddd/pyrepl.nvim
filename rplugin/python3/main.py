@@ -1,13 +1,13 @@
-import sys
-
-sys.dont_write_bytecode = True
-
 import json
+import sys
 import time
 from typing import Optional
 
 import pynvim
-from jupyter_client import BlockingKernelClient, KernelManager
+from jupyter_client.blocking.client import BlockingKernelClient
+from jupyter_client.manager import KernelManager
+
+sys.dont_write_bytecode = True
 
 
 @pynvim.plugin
@@ -26,6 +26,11 @@ class PyrolaPlugin:
             pass
         self.client = None
 
+    def _get_client(self) -> BlockingKernelClient:
+        if self.client is None:
+            raise RuntimeError("Kernel client is not initialized")
+        return self.client
+
     @pynvim.function("InitKernel", sync=True)
     def init_kernel(self, args) -> Optional[str]:
         """Initialize Jupyter kernel and return connection file path."""
@@ -35,30 +40,27 @@ class PyrolaPlugin:
 
         kernel_name = args[0]
         try:
-            self.kernel_manager = KernelManager(kernel_name=kernel_name)
-            self.kernel_manager.start_kernel()
-            self.client = self.kernel_manager.client()
-            self.client.start_channels()
-            return self.kernel_manager.connection_file
+            kernel_manager = KernelManager(kernel_name=kernel_name)
+            kernel_manager.start_kernel()
+            client = kernel_manager.client()
+            client.start_channels()
+            self.kernel_manager = kernel_manager
+            self.client = client
+            return kernel_manager.connection_file
         except Exception as exc:
             self.nvim.err_write(f"Kernel initialization failed: {exc}\n")
             self._disconnect_client()
             return None
 
-    def _connect_kernel(self, connection_file: str) -> bool:
+    def _connect_kernel(self, connection_file: str) -> None:
         """Connect to the Jupyter kernel using the connection file."""
-        try:
-            with open(connection_file, "r", encoding="utf-8") as file_handle:
-                connection_info = json.load(file_handle)
+        with open(connection_file, "r", encoding="utf-8") as file_handle:
+            connection_info = json.load(file_handle)
 
-            self.client = BlockingKernelClient()
-            self.client.load_connection_info(connection_info)
-            self.client.start_channels()
-            return True
-        except Exception as exc:
-            print(f"Connection error: {exc}")
-            self._disconnect_client()
-            return False
+        client = BlockingKernelClient()
+        client.load_connection_info(connection_info)
+        client.start_channels()
+        self.client = client
 
     @pynvim.function("ShutdownKernel", sync=True)
     def shutdown_kernel(self, args) -> bool:
@@ -68,18 +70,18 @@ class PyrolaPlugin:
 
         _, connection_file = args
         try:
-            if not self._connect_kernel(connection_file):
-                return False
+            self._connect_kernel(connection_file)
+            client = self._get_client()
 
             # Send shutdown request
-            self.client.shutdown()
+            client.shutdown()
 
             # Wait for confirmation (optional, but recommended)
             timeout = 0.2
             start_time = time.time()
             while time.time() - start_time < timeout:
                 try:
-                    msg = self.client.get_iopub_msg(timeout=0.5)
+                    msg = client.get_iopub_msg(timeout=0.5)
                     if (
                         msg["msg_type"] == "status"
                         and msg["content"]["execution_state"] == "dead"

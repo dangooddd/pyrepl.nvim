@@ -14,7 +14,7 @@ from threading import Lock, Thread
 from typing import Any, Optional, cast
 
 import pynvim
-from jupyter_client import BlockingKernelClient
+from jupyter_client.blocking.client import BlockingKernelClient
 from PIL import Image
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
@@ -77,9 +77,7 @@ def _read_env_float(name: str, default: float) -> float:
 
 
 class ReplInterpreter:
-    def __init__(
-        self, connection_file: Optional[str] = None, lan: Optional[str] = None
-    ):
+    def __init__(self, connection_file: Optional[str] = None):
         self.buffer: list[str] = []
         self._pending_clearoutput = False
         self._executing = False
@@ -185,6 +183,13 @@ class ReplInterpreter:
             raise RuntimeError("Kernel client is not initialized")
         return self.client
 
+    def _interrupt_kernel(self) -> None:
+        client = self._get_client()
+        interrupt = getattr(client, "interrupt_kernel", None)
+        if not callable(interrupt):
+            raise AttributeError("Kernel client does not support interrupt_kernel")
+        interrupt()
+
     def _is_nvim_disconnect_error(self, exc: Exception) -> bool:
         if isinstance(exc, (EOFError, BrokenPipeError, ConnectionResetError)):
             return True
@@ -273,8 +278,7 @@ class ReplInterpreter:
             if self._executing:
                 self._interrupt_requested = True
                 try:
-                    client = self._get_client()
-                    client.interrupt_kernel()
+                    self._interrupt_kernel()
                 except Exception as e:
                     print(f"\nFailed to interrupt kernel: {e}", file=sys.stderr)
             else:
@@ -284,7 +288,7 @@ class ReplInterpreter:
 
         return kb
 
-    async def interact_async(self, banner: Optional[str] = None) -> None:
+    async def interact_async(self) -> None:
         while True:
             try:
                 if self._nvim_address:
@@ -346,8 +350,7 @@ class ReplInterpreter:
         if self._executing:
             self._interrupt_requested = True
             try:
-                client = self._get_client()
-                client.interrupt_kernel()
+                self._interrupt_kernel()
             except Exception as e:
                 print(f"\nFailed to interrupt kernel: {e}", file=sys.stderr)
         else:
@@ -433,8 +436,8 @@ class ReplInterpreter:
                 print("\n")
                 return
 
-    def interact(self, banner: Optional[str] = None) -> None:
-        asyncio.run(self.interact_async(banner))
+    def interact(self) -> None:
+        asyncio.run(self.interact_async())
 
     def _nvim_worker(self) -> None:
         """Worker thread for handling Neovim communications"""
@@ -696,7 +699,6 @@ class ReplInterpreter:
 def main():
     parser = argparse.ArgumentParser(description="Jupyter Console")
     parser.add_argument("--existing", type=str, help="an existing kernel full path.")
-    parser.add_argument("--filetype", type=str, help="language name based filetype.")
     parser.add_argument("--nvim-socket", type=str, help="Neovim socket address")
     args = parser.parse_args()
 
@@ -704,7 +706,7 @@ def main():
     if args.nvim_socket:
         os.environ["NVIM_LISTEN_ADDRESS"] = args.nvim_socket
 
-    interpreter = ReplInterpreter(connection_file=args.existing, lan=args.filetype)
+    interpreter = ReplInterpreter(connection_file=args.existing)
     try:
         interpreter.interact()
     finally:

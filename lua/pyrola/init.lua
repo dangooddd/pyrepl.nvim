@@ -2,9 +2,7 @@ local api, fn, ts = vim.api, vim.fn, vim.treesitter
 
 local M = {
     config = {
-        kernel_map = {
-            python = "python3"
-        },
+        kernel_name = "python3",
         split_horizontal = false,
         split_ratio = 0.65,
         image = {
@@ -149,12 +147,13 @@ end
 local function open_terminal(python_executable)
     M.filetype = vim.bo.filetype
     local origin_win = api.nvim_get_current_win()
-    local kernelname = M.config.kernel_map[M.filetype]
-    if not kernelname then
-        vim.notify(
-            string.format("Pyrola: No kernel mapped for filetype '%s'.", M.filetype),
-            vim.log.levels.ERROR
-        )
+    if M.filetype ~= "python" then
+        vim.notify("Pyrola: Only Python filetype is supported.", vim.log.levels.WARN)
+        return
+    end
+    local kernelname = M.config.kernel_name
+    if not kernelname or kernelname == "" then
+        vim.notify("Pyrola: kernel_name is missing in setup config.", vim.log.levels.ERROR)
         return
     end
 
@@ -204,8 +203,6 @@ local function open_terminal(python_executable)
             string.format("%s/rplugin/python3/console.py", console_path),
             "--existing",
             M.connection_file_path,
-            "--filetype",
-            M.filetype,
             "--nvim-socket",
             nvim_socket
         }
@@ -332,9 +329,6 @@ local function flush_send_queue()
 end
 
 local function send_message(message)
-    if not repl_ready() then
-        return
-    end
     if not message or message == "" then
         return
     end
@@ -509,12 +503,13 @@ function M.init()
         return
     end
     local filetype = vim.bo.filetype
-    local kernelname = M.config.kernel_map[filetype]
-    if not kernelname then
-        vim.notify(
-            string.format("Pyrola: No kernel mapped for filetype '%s'. Update setup.kernel_map.", filetype),
-            vim.log.levels.WARN
-        )
+    if filetype ~= "python" then
+        vim.notify("Pyrola: Only Python filetype is supported.", vim.log.levels.WARN)
+        return
+    end
+    local kernelname = M.config.kernel_name
+    if not kernelname or kernelname == "" then
+        vim.notify("Pyrola: kernel_name is missing in setup config.", vim.log.levels.ERROR)
         return
     end
     if not M.connection_file_path then

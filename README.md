@@ -51,9 +51,7 @@ Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided belo
     local pyrola = require("pyrola")
 
     pyrola.setup({
-      kernel_map = {
-        python = "py3", -- Jupyter kernel name
-      },
+      kernel_name = "python3", -- Jupyter kernel name
       split_horizontal = false,
       split_ratio = 0.65, -- width of split REPL terminal
       image = {
@@ -61,8 +59,6 @@ Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided belo
         cell_height = 20, -- approximate terminal cell height in pixels
         max_width_ratio = 0.5, -- image width as a fraction of editor columns
         max_height_ratio = 0.5, -- image height as a fraction of editor lines
-        offset_row = 0, -- adjust image row position (cells)
-        offset_col = 0, -- adjust image col position (cells)
       },
     })
 
@@ -91,7 +87,7 @@ Add Pyrola to your plugin manager. An example using `lazy.nvim` is provided belo
 },
 
 -- Tree-sitter is required.
--- Parsers for languages listed in `kernel_map` must be installed.
+-- Install the Python parser for Tree-sitter.
 {
   "nvim-treesitter/nvim-treesitter",
   build = ":TSUpdate",
@@ -132,8 +128,8 @@ Then, install a Python Jupyter kernel:
 
 ```bash
 python3 -m pip install ipykernel
-python3 -m ipykernel install --user --name py3
-# Note: The name "py3" must be identical to the name used in 'kernel_map' in your Lua config.
+python3 -m ipykernel install --user --name python3
+# Note: The name "python3" must be identical to the name used in 'kernel_name' in your Lua config.
 
 ```
 
@@ -161,7 +157,7 @@ set -g allow-passthrough all
 
 ### Start a REPL
 
-1. Open a file whose `filetype` exists in your `kernel_map`.
+1. Open a Python file (filetype `python`).
 ```vim
 :echo &filetype
 

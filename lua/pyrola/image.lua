@@ -151,6 +151,26 @@ local function setup_cursor_autocmd()
     })
 end
 
+local function setup_manager_autocmd(bufnr, winid)
+    local group = api.nvim_create_augroup("PyrolaImageManagerClose", { clear = false })
+    api.nvim_create_autocmd("BufWipeout", {
+        group = group,
+        buffer = bufnr,
+        callback = function()
+            clear_current()
+        end,
+        once = true
+    })
+    api.nvim_create_autocmd("WinClosed", {
+        group = group,
+        pattern = tostring(winid),
+        callback = function()
+            clear_current()
+        end,
+        once = true
+    })
+end
+
 local function set_manager_keymaps(bufnr)
     local opts = { noremap = true, silent = true, nowait = true, buffer = bufnr }
     vim.keymap.set("n", "h", function()
@@ -197,6 +217,7 @@ local function render_image(entry, focus, auto_clear)
         M.manager_bufid = bufnr
         M.manager_active = true
         set_manager_keymaps(bufnr)
+        setup_manager_autocmd(bufnr, winid)
         if not M.manager_guicursor then
             M.manager_guicursor = vim.o.guicursor
             vim.o.guicursor = "a:ver1-Cursor"
