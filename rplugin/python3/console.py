@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import atexit
 import base64
-import io
 import json
 import os
 import signal
@@ -15,7 +14,6 @@ from typing import Any, Optional, cast
 
 import pynvim
 from jupyter_client.blocking.client import BlockingKernelClient
-from PIL import Image
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.lexers import PygmentsLexer
@@ -61,10 +59,6 @@ class REPLInterpreter:
         connection_file: Optional[str] = None,
         image_debug: bool = False,
         auto_indent: bool = False,
-        cell_width: int = 10,
-        cell_height: int = 20,
-        image_max_width_ratio: float = 0.5,
-        image_max_height_ratio: float = 0.5,
         pygments_style: str = "default",
     ):
         self.buffer: list[str] = []
@@ -77,10 +71,6 @@ class REPLInterpreter:
         self._interrupt_requested = False
         self._image_debug = image_debug
         self._auto_indent = auto_indent
-        self._cell_width = cell_width
-        self._cell_height = cell_height
-        self._image_max_width_ratio = image_max_width_ratio
-        self._image_max_height_ratio = image_max_height_ratio
         self._pygments_style = pygments_style
         self._temp_paths = set()
 
@@ -135,7 +125,6 @@ class REPLInterpreter:
                 client.start_channels()
                 client.wait_for_ready(timeout=10)
                 self.client = client
-                self.kernelname = connection_info.get("kernel_name")
             except Exception as e:
                 print(f"Failed to connect to kernel: {e}", file=sys.stderr)
                 sys.exit(1)
@@ -208,26 +197,18 @@ class REPLInterpreter:
     def _vim_escape_string(self, value: str) -> str:
         return value.replace("\\", "\\\\").replace('"', '\\"')
 
-    def _send_image_to_nvim(
-        self, path: str, width: Optional[int], height: Optional[int]
-    ) -> None:
+    def _send_image_to_nvim(self, path: str) -> None:
         if not self._ensure_nvim():
             return
         escaped_path = self._vim_escape_string(path)
-        width_val = int(width) if width else 0
-        height_val = int(height) if height else 0
         try:
             with self.nvim_lock:
                 nvim = cast(pynvim.Nvim, self.nvim)
                 nvim.command(f'let g:pyrepl_image_path = "{escaped_path}"')
-                nvim.command(f"let g:pyrepl_image_width = {width_val}")
-                nvim.command(f"let g:pyrepl_image_height = {height_val}")
                 nvim.command(
-                    'lua require("pyrepl.image").show_image_file(vim.g.pyrepl_image_path, vim.g.pyrepl_image_width, vim.g.pyrepl_image_height)'
+                    'lua require("pyrepl.image").show_image_file(vim.g.pyrepl_image_path)'
                 )
                 nvim.command("unlet g:pyrepl_image_path")
-                nvim.command("unlet g:pyrepl_image_width")
-                nvim.command("unlet g:pyrepl_image_height")
         except Exception as e:
             if self._handle_nvim_disconnect(e, "image sync"):
                 return
@@ -478,41 +459,15 @@ class REPLInterpreter:
 
                     if not self._ensure_nvim():
                         continue
-                    try:
-                        with self.nvim_lock:
-                            nvim = cast(pynvim.Nvim, self.nvim)
-                            dimensions = {
-                                "width": nvim.lua.vim.api.nvim_get_option("columns"),
-                                "height": nvim.lua.vim.api.nvim_get_option("lines"),
-                            }
-                    except Exception as e:
-                        if self._handle_nvim_disconnect(e, "image sync"):
-                            continue
-                        print(f"Error in Neovim thread: {e}", file=sys.stderr)
-                        continue
-
-                    target_width = max(
-                        1,
-                        int(
-                            dimensions["width"]
-                            * self._cell_width
-                            * self._image_max_width_ratio
-                        ),
-                    )
-                    target_height = max(
-                        1,
-                        int(
-                            dimensions["height"]
-                            * self._cell_height
-                            * self._image_max_height_ratio
-                        ),
-                    )
-
                     tmp_path = None
-                    new_width = None
-                    new_height = None
 
                     try:
+                        suffix = ".png"
+                        if image_mime == "image/jpeg":
+                            suffix = ".jpg"
+                        elif image_mime == "image/svg+xml":
+                            suffix = ".svg"
+
                         if image_mime == "image/svg+xml":
                             if isinstance(image_data, str):
                                 svg_text = image_data
@@ -523,7 +478,7 @@ class REPLInterpreter:
                             if not svg_text:
                                 continue
                             with tempfile.NamedTemporaryFile(
-                                suffix=".svg",
+                                suffix=suffix,
                                 delete=False,
                                 dir=self._temp_dir.name if self._temp_dir else None,
                             ) as tmp:
@@ -537,33 +492,12 @@ class REPLInterpreter:
                             else:
                                 continue
 
-                            img = Image.open(io.BytesIO(img_bytes))
-                            orig_width, orig_height = img.size
-
-                            if (
-                                orig_width > target_width
-                                or orig_height > target_height
-                                or orig_width < target_width / 2
-                                or orig_height < target_height / 2
-                            ):
-                                width_ratio = target_width / orig_width
-                                height_ratio = target_height / orig_height
-                                ratio = min(width_ratio, height_ratio)
-                                new_width = int(orig_width * ratio)
-                                new_height = int(orig_height * ratio)
-                                img = img.resize(
-                                    (new_width, new_height), Image.Resampling.LANCZOS
-                                )
-                            else:
-                                new_width = orig_width
-                                new_height = orig_height
-
                             with tempfile.NamedTemporaryFile(
-                                suffix=".png",
+                                suffix=suffix,
                                 delete=False,
                                 dir=self._temp_dir.name if self._temp_dir else None,
                             ) as tmp:
-                                img.save(tmp, format="PNG")
+                                tmp.write(img_bytes)
                                 tmp_path = tmp.name
 
                         if tmp_path:
@@ -573,7 +507,7 @@ class REPLInterpreter:
                                     f"[pyrepl] wrote image temp: {tmp_path}",
                                     file=sys.stderr,
                                 )
-                            self._send_image_to_nvim(tmp_path, new_width, new_height)
+                            self._send_image_to_nvim(tmp_path)
                     except Exception as e:
                         print(f"Error handling image: {e}", file=sys.stderr)
                 except Exception as e:
@@ -696,6 +630,9 @@ class REPLInterpreter:
                     sys.stdout.write("\r")
 
 
+ReplInterpreter = REPLInterpreter
+
+
 def main():
     parser = argparse.ArgumentParser(description="Jupyter Console")
 
@@ -709,34 +646,6 @@ def main():
         "--nvim-socket",
         type=str,
         help="Neovim socket address",
-    )
-
-    parser.add_argument(
-        "--image-cell-width",
-        type=int,
-        default=10,
-        help="Approximate terminal cell width in pixels",
-    )
-
-    parser.add_argument(
-        "--image-cell-height",
-        type=int,
-        default=20,
-        help="Approximate terminal cell height in pixels",
-    )
-
-    parser.add_argument(
-        "--image-max-width-ratio",
-        type=float,
-        default=0.5,
-        help="Max image width as a fraction of editor columns",
-    )
-
-    parser.add_argument(
-        "--image-max-height-ratio",
-        type=float,
-        default=0.5,
-        help="Max image height as a fraction of editor lines",
     )
 
     parser.add_argument(
@@ -760,15 +669,6 @@ def main():
 
     args = parser.parse_args()
 
-    if args.image_cell_width <= 0:
-        parser.error("--image-cell-width must be > 0")
-    if args.image_cell_height <= 0:
-        parser.error("--image-cell-height must be > 0")
-    if args.image_max_width_ratio <= 0 or args.image_max_width_ratio > 1:
-        parser.error("--image-max-width-ratio must be > 0 and <= 1")
-    if args.image_max_height_ratio <= 0 or args.image_max_height_ratio > 1:
-        parser.error("--image-max-height-ratio must be > 0 and <= 1")
-
     if args.nvim_socket:
         os.environ["NVIM_LISTEN_ADDRESS"] = args.nvim_socket
 
@@ -776,10 +676,6 @@ def main():
         connection_file=args.connection_file,
         image_debug=args.image_debug,
         auto_indent=args.auto_indent,
-        cell_width=args.image_cell_width,
-        cell_height=args.image_cell_height,
-        image_max_width_ratio=args.image_max_width_ratio,
-        image_max_height_ratio=args.image_max_height_ratio,
         pygments_style=args.pygments_style,
     )
 

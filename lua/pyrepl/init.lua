@@ -393,11 +393,6 @@ local function open_terminal(python_executable, kernelname)
 
     if M.connection_file_path then
         local style = M.config.style or "default"
-        local image = M.config.image or {}
-        local cell_width = tonumber(image.cell_width) or 10
-        local cell_height = tonumber(image.cell_height) or 20
-        local max_width_ratio = tonumber(image.max_width_ratio) or 0.5
-        local max_height_ratio = tonumber(image.max_height_ratio) or 0.5
         local nvim_socket = vim.v.servername
         local term_cmd = {
             python_executable,
@@ -407,15 +402,7 @@ local function open_terminal(python_executable, kernelname)
             "--nvim-socket",
             nvim_socket,
             "--pygments-style",
-            tostring(style),
-            "--image-cell-width",
-            tostring(cell_width),
-            "--image-cell-height",
-            tostring(cell_height),
-            "--image-max-width-ratio",
-            tostring(max_width_ratio),
-            "--image-max-height-ratio",
-            tostring(max_height_ratio)
+            tostring(style)
         }
 
         -- Open terminal with options

@@ -10,6 +10,8 @@ local default_image_config = {
     max_height_ratio = 0.5
 }
 
+local IMAGE_PADDING = 1
+
 local image_config = vim.deepcopy(default_image_config)
 
 local function refresh_image_config()
@@ -38,12 +40,20 @@ local function ensure_image_module()
 end
 
 local function pixels_to_cells(pixels, is_width)
-    local cell_width = tonumber(image_config.cell_width) or default_image_config.cell_width
-    local cell_height = tonumber(image_config.cell_height) or default_image_config.cell_height
-    if is_width then
-        return math.max(1, math.ceil(pixels / cell_width))
+    local cell_width = nil
+    local cell_height = nil
+    local ok, utils = pcall(require, "image/utils")
+    if ok and utils.term and utils.term.get_size then
+        local size = utils.term.get_size()
+        cell_width = tonumber(size.cell_width)
+        cell_height = tonumber(size.cell_height)
     end
-    return math.max(1, math.ceil(pixels / cell_height))
+    cell_width = cell_width or tonumber(image_config.cell_width) or default_image_config.cell_width
+    cell_height = cell_height or tonumber(image_config.cell_height) or default_image_config.cell_height
+    if is_width then
+        return math.max(1, math.floor(pixels / cell_width))
+    end
+    return math.max(1, math.floor(pixels / cell_height))
 end
 
 local function compute_window_cells(width_px, height_px)
@@ -65,8 +75,8 @@ local function create_image_float(width_cells, height_cells, focus)
     local win_width = vim.o.columns
     local win_height = vim.o.lines
 
-    local float_width = math.max(4, width_cells + 2)
-    local float_height = math.max(4, height_cells + 2)
+    local float_width = width_cells + (IMAGE_PADDING * 2)
+    local float_height = height_cells + (IMAGE_PADDING * 2)
 
     local row = math.max(0, math.floor((win_height - float_height) / 2))
     local col = math.max(0, math.floor((win_width - float_width) / 2))
@@ -125,6 +135,28 @@ local function create_image_float(width_cells, height_cells, focus)
     return winid, bufnr
 end
 
+local function update_image_float(winid, width_cells, height_cells)
+    if not winid or not api.nvim_win_is_valid(winid) then
+        return
+    end
+
+    local win_width = vim.o.columns
+    local win_height = vim.o.lines
+
+    local float_width = width_cells + (IMAGE_PADDING * 2)
+    local float_height = height_cells + (IMAGE_PADDING * 2)
+
+    local row = math.max(0, math.floor((win_height - float_height) / 2))
+    local col = math.max(0, math.floor((win_width - float_width) / 2))
+
+    local opts = api.nvim_win_get_config(winid)
+    opts.width = float_width
+    opts.height = float_height
+    opts.row = row
+    opts.col = col
+    api.nvim_win_set_config(winid, opts)
+end
+
 local function clear_current()
     if M.current_image then
         pcall(function()
@@ -136,14 +168,11 @@ local function clear_current()
         api.nvim_win_close(M.current_winid, true)
     end
     M.current_winid = nil
-    M.current_bufid = nil
     if M.manager_guicursor then
         vim.o.guicursor = M.manager_guicursor
         M.manager_guicursor = nil
     end
     M.manager_active = false
-    M.manager_winid = nil
-    M.manager_bufid = nil
 end
 
 local function setup_cursor_autocmd()
@@ -203,28 +232,45 @@ local function render_image(entry, focus, auto_clear)
 
     clear_current()
 
-    local width_cells, height_cells = compute_window_cells(entry.width, entry.height)
+    local ok, img = pcall(image.from_file, entry.path)
+    if not ok or not img then
+        vim.notify("PyREPL: Failed to load image.", vim.log.levels.WARN)
+        return
+    end
+
+    local width_px = tonumber(img.image_width) or entry.width
+    local height_px = tonumber(img.image_height) or entry.height
+    local width_cells, height_cells = compute_window_cells(width_px, height_px)
     local winid, bufnr = create_image_float(width_cells, height_cells, focus)
 
-    local img = image.from_file(entry.path, {
-        window = winid,
-        buffer = bufnr
-    })
+    img.window = winid
+    img.buffer = bufnr
+    img.ignore_global_max_size = true
 
     img:render({
-        x = 1,
-        y = 1,
+        x = IMAGE_PADDING,
+        y = IMAGE_PADDING,
         width = width_cells,
         height = height_cells
     })
 
+    local rendered = img.rendered_geometry or {}
+    local rendered_width = tonumber(rendered.width)
+    local rendered_height = tonumber(rendered.height)
+    if rendered_width and rendered_height and rendered_width > 0 and rendered_height > 0 then
+        update_image_float(winid, rendered_width, rendered_height)
+        img:render({
+            x = IMAGE_PADDING,
+            y = IMAGE_PADDING,
+            width = rendered_width,
+            height = rendered_height
+        })
+    end
+
     M.current_image = img
     M.current_winid = winid
-    M.current_bufid = bufnr
 
     if focus then
-        M.manager_winid = winid
-        M.manager_bufid = bufnr
         M.manager_active = true
         set_manager_keymaps(bufnr)
         setup_manager_autocmd(bufnr, winid)
@@ -243,10 +289,7 @@ M.history = {}
 M.history_index = 0
 M.current_image = nil
 M.current_winid = nil
-M.current_bufid = nil
 M.manager_active = false
-M.manager_winid = nil
-M.manager_bufid = nil
 M.manager_guicursor = nil
 
 local MAX_HISTORY = 50
