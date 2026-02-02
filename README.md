@@ -29,9 +29,10 @@ Neovim config per image.nvim docs.
 
 ## Usage
 
-- Start REPL (Python buffers only): `:PyREPLOpen`
+- Start REPL: `:PyREPLOpen`
 - Send code: `require("pyrepl").send_statement()`,
-  `require("pyrepl").send_visual()`, `require("pyrepl").send_buffer()`
+  `require("pyrepl").send_visual()` (uses last visual selection; map like `:<C-u>PyREPLSendVisual<CR>gv`),
+  `require("pyrepl").send_buffer()`
 - Image manager: `require("pyrepl").open_images()`
 
 Notes:

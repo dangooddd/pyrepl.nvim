@@ -1,11 +1,14 @@
 local M = {}
 
+---@type pyrepl.State
 M.state = {
     sessions = {},
     python_host = nil,
-    deps_ok = false,
 }
 
+---@param bufnr integer|nil
+---@param create boolean
+---@return pyrepl.Session|nil
 function M.get_session(bufnr, create)
     if not bufnr or bufnr == 0 then
         bufnr = vim.api.nvim_get_current_buf()
@@ -33,6 +36,7 @@ function M.get_session(bufnr, create)
     return session
 end
 
+---@param bufnr integer
 function M.clear_session(bufnr)
     M.state.sessions[bufnr] = nil
 end

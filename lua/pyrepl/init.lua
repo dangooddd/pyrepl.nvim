@@ -7,8 +7,11 @@ local kernel = require("pyrepl.kernel")
 local terminal = require("pyrepl.terminal")
 local send = require("pyrepl.send")
 
+---@type pyrepl.Config
 M.config = config.apply(nil)
 
+---@param opts pyrepl.ConfigOpts|nil
+---@return table
 function M.setup(opts)
     vim.env.PYTHONDONTWRITEBYTECODE = "1"
     M.config = config.apply(opts)
@@ -18,12 +21,9 @@ function M.setup(opts)
     return M
 end
 
+---@param bufnr integer|nil
 function M.open_repl(bufnr)
     local target_buf = bufnr or vim.api.nvim_get_current_buf()
-    if vim.bo[target_buf].filetype ~= "python" then
-        vim.notify("PyREPL: Only Python filetype is supported.", vim.log.levels.WARN)
-        return
-    end
 
     local python_host = kernel.ensure_python()
     if not python_host then
@@ -39,22 +39,16 @@ function M.open_repl(bufnr)
     end)
 end
 
+---@param bufnr integer|nil
 function M.hide_repl(bufnr)
     local target_buf = bufnr or vim.api.nvim_get_current_buf()
-    if vim.bo[target_buf].filetype ~= "python" then
-        vim.notify("PyREPL: Only Python filetype is supported.", vim.log.levels.WARN)
-        return
-    end
     local session = state.get_session(target_buf, false)
     terminal.hide(session)
 end
 
+---@param bufnr integer|nil
 function M.close_repl(bufnr)
     local target_buf = bufnr or vim.api.nvim_get_current_buf()
-    if vim.bo[target_buf].filetype ~= "python" then
-        vim.notify("PyREPL: Only Python filetype is supported.", vim.log.levels.WARN)
-        return
-    end
     local session = state.get_session(target_buf, false)
     terminal.close(session)
     kernel.shutdown_kernel(session)
@@ -76,6 +70,7 @@ function M.send_statement()
     send.send_statement(session)
 end
 
+---@param session_id integer|nil
 function M._on_repl_ready(session_id)
     send.on_repl_ready(session_id)
 end

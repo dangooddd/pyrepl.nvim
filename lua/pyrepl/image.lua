@@ -3,6 +3,7 @@ local fn = vim.fn
 
 local M = {}
 
+---@type pyrepl.ImageConfig
 local default_image_config = {
     max_width_ratio = 0.5,
     max_height_ratio = 0.5
@@ -10,6 +11,7 @@ local default_image_config = {
 
 local IMAGE_PADDING = 1
 
+---@type pyrepl.ImageConfig
 local image_config = vim.deepcopy(default_image_config)
 
 local function refresh_image_config()
@@ -194,6 +196,9 @@ local function set_manager_keymaps(bufnr)
     end, opts)
 end
 
+---@param entry pyrepl.ImageEntry
+---@param focus boolean
+---@param auto_clear boolean
 local function render_image(entry, focus, auto_clear)
     local image = ensure_image_module()
     if not image then
@@ -252,6 +257,7 @@ local function render_image(entry, focus, auto_clear)
     end
 end
 
+---@type pyrepl.ImageEntry[]
 M.history = {}
 M.history_index = 0
 M.current_image = nil
@@ -260,6 +266,7 @@ M.manager_active = false
 
 local MAX_HISTORY = 50
 
+---@param entry pyrepl.ImageEntry
 local function push_history(entry)
     if #M.history >= MAX_HISTORY then
         table.remove(M.history, 1)
@@ -268,6 +275,9 @@ local function push_history(entry)
     M.history_index = #M.history
 end
 
+---@param index integer
+---@param focus boolean
+---@param auto_clear boolean
 local function show_history_at(index, focus, auto_clear)
     if #M.history == 0 then
         vim.notify("PyREPL: No image history available.", vim.log.levels.WARN)
@@ -281,6 +291,7 @@ local function show_history_at(index, focus, auto_clear)
     render_image(entry, focus, auto_clear)
 end
 
+---@param path string
 function M.show_image_file(path)
     if type(path) ~= "string" or path == "" then
         vim.notify("PyREPL: Image path missing or invalid.", vim.log.levels.WARN)
@@ -302,6 +313,7 @@ function M.show_last_image()
     show_history_at(#M.history, false, true)
 end
 
+---@param focus boolean|nil
 function M.show_previous_image(focus)
     if #M.history == 0 then
         vim.notify("PyREPL: No image history available.", vim.log.levels.WARN)
@@ -315,6 +327,7 @@ function M.show_previous_image(focus)
     show_history_at(M.history_index - 1, focus or M.manager_active, not (focus or M.manager_active))
 end
 
+---@param focus boolean|nil
 function M.show_next_image(focus)
     if #M.history == 0 then
         vim.notify("PyREPL: No image history available.", vim.log.levels.WARN)

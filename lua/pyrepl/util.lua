@@ -1,5 +1,7 @@
 local M = {}
 
+---@param path string|nil
+---@return string|nil
 function M.normalize_path(path)
     if not path or path == "" then
         return nil
@@ -9,6 +11,9 @@ function M.normalize_path(path)
     return path
 end
 
+---@param path string|nil
+---@param prefix string|nil
+---@return boolean
 function M.has_path_prefix(path, prefix)
     if not path or not prefix then
         return false
@@ -26,6 +31,7 @@ function M.has_path_prefix(path, prefix)
     return path:sub(1, #prefix) == prefix
 end
 
+---@return string|nil
 function M.get_active_venv()
     local venv = vim.env.VIRTUAL_ENV
     if venv and venv ~= "" then
@@ -38,14 +44,6 @@ function M.get_active_venv()
     end
 
     return nil
-end
-
-function M.is_valid_buf(bufnr)
-    return bufnr and vim.api.nvim_buf_is_valid(bufnr)
-end
-
-function M.is_valid_win(winid)
-    return winid and vim.api.nvim_win_is_valid(winid)
 end
 
 return M

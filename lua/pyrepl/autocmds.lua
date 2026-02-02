@@ -1,19 +1,13 @@
 local state = require("pyrepl.state")
-local util = require("pyrepl.util")
 local commands = require("pyrepl.commands")
 local terminal = require("pyrepl.terminal")
 local kernel = require("pyrepl.kernel")
 
 local M = {}
 
-local autocmds_set = false
-local vimleave_set = false
-
+---@param bufnr integer
 local function attach_buffer(bufnr)
-    if not util.is_valid_buf(bufnr) then
-        return
-    end
-    if vim.bo[bufnr].filetype ~= "python" then
+    if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
         return
     end
 
@@ -41,32 +35,23 @@ local function attach_buffer(bufnr)
 end
 
 function M.setup()
-    if autocmds_set then
-        return
-    end
     local group = vim.api.nvim_create_augroup("Pyrepl", { clear = true })
     vim.api.nvim_create_autocmd("FileType", {
         group = group,
-        pattern = "python",
+        pattern = "*",
         callback = function(args)
             attach_buffer(args.buf)
         end,
     })
-    autocmds_set = true
 end
 
 function M.attach_existing()
     for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-        if vim.bo[bufnr].filetype == "python" then
-            attach_buffer(bufnr)
-        end
+        attach_buffer(bufnr)
     end
 end
 
 function M.setup_vimleave()
-    if vimleave_set then
-        return
-    end
     vim.api.nvim_create_autocmd("VimLeavePre", {
         callback = function()
             for bufnr, session in pairs(state.state.sessions) do
@@ -77,7 +62,6 @@ function M.setup_vimleave()
         end,
         once = true,
     })
-    vimleave_set = true
 end
 
 return M

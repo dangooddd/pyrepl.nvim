@@ -5,7 +5,7 @@ local M = {}
 
 local function validate_python_host()
     local host_prog = vim.g.python3_host_prog
-    if host_prog == nil or host_prog == NIL or host_prog == "" then
+    if host_prog == nil or host_prog == "" then
         host_prog = "python"
     elseif type(host_prog) ~= "string" then
         vim.notify("PyREPL: vim.g.python3_host_prog is not a string", vim.log.levels.ERROR)
@@ -27,8 +27,8 @@ local function check_dependencies(python_host)
         "-c",
         "import pynvim, jupyter_client, prompt_toolkit, PIL, pygments",
     }
-    vim.fn.system(check_cmd)
-    if vim.v.shell_error == 0 then
+    local result = vim.system(check_cmd, { text = true }):wait()
+    if result and result.code == 0 then
         return true
     end
 
@@ -39,8 +39,9 @@ local function check_dependencies(python_host)
     return false
 end
 
+---@return string|nil
 function M.ensure_python()
-    if state.state.python_host and state.state.deps_ok then
+    if state.state.python_host then
         return state.state.python_host
     end
 
@@ -54,10 +55,10 @@ function M.ensure_python()
     end
 
     state.state.python_host = python_host
-    state.state.deps_ok = true
     return python_host
 end
 
+---@return pyrepl.KernelSpec[]|nil
 local function list_kernels()
     local ok, kernels = pcall(vim.fn.ListKernels)
     if not ok then
@@ -86,6 +87,8 @@ local function list_kernels()
     return kernels
 end
 
+---@param kernels pyrepl.KernelSpec[]
+---@return integer
 local function preferred_kernel_index(kernels)
     local venv = util.normalize_path(util.get_active_venv())
     if not venv then
@@ -102,6 +105,7 @@ local function preferred_kernel_index(kernels)
     return 1
 end
 
+---@param on_choice fun(name: string)
 local function prompt_kernel_choice(on_choice)
     local kernels = list_kernels()
     if not kernels then
@@ -136,6 +140,8 @@ local function prompt_kernel_choice(on_choice)
     )
 end
 
+---@param kernel_name string
+---@return string|nil
 local function init_kernel(kernel_name)
     local success, result = pcall(vim.fn.InitKernel, kernel_name)
     if not success then
@@ -215,6 +221,8 @@ local function init_kernel(kernel_name)
     return result
 end
 
+---@param session pyrepl.Session
+---@param callback fun(ok: boolean)
 function M.ensure_kernel(session, callback)
     if session.connection_file then
         callback(true)
@@ -240,6 +248,7 @@ function M.ensure_kernel(session, callback)
     end)
 end
 
+---@param session pyrepl.Session|nil
 function M.shutdown_kernel(session)
     if not session or not session.connection_file then
         return

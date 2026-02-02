@@ -1,65 +1,117 @@
 local state = require("pyrepl.state")
-local util = require("pyrepl.util")
-
 local M = {}
 
+---@param session pyrepl.Session|nil
+---@return boolean
 function M.repl_ready(session)
     return session
         and session.connection_file
         and session.term_chan
         and session.term_chan ~= 0
         and session.term_buf
-        and util.is_valid_buf(session.term_buf)
+        and vim.api.nvim_buf_is_valid(session.term_buf)
 end
 
 local function normalize_python_message(msg)
-    local lines = vim.split(msg, "\n", { plain = true })
+    local lines = vim.split(msg, "\n", { plain = true, trimempty = false })
     if #lines <= 1 then
         return msg
     end
 
-    local function ends_with_colon(line)
-        local trimmed = line:gsub("%s+$", "")
-        if trimmed == "" then
-            return false
-        end
-        local comment_pos = trimmed:find("#")
-        if comment_pos then
-            trimmed = trimmed:sub(1, comment_pos - 1):gsub("%s+$", "")
-        end
-        return trimmed:sub(-1) == ":"
+    local ok_parser, parser = pcall(vim.treesitter.get_string_parser, msg, "python")
+    if not ok_parser or not parser then
+        return msg
     end
 
-    local function is_continuation(line)
-        local trimmed = line:gsub("^%s+", "")
-        return trimmed:match("^(else|elif|except|finally)%f[%w]")
+    local tree = parser:parse()[1]
+    if not tree then
+        return msg
+    end
+
+    local root = tree:root()
+    local top_nodes = {}
+    for node in root:iter_children() do
+        if node:named() and node:type() ~= "ERROR" then
+            table.insert(top_nodes, node)
+        end
+    end
+
+    local block_types = {
+        async_for_statement = true,
+        async_function_definition = true,
+        async_with_statement = true,
+        class_definition = true,
+        decorated_definition = true,
+        for_statement = true,
+        function_definition = true,
+        if_statement = true,
+        match_statement = true,
+        try_statement = true,
+        while_statement = true,
+        with_statement = true,
+    }
+
+    local function node_last_row(node)
+        local _, _, end_row, end_col = node:range()
+        if end_col == 0 then
+            return math.max(end_row - 1, 0)
+        end
+        return end_row
+    end
+
+    local function is_blank_line(line)
+        return line and line:match("^%s*$") ~= nil
+    end
+
+    local function has_blank_line_between(last_row0, next_start0)
+        for row0 = last_row0 + 1, next_start0 - 1 do
+            local line = lines[row0 + 1]
+            if is_blank_line(line) then
+                return true
+            end
+        end
+        return false
+    end
+
+    local insert_after = {}
+    local has_block = false
+    for idx = 1, #top_nodes - 1 do
+        local node = top_nodes[idx]
+        if block_types[node:type()] then
+            has_block = true
+            local last_row0 = node_last_row(node)
+            local next_start0 = select(1, top_nodes[idx + 1]:range())
+            if next_start0 > last_row0 and not has_blank_line_between(last_row0, next_start0) then
+                insert_after[last_row0 + 1] = true
+            end
+        end
+    end
+
+    local last_node = top_nodes[#top_nodes]
+    if last_node and block_types[last_node:type()] then
+        has_block = true
+        local last_row0 = node_last_row(last_node)
+        if last_row0 < #lines - 1 then
+            if not has_blank_line_between(last_row0, #lines) then
+                insert_after[last_row0 + 1] = true
+            end
+        else
+            insert_after[#lines] = true
+        end
+    end
+
+    if has_block and not is_blank_line(lines[#lines]) then
+        insert_after[#lines] = true
+    end
+
+    if next(insert_after) == nil then
+        return msg
     end
 
     local out = {}
-    local in_top_block = false
-
-    for _, line in ipairs(lines) do
-        local indent = line:match("^(%s*)") or ""
-        local trimmed = line:gsub("%s+$", "")
-        local is_blank = trimmed == ""
-        local is_top = #indent == 0
-        local continuation = is_top and is_continuation(line)
-
-        if is_top and not is_blank and in_top_block and not continuation then
-            table.insert(out, "")
-            in_top_block = false
-        end
-
+    for i, line in ipairs(lines) do
         table.insert(out, line)
-
-        if is_top and ends_with_colon(line) then
-            in_top_block = true
-        end
-    end
-
-    if in_top_block then
-        local last = out[#out] or ""
-        if not last:match("^%s*$") then
+        if insert_after[i] then
             table.insert(out, "")
         end
     end
@@ -67,6 +119,8 @@ local function normalize_python_message(msg)
     return table.concat(out, "\n")
 end
 
+---@param session pyrepl.Session
+---@param message string
 local function raw_send_message(session, message)
     if not M.repl_ready(session) then
         return
@@ -82,7 +136,7 @@ local function raw_send_message(session, message)
     local normalized = normalize_python_message(message)
     vim.api.nvim_chan_send(session.term_chan, prefix .. normalized .. suffix .. "\n")
 
-    if util.is_valid_win(session.term_win) then
+    if session.term_win and vim.api.nvim_win_is_valid(session.term_win) then
         vim.api.nvim_win_set_cursor(
             session.term_win,
             { vim.api.nvim_buf_line_count(vim.api.nvim_win_get_buf(session.term_win)), 0 }
@@ -90,6 +144,7 @@ local function raw_send_message(session, message)
     end
 end
 
+---@param session pyrepl.Session
 local function flush_send_queue(session)
     if session.send_flushing then
         return
@@ -110,6 +165,8 @@ local function flush_send_queue(session)
     session.send_flushing = false
 end
 
+---@param session pyrepl.Session
+---@param message string
 local function send_message(session, message)
     if not message or message == "" then
         return
@@ -118,6 +175,7 @@ local function send_message(session, message)
     flush_send_queue(session)
 end
 
+---@param session_id integer|nil
 function M.on_repl_ready(session_id)
     local session = nil
     if session_id then
@@ -139,6 +197,7 @@ function M.on_repl_ready(session_id)
     flush_send_queue(session)
 end
 
+---@param end_row integer
 local function move_cursor_to_next_line(end_row)
     local comment_char = "#"
     local line_count = vim.api.nvim_buf_line_count(0)
@@ -155,15 +214,22 @@ local function move_cursor_to_next_line(end_row)
     end
 end
 
+---@return string|nil
+---@return integer|nil
+---@return string|nil
 local function get_visual_selection()
-    local start_pos, end_pos = vim.fn.getpos("v"), vim.fn.getcurpos()
-    local start_line, end_line = start_pos[2], end_pos[2]
+    local start_pos = vim.api.nvim_buf_get_mark(0, "<")
+    local end_pos = vim.api.nvim_buf_get_mark(0, ">")
+    if not start_pos or start_pos[1] == 0 or not end_pos or end_pos[1] == 0 then
+        return nil, nil, "no_mark"
+    end
+    local start_line, end_line = start_pos[1], end_pos[1]
     if start_line > end_line then
         start_line, end_line = end_line, start_line
     end
 
     local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
-    return table.concat(lines, "\n"), end_line
+    return table.concat(lines, "\n"), end_line, nil
 end
 
 local function handle_cursor_move()
@@ -214,19 +280,27 @@ local function handle_cursor_move()
     end
 end
 
+---@param session pyrepl.Session|nil
 function M.send_visual(session)
     if not M.repl_ready(session) then
         return
     end
 
     local current_winid = vim.api.nvim_get_current_win()
-    local msg, end_row = get_visual_selection()
+    local msg, end_row, err = get_visual_selection()
+    if not msg or msg == "" then
+        if err == "no_mark" then
+            vim.notify("PyREPL: Visual selection not available. Invoke from Visual mode.", vim.log.levels.WARN)
+        end
+        return
+    end
     send_message(session, msg)
     vim.api.nvim_set_current_win(current_winid)
     move_cursor_to_next_line(end_row)
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
 end
 
+---@param session pyrepl.Session|nil
 function M.send_buffer(session)
     if not M.repl_ready(session) then
         return
@@ -244,11 +318,10 @@ function M.send_buffer(session)
     end
 
     send_message(session, msg)
-    if util.is_valid_win(current_winid) then
-        vim.api.nvim_set_current_win(current_winid)
-    end
+    vim.api.nvim_set_current_win(current_winid)
 end
 
+---@param session pyrepl.Session|nil
 function M.send_statement(session)
     if not M.repl_ready(session) then
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "n", false)

@@ -33,22 +33,39 @@ COMMANDS                                                        *pyrepl-commands
 
 
 :PyREPLOpen                                                     *PyREPLOpen*
-    Start (or attach to) a REPL for the current Python buffer. When invoked,
-    you are prompted to select a Jupyter kernel. The REPL opens in a split
-    terminal. Each Python buffer has its own kernel session.
+    Start (or attach to) a REPL for the current buffer. When invoked, you are
+    prompted to select a Jupyter kernel. The REPL opens in a split terminal.
+    Each buffer has its own kernel session.
 
     Notes:
-    - Buffer-local command, only available on "python" filetype buffers.
+    - Buffer-local command, available for any filetype.
     - Requires :UpdateRemotePlugins after installation.
-    - Closing the Python buffer shuts down its kernel and closes its terminal.
+    - Closing the buffer shuts down its kernel and closes its terminal.
     - Closing the REPL terminal only clears the terminal and keeps the kernel.
 
 :PyREPLHide                                                     *PyREPLHide*
-    Hide the REPL window for the current Python buffer. Keeps the REPL buffer
-    and kernel alive.
+    Hide the REPL window for the current buffer. Keeps the REPL buffer and
+    kernel alive.
 
 :PyREPLClose                                                    *PyREPLClose*
-    Close the REPL buffer for the current Python buffer. Keeps the kernel alive.
+    Close the REPL buffer for the current buffer. Keeps the kernel alive.
+
+:PyREPLSendVisual                                               *PyREPLSendVisual*
+    Send the last visual selection to the REPL.
+
+:PyREPLSendStatement                                            *PyREPLSendStatement*
+    Send the top-level statement under the cursor using Tree-sitter.
+
+:PyREPLSendBuffer                                               *PyREPLSendBuffer*
+    Send the entire buffer to the REPL.
+
+:PyREPLOpenImages                                               *PyREPLOpenImages*
+    Open the images manager.
+
+:PyREPLShowLastImage                                            *PyREPLShowLastImage*
+:PyREPLShowPreviousImage                                        *PyREPLShowPreviousImage*
+:PyREPLShowNextImage                                            *PyREPLShowNextImage*
+    Navigate image history.
 
 ==============================================================================
 LUA API                                                         *pyrepl-api*
@@ -69,7 +86,8 @@ require("pyrepl").send_statement()                              *pyrepl.send_sta
     Send the top-level statement under the cursor using Tree-sitter.
 
 require("pyrepl").send_visual()                                 *pyrepl.send_visual*
-    Send the current visual selection to the REPL.
+    Send the last visual selection to the REPL. This uses the '< and '>
+    marks, so it works with mappings like :<C-u>PyREPLSendVisual<CR>gv.
 
 require("pyrepl").send_buffer()                                 *pyrepl.send_buffer*
     Send the entire buffer to the REPL.

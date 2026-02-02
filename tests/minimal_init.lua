@@ -22,7 +22,13 @@ vim.o.swapfile = false
 vim.o.shadafile = "NONE"
 
 local function collect_test_files()
-    local files = vim.fn.globpath(root .. "/tests", "**/test_*.lua", true, true)
+    local files = vim.fs.find(function(name)
+        return name:match("^test_.*%.lua$") ~= nil
+    end, {
+        path = root .. "/tests",
+        type = "file",
+        limit = math.huge,
+    })
     local filtered = {}
     for _, path in ipairs(files) do
         if not path:find("/tests/deps/") then

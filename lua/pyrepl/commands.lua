@@ -1,19 +1,44 @@
 local M = {}
 
+---@param bufnr integer
 function M.set(bufnr)
-    pcall(vim.api.nvim_buf_del_user_command, bufnr, "PyREPLOpen")
-    pcall(vim.api.nvim_buf_del_user_command, bufnr, "PyREPLHide")
-    pcall(vim.api.nvim_buf_del_user_command, bufnr, "PyREPLClose")
+    local commands = {
+        PyREPLOpen = function()
+            require("pyrepl").open_repl(bufnr)
+        end,
+        PyREPLHide = function()
+            require("pyrepl").hide_repl(bufnr)
+        end,
+        PyREPLClose = function()
+            require("pyrepl").close_repl(bufnr)
+        end,
+        PyREPLSendVisual = function()
+            require("pyrepl").send_visual()
+        end,
+        PyREPLSendStatement = function()
+            require("pyrepl").send_statement()
+        end,
+        PyREPLSendBuffer = function()
+            require("pyrepl").send_buffer()
+        end,
+        PyREPLOpenImages = function()
+            require("pyrepl").open_images()
+        end,
+        PyREPLShowLastImage = function()
+            require("pyrepl").show_last_image()
+        end,
+        PyREPLShowPreviousImage = function()
+            require("pyrepl").show_previous_image()
+        end,
+        PyREPLShowNextImage = function()
+            require("pyrepl").show_next_image()
+        end,
+    }
 
-    vim.api.nvim_buf_create_user_command(bufnr, "PyREPLOpen", function()
-        require("pyrepl").open_repl(bufnr)
-    end, { nargs = 0 })
-    vim.api.nvim_buf_create_user_command(bufnr, "PyREPLHide", function()
-        require("pyrepl").hide_repl(bufnr)
-    end, { nargs = 0 })
-    vim.api.nvim_buf_create_user_command(bufnr, "PyREPLClose", function()
-        require("pyrepl").close_repl(bufnr)
-    end, { nargs = 0 })
+    for name, callback in pairs(commands) do
+        pcall(vim.api.nvim_buf_del_user_command, bufnr, name)
+        vim.api.nvim_buf_create_user_command(bufnr, name, callback, { nargs = 0 })
+    end
 end
 
 return M

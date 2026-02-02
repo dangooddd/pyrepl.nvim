@@ -43,6 +43,9 @@ local function open_split(config)
     return vim.api.nvim_get_current_win()
 end
 
+---@param session pyrepl.Session|nil
+---@param term_buf integer|nil
+---@param clear_buf boolean
 function M.clear_term(session, term_buf, clear_buf)
     if not session then
         return
@@ -91,18 +94,19 @@ local function open_existing(session, config)
     set_window_opts(winid, config, session.kernel_name or "")
     attach_term_autocmds(session, session.term_buf, winid)
 
-    if util.is_valid_win(origin_win) then
-        vim.api.nvim_set_current_win(origin_win)
-    end
+    vim.api.nvim_set_current_win(origin_win)
 end
 
+---@param session pyrepl.Session|nil
+---@param python_executable string
+---@param config pyrepl.Config
 function M.open(session, python_executable, config)
     if not session or not session.connection_file then
         return
     end
 
-    if session.term_buf and util.is_valid_buf(session.term_buf) then
-        if not util.is_valid_win(session.term_win) then
+    if session.term_buf and vim.api.nvim_buf_is_valid(session.term_buf) then
+        if not session.term_win or not vim.api.nvim_win_is_valid(session.term_win) then
             open_existing(session, config)
         end
         return
@@ -157,13 +161,12 @@ function M.open(session, python_executable, config)
 
     attach_term_autocmds(session, bufid, winid)
 
-    if util.is_valid_win(origin_win) then
-        vim.api.nvim_set_current_win(origin_win)
-    end
+    vim.api.nvim_set_current_win(origin_win)
 end
 
+---@param session pyrepl.Session|nil
 function M.hide(session)
-    if not session or not util.is_valid_win(session.term_win) then
+    if not session or not session.term_win or not vim.api.nvim_win_is_valid(session.term_win) then
         return
     end
 
@@ -171,6 +174,7 @@ function M.hide(session)
     session.term_win = nil
 end
 
+---@param session pyrepl.Session|nil
 function M.close(session)
     if not session or not session.term_buf then
         return
@@ -179,7 +183,7 @@ function M.close(session)
     local term_buf = session.term_buf
     M.clear_term(session, term_buf, true)
 
-    if util.is_valid_buf(term_buf) then
+    if term_buf and vim.api.nvim_buf_is_valid(term_buf) then
         pcall(vim.api.nvim_buf_delete, term_buf, { force = true })
     end
 end

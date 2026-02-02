@@ -1,5 +1,6 @@
 local M = {}
 
+---@type pyrepl.Config
 M.defaults = {
     split_horizontal = false,
     split_ratio = 0.5,
@@ -22,6 +23,8 @@ local function clamp_ratio(value, fallback)
     return num
 end
 
+---@param opts pyrepl.ConfigOpts|nil
+---@return pyrepl.Config
 function M.apply(opts)
     local config = vim.tbl_deep_extend("force", M.defaults, opts or {})
     config.split_ratio = clamp_ratio(config.split_ratio, M.defaults.split_ratio)
