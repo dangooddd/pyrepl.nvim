@@ -31,23 +31,39 @@ REQUIREMENTS                                                   *pyrepl-reqs*
 ==============================================================================
 COMMANDS                                                        *pyrepl-commands*
 
-:PyREPL                                                         *PyREPL*
+
+:PyREPLOpen                                                     *PyREPLOpen*
     Start (or attach to) a REPL for the current Python buffer. When invoked,
     you are prompted to select a Jupyter kernel. The REPL opens in a split
-    terminal.
+    terminal. Each Python buffer has its own kernel session.
 
     Notes:
-    - Only works when the current buffer has 'filetype' set to "python".
+    - Buffer-local command, only available on "python" filetype buffers.
     - Requires :UpdateRemotePlugins after installation.
+    - Closing the Python buffer shuts down its kernel and closes its terminal.
+    - Closing the REPL terminal only clears the terminal and keeps the kernel.
+
+:PyREPLHide                                                     *PyREPLHide*
+    Hide the REPL window for the current Python buffer. Keeps the REPL buffer
+    and kernel alive.
+
+:PyREPLClose                                                    *PyREPLClose*
+    Close the REPL buffer for the current Python buffer. Keeps the kernel alive.
 
 ==============================================================================
 LUA API                                                         *pyrepl-api*
 
 require("pyrepl").setup({opts})                                 *pyrepl.setup*
-    Configure pyrepl.nvim and register :PyREPL. Returns the module table.
+    Configure pyrepl.nvim and register :PyREPLOpen. Returns the module table.
 
-require("pyrepl").init()                                        *pyrepl.init*
-    Same as :PyREPL. Starts the kernel selection and opens the REPL.
+require("pyrepl").open_repl()                                   *pyrepl.open_repl*
+    Same as :PyREPLOpen. Starts kernel selection and opens the REPL.
+
+require("pyrepl").hide_repl()                                   *pyrepl.hide_repl*
+    Same as :PyREPLHide. Hides the REPL window.
+
+require("pyrepl").close_repl()                                  *pyrepl.close_repl*
+    Same as :PyREPLClose. Closes the REPL buffer.
 
 require("pyrepl").send_statement()                              *pyrepl.send_statement*
     Send the top-level statement under the cursor using Tree-sitter.
@@ -76,7 +92,7 @@ Default configuration:
     split_ratio = 0.5,
     style = "default",
     image_max_width_ratio = 0.4,
-    image_max_height_ratio = 0.4,
+    image_max_height_ratio = 0.5,
   })
 <
 
@@ -91,7 +107,7 @@ Options:
       Target image width as a fraction of editor columns. Default: 0.4.
       Used for sizing the render box and can upscale images.
   image_max_height_ratio (number)
-      Target image height as a fraction of editor lines. Default: 0.4.
+      Target image height as a fraction of editor lines. Default: 0.5.
       Used for sizing the render box and can upscale images.
 
 ==============================================================================

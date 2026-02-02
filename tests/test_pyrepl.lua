@@ -13,10 +13,12 @@ local T = MiniTest.new_set({
     },
 })
 
-T["setup registers PyREPL command"] = function()
+T["setup registers PyREPL commands"] = function()
+    child.cmd("set filetype=python")
     child.lua('require("pyrepl").setup()')
-    local exists = child.fn.exists(":PyREPL")
-    MiniTest.expect.equality(exists, 2)
+    MiniTest.expect.equality(child.fn.exists(":PyREPLOpen"), 2)
+    MiniTest.expect.equality(child.fn.exists(":PyREPLHide"), 2)
+    MiniTest.expect.equality(child.fn.exists(":PyREPLClose"), 2)
 end
 
 T["setup merges config"] = function()
@@ -57,6 +59,19 @@ T["send_buffer is safe when not ready"] = function()
 
     MiniTest.expect.no_error(function()
         child.lua('require("pyrepl").send_buffer()')
+    end)
+end
+
+T["repl close and hide are safe without session"] = function()
+    child.cmd("set filetype=python")
+    child.lua('require("pyrepl").setup()')
+
+    MiniTest.expect.no_error(function()
+        child.lua('require("pyrepl").hide_repl()')
+    end)
+
+    MiniTest.expect.no_error(function()
+        child.lua('require("pyrepl").close_repl()')
     end)
 end
 

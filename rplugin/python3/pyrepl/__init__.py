@@ -15,7 +15,7 @@ sys.dont_write_bytecode = True
 class PyreplPlugin:
     def __init__(self, nvim: pynvim.Nvim):
         self.nvim = nvim
-        self.kernel_manager: Optional[KernelManager] = None
+        self.kernels: dict[str, KernelManager] = {}
         self.client: Optional[BlockingKernelClient] = None
         self.kernelspec_manager: Optional[KernelSpecManager] = None
 
@@ -90,8 +90,7 @@ class PyreplPlugin:
             kernel_manager.start_kernel()
             client = kernel_manager.client()
             client.start_channels()
-            self.kernel_manager = kernel_manager
-            self.client = client
+            self.kernels[kernel_manager.connection_file] = kernel_manager
             return {
                 "ok": True,
                 "connection_file": kernel_manager.connection_file,
@@ -155,6 +154,11 @@ class PyreplPlugin:
         if not isinstance(connection_file, str) or not connection_file:
             return False
         try:
+            manager = self.kernels.pop(connection_file, None)
+            if manager is not None:
+                manager.shutdown_kernel(now=True)
+                return True
+
             self._connect_kernel(connection_file)
             client = self._get_client()
 
@@ -174,10 +178,6 @@ class PyreplPlugin:
                         break
                 except Exception:
                     pass
-
-            if self.kernel_manager:
-                self.kernel_manager.shutdown_kernel(now=True)
-                self.kernel_manager = None
 
             return True
         except Exception as exc:

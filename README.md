@@ -29,10 +29,16 @@ Neovim config per image.nvim docs.
 
 ## Usage
 
-- Start REPL: `:PyREPL`
+- Start REPL (Python buffers only): `:PyREPLOpen`
 - Send code: `require("pyrepl").send_statement()`,
   `require("pyrepl").send_visual()`, `require("pyrepl").send_buffer()`
 - Image manager: `require("pyrepl").open_images()`
+
+Notes:
+- Each Python buffer has its own kernel session.
+- Closing the Python buffer shuts down its kernel and closes its terminal.
+- Closing the terminal only clears the terminal; the kernel stays attached.
+- Use `:PyREPLHide` to hide the REPL window and `:PyREPLClose` to close the REPL buffer.
 
 ## Dependencies
 

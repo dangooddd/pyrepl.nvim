@@ -60,6 +60,7 @@ class REPLInterpreter:
         image_debug: bool = False,
         auto_indent: bool = False,
         pygments_style: str = "default",
+        session_id: Optional[int] = None,
     ):
         self.buffer: list[str] = []
         self.kernel_info = {}
@@ -72,6 +73,7 @@ class REPLInterpreter:
         self._image_debug = image_debug
         self._auto_indent = auto_indent
         self._pygments_style = pygments_style
+        self._session_id = session_id
         self._temp_paths = set()
 
         try:
@@ -439,7 +441,14 @@ class REPLInterpreter:
                         try:
                             with self.nvim_lock:
                                 nvim = cast(pynvim.Nvim, self.nvim)
-                                nvim.command('lua require("pyrepl")._on_repl_ready()')
+                                if self._session_id:
+                                    nvim.command(
+                                        f'lua require("pyrepl")._on_repl_ready({self._session_id})'
+                                    )
+                                else:
+                                    nvim.command(
+                                        'lua require("pyrepl")._on_repl_ready()'
+                                    )
                         except Exception as e:
                             if self._handle_nvim_disconnect(e, "repl_ready"):
                                 continue
@@ -667,6 +676,12 @@ def main():
         help="Pygments style name for REPL syntax highlighting",
     )
 
+    parser.add_argument(
+        "--session-id",
+        type=int,
+        help="Session id for REPL callbacks",
+    )
+
     args = parser.parse_args()
 
     if args.nvim_socket:
@@ -677,6 +692,7 @@ def main():
         image_debug=args.image_debug,
         auto_indent=args.auto_indent,
         pygments_style=args.pygments_style,
+        session_id=args.session_id,
     )
 
     try:
