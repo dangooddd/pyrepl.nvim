@@ -20,11 +20,11 @@ T["setup registers PyREPL command"] = function()
 end
 
 T["setup merges config"] = function()
-    child.lua([[require("pyrepl").setup({ split_ratio = 0.7, image = { max_width_ratio = 0.4 } })]])
+    child.lua([[require("pyrepl").setup({ split_ratio = 0.7, image_max_width_ratio = 0.4 })]])
 
     local ratio = child.lua_get('require("pyrepl").config.split_ratio')
-    local max_width_ratio = child.lua_get('require("pyrepl").config.image.max_width_ratio')
-    local max_height_ratio = child.lua_get('require("pyrepl").config.image.max_height_ratio')
+    local max_width_ratio = child.lua_get('require("pyrepl").config.image_max_width_ratio')
+    local max_height_ratio = child.lua_get('require("pyrepl").config.image_max_height_ratio')
 
     MiniTest.expect.equality(ratio, 0.7)
     MiniTest.expect.equality(max_width_ratio, 0.4)

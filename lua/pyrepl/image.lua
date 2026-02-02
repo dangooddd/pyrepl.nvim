@@ -14,12 +14,13 @@ local image_config = vim.deepcopy(default_image_config)
 
 local function refresh_image_config()
     local ok, pyrepl = pcall(require, "pyrepl")
-    if ok and pyrepl.config and pyrepl.config.image then
-        image_config = vim.tbl_deep_extend(
-            "force",
-            vim.deepcopy(default_image_config),
-            pyrepl.config.image
-        )
+    if ok and pyrepl.config then
+        image_config = {
+            max_width_ratio = tonumber(pyrepl.config.image_max_width_ratio)
+                or default_image_config.max_width_ratio,
+            max_height_ratio = tonumber(pyrepl.config.image_max_height_ratio)
+                or default_image_config.max_height_ratio
+        }
     else
         image_config = vim.deepcopy(default_image_config)
     end

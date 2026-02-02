@@ -1,15 +1,34 @@
-*pyrepl.txt*  Python REPL for Neovim
+*pyrepl.txt*  Python REPL for Neovim (pyrepl.nvim by dangooddd)
 
-===============================================================================
+==============================================================================
 INTRODUCTION                                                     *pyrepl*
 
-Pyrepl provides a Python REPL inside Neovim using the Jupyter kernel stack.
-It lets you send code from buffers, see results immediately, and view image
-outputs.
+pyrepl.nvim provides a Python REPL inside Neovim using the Jupyter kernel
+stack. It lets you send code from buffers, see results immediately, and view
+image outputs when image.nvim is installed.
 
 Project: https://github.com/dangooddd/pyrepl.nvim
 
-===============================================================================
+==============================================================================
+REQUIREMENTS                                                   *pyrepl-reqs*
+
+- Neovim Python provider configured (see |provider-python|).
+- The Python interpreter set in g:python3_host_prog must have these packages:
+  - pynvim
+  - jupyter-client
+  - prompt-toolkit
+  - pillow
+  - pygments
+  - ipykernel
+- A Jupyter kernel registered:
+>
+  python3 -m pip install ipykernel
+  python3 -m ipykernel install --user --name python3
+<
+- Tree-sitter Python parser (required for |pyrepl.send_statement|).
+- Image rendering requires image.nvim and its dependencies.
+
+==============================================================================
 COMMANDS                                                        *pyrepl-commands*
 
 :PyREPL                                                         *PyREPL*
@@ -21,11 +40,11 @@ COMMANDS                                                        *pyrepl-commands
     - Only works when the current buffer has 'filetype' set to "python".
     - Requires :UpdateRemotePlugins after installation.
 
-===============================================================================
+==============================================================================
 LUA API                                                         *pyrepl-api*
 
 require("pyrepl").setup({opts})                                 *pyrepl.setup*
-    Configure Pyrepl and register :PyREPL. Returns the module table.
+    Configure pyrepl.nvim and register :PyREPL. Returns the module table.
 
 require("pyrepl").init()                                        *pyrepl.init*
     Same as :PyREPL. Starts the kernel selection and opens the REPL.
@@ -47,7 +66,7 @@ require("pyrepl").show_previous_image()                         *pyrepl.show_pre
 require("pyrepl").show_next_image()                             *pyrepl.show_next_image*
     Navigate image history.
 
-===============================================================================
+==============================================================================
 CONFIGURATION                                                   *pyrepl-config*
 
 Default configuration:
@@ -55,10 +74,9 @@ Default configuration:
   require("pyrepl").setup({
     split_horizontal = false,
     split_ratio = 0.65,
-    image = {
-      max_width_ratio = 0.5,
-      max_height_ratio = 0.5,
-    },
+    style = "default",
+    image_max_width_ratio = 0.5,
+    image_max_height_ratio = 0.5,
   })
 <
 
@@ -67,16 +85,20 @@ Options:
       Use a horizontal split for the REPL terminal. Default: false.
   split_ratio (number)
       Fraction of screen used by the REPL split. Default: 0.65.
-  image.max_width_ratio (number)
+  style (string)
+      Pygments style name for REPL syntax highlighting. Default: "default".
+  image_max_width_ratio (number)
       Max image width as a fraction of editor columns. Default: 0.5.
-  image.max_height_ratio (number)
+  image_max_height_ratio (number)
       Max image height as a fraction of editor lines. Default: 0.5.
 
-===============================================================================
+==============================================================================
 IMAGES                                                         *pyrepl-images*
 
 Image rendering requires image.nvim and its dependencies:
 https://github.com/3rd/image.nvim
+
+Supported image formats and backends are whatever image.nvim supports.
 
 The images manager can be opened with:
 >
@@ -84,14 +106,15 @@ The images manager can be opened with:
 <
 
 While focused in the image window:
-  h - previous image
-  l - next image
-  q - close window
+  h     previous image
+  l     next image
+  q     close window
+  <Esc> close window
 
-===============================================================================
+==============================================================================
 HIGHLIGHTS                                                     *pyrepl-highlights*
 
-PyREPL defines these highlight groups (linked by default):
+pyrepl.nvim defines these highlight groups (linked by default):
   PyREPLImageBorder
   PyREPLImageTitle
   PyREPLImageNormal
@@ -103,20 +126,24 @@ Override example:
   vim.api.nvim_set_hl(0, "PyREPLImageNormal", { link = "NormalFloat" })
 <
 
-===============================================================================
+==============================================================================
 TROUBLESHOOTING                                                *pyrepl-troubleshooting*
 
 - Ensure your Python provider is configured. If needed, set:
 >
   let g:python3_host_prog = "/path/to/python3"
 <
+- Install required Python packages into that interpreter (see |pyrepl-reqs|).
 - After installing, run :UpdateRemotePlugins and restart Neovim.
-- If no kernels are found, install ipykernel:
+- If no kernels are found, install ipykernel and register a kernel:
 >
   python3 -m pip install ipykernel
   python3 -m ipykernel install --user --name python3
 <
-===============================================================================
+- If images do not render, verify image.nvim dependencies and terminal backend
+  support.
+
+==============================================================================
 END
 
 vim:tw=78:ts=8:noet:ft=help:norl:

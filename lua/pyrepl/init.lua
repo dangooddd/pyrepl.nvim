@@ -5,10 +5,8 @@ local M = {
         split_horizontal = false,
         split_ratio = 0.65,
         style = "default",
-        image = {
-            max_width_ratio = 0.5,
-            max_height_ratio = 0.5
-        }
+        image_max_width_ratio = 0.5,
+        image_max_height_ratio = 0.5
     },
     term = {
         opened = 0,
