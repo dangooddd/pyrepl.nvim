@@ -221,8 +221,8 @@ local function render_image(entry, focus, auto_clear)
     img:render({
         x = IMAGE_PADDING,
         y = IMAGE_PADDING,
-        width = nil,
-        height = nil
+        width = width_cells,
+        height = height_cells
     })
 
     local rendered = img.rendered_geometry or {}

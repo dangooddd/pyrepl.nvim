@@ -3,10 +3,10 @@ local api, fn, ts = vim.api, vim.fn, vim.treesitter
 local M = {
     config = {
         split_horizontal = false,
-        split_ratio = 0.65,
+        split_ratio = 0.5,
         style = "default",
-        image_max_width_ratio = 0.5,
-        image_max_height_ratio = 0.5
+        image_max_width_ratio = 0.4,
+        image_max_height_ratio = 0.4
     },
     term = {
         opened = 0,
