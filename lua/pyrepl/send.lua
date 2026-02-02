@@ -71,6 +71,7 @@ local function raw_send_message(session, message)
     if not M.repl_ready(session) then
         return
     end
+
     if not message or message == "" then
         return
     end
@@ -93,14 +94,17 @@ local function flush_send_queue(session)
     if session.send_flushing then
         return
     end
+
     if not session.repl_ready then
         return
     end
+
     if #session.send_queue == 0 then
         return
     end
-    session.send_flushing = true
+
     local next_message = table.remove(session.send_queue, 1)
+    session.send_flushing = true
     session.repl_ready = false
     raw_send_message(session, next_message)
     session.send_flushing = false
@@ -126,9 +130,11 @@ function M.on_repl_ready(session_id)
             end
         end
     end
+
     if not session then
         return
     end
+
     session.repl_ready = true
     flush_send_queue(session)
 end
@@ -155,6 +161,7 @@ local function get_visual_selection()
     if start_line > end_line then
         start_line, end_line = end_line, start_line
     end
+
     local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
     return table.concat(lines, "\n"), end_line
 end
@@ -162,6 +169,7 @@ end
 local function handle_cursor_move()
     local row = vim.api.nvim_win_get_cursor(0)[1]
     local comment_char = "#"
+
     while row <= vim.api.nvim_buf_line_count(0) do
         local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
         local col = line:find("%S")
@@ -210,6 +218,7 @@ function M.send_visual(session)
     if not M.repl_ready(session) then
         return
     end
+
     local current_winid = vim.api.nvim_get_current_win()
     local msg, end_row = get_visual_selection()
     send_message(session, msg)
@@ -222,15 +231,18 @@ function M.send_buffer(session)
     if not M.repl_ready(session) then
         return
     end
+
     local current_winid = vim.api.nvim_get_current_win()
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
     if not lines or #lines == 0 then
         return
     end
+
     local msg = table.concat(lines, "\n")
     if msg == "" then
         return
     end
+
     send_message(session, msg)
     if util.is_valid_win(current_winid) then
         vim.api.nvim_set_current_win(current_winid)
@@ -249,11 +261,13 @@ function M.send_statement(session)
         vim.notify("PyREPL: Tree-sitter parser not available for this buffer.", vim.log.levels.WARN)
         return
     end
+
     local tree = parser:parse()[1]
     if not tree then
         print("No valid node found!")
         return
     end
+
     local root = tree:root()
     local function node_at_cursor()
         local row, col = unpack(vim.api.nvim_win_get_cursor(0))

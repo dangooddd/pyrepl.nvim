@@ -21,11 +21,7 @@ local function validate_python_host()
     return python_path
 end
 
-local function check_and_install_dependencies(python_host)
-    if vim.fn.executable(python_host) == 0 then
-        return false
-    end
-
+local function check_dependencies(python_host)
     local check_cmd = {
         python_host,
         "-c",
@@ -36,109 +32,10 @@ local function check_and_install_dependencies(python_host)
         return true
     end
 
-    local pip_path = vim.fn.system({ python_host, "-m", "pip", "--version" }):gsub("\n", "")
-    local install_path = vim.fn.system({
-        python_host,
-        "-c",
-        "import site, sys; print(site.getsitepackages()[0] if hasattr(site, 'getsitepackages') and site.getsitepackages() else sys.prefix)",
-    }):gsub("\n", "")
-
-    local choice = vim.fn.confirm(
-        string.format(
-            "PyREPL: Missing packages. Install?\n\nPython: %s\nPip: %s\nInstall path: %s",
-            python_host,
-            pip_path,
-            install_path
-        ),
-        "&Yes\n&No",
-        1
+    vim.notify(
+        "PyREPL: Missing Python packages, check the docs for instructions",
+        vim.log.levels.ERROR
     )
-
-    if choice ~= 1 then
-        return false
-    end
-
-    local bufnr = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Installing dependencies..." })
-
-    local width = math.floor(vim.o.columns * 0.6)
-    local height = math.floor(vim.o.lines * 0.4)
-    local winid = vim.api.nvim_open_win(bufnr, false, {
-        relative = "editor",
-        width = width,
-        height = height,
-        row = math.floor((vim.o.lines - height) / 2),
-        col = math.floor((vim.o.columns - width) / 2),
-        style = "minimal",
-        border = "rounded",
-        title = " Installing Dependencies ",
-        title_pos = "center",
-    })
-
-    local pip_args = {
-        python_host,
-        "-m",
-        "pip",
-        "install",
-        "pynvim",
-        "jupyter-client",
-        "prompt-toolkit",
-        "pillow",
-        "pygments",
-    }
-
-    vim.fn.jobstart(pip_args, {
-        stdout_buffered = false,
-        stderr_buffered = false,
-        on_stdout = function(_, data)
-            if not data then
-                return
-            end
-            vim.schedule(function()
-                for _, line in ipairs(data) do
-                    if line ~= "" then
-                        vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { line })
-                    end
-                end
-            end)
-        end,
-        on_stderr = function(_, data)
-            if not data then
-                return
-            end
-            vim.schedule(function()
-                for _, line in ipairs(data) do
-                    if line ~= "" then
-                        vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { line })
-                    end
-                end
-            end)
-        end,
-        on_exit = function(_, return_val)
-            vim.schedule(function()
-                if vim.api.nvim_win_is_valid(winid) then
-                    vim.api.nvim_win_close(winid, true)
-                end
-                if return_val == 0 then
-                    vim.cmd("UpdateRemotePlugins")
-                    vim.notify(
-                        "PyREPL: Dependencies installed and remote plugins updated. Please restart Neovim.",
-                        vim.log.levels.INFO
-                    )
-                else
-                    vim.notify(
-                        string.format(
-                            "PyREPL: Failed to install dependencies (exit code: %d)\nPython: %s\nCheck output above for details.",
-                            return_val,
-                            python_host
-                        ),
-                        vim.log.levels.ERROR
-                    )
-                end
-            end)
-        end,
-    })
-
     return false
 end
 
@@ -146,13 +43,16 @@ function M.ensure_python()
     if state.state.python_host and state.state.deps_ok then
         return state.state.python_host
     end
+
     local python_host = validate_python_host()
     if not python_host then
         return nil
     end
-    if not check_and_install_dependencies(python_host) then
+
+    if not check_dependencies(python_host) then
         return nil
     end
+
     state.state.python_host = python_host
     state.state.deps_ok = true
     return python_host
@@ -167,14 +67,22 @@ local function list_kernels()
                 vim.log.levels.ERROR
             )
         else
-            vim.notify(string.format("PyREPL: Failed to list kernels: %s", kernels), vim.log.levels.ERROR)
+            vim.notify(
+                string.format("PyREPL: Failed to list kernels: %s", kernels),
+                vim.log.levels.ERROR
+            )
         end
         return nil
     end
+
     if type(kernels) ~= "table" or #kernels == 0 then
-        vim.notify("PyREPL: No kernels found, install ipykernel first", vim.log.levels.ERROR)
+        vim.notify(
+            "PyREPL: No kernels found, install ipykernel first",
+            vim.log.levels.ERROR
+        )
         return nil
     end
+
     return kernels
 end
 
@@ -183,12 +91,14 @@ local function preferred_kernel_index(kernels)
     if not venv then
         return 1
     end
+
     for idx, kernel in ipairs(kernels) do
         local kernel_venv_path = util.normalize_path(kernel.path)
         if util.has_path_prefix(kernel_venv_path, venv) then
             return idx
         end
     end
+
     return 1
 end
 
@@ -235,7 +145,10 @@ local function init_kernel(kernel_name)
                 vim.log.levels.ERROR
             )
         else
-            vim.notify(string.format("PyREPL: Kernel initialization failed: %s", result), vim.log.levels.ERROR)
+            vim.notify(
+                string.format("PyREPL: Kernel initialization failed: %s", result),
+                vim.log.levels.ERROR
+            )
         end
         return nil
     end
@@ -292,7 +205,10 @@ local function init_kernel(kernel_name)
     end
 
     if not result or result == "" then
-        vim.notify("PyREPL: Kernel initialization failed with empty connection file.", vim.log.levels.ERROR)
+        vim.notify(
+            "PyREPL: Kernel initialization failed with empty connection file.",
+            vim.log.levels.ERROR
+        )
         return nil
     end
 
@@ -305,19 +221,21 @@ function M.ensure_kernel(session, callback)
         return
     end
 
-    prompt_kernel_choice(function(kernelname)
-        if not kernelname or kernelname == "" then
+    prompt_kernel_choice(function(kernel_name)
+        if not kernel_name or kernel_name == "" then
             vim.notify("PyREPL: Kernel name is missing.", vim.log.levels.ERROR)
             callback(false)
             return
         end
-        local connection_file = init_kernel(kernelname)
+
+        local connection_file = init_kernel(kernel_name)
         if not connection_file then
             callback(false)
             return
         end
+
         session.connection_file = connection_file
-        session.kernel_name = kernelname
+        session.kernel_name = kernel_name
         callback(true)
     end)
 end
@@ -326,6 +244,7 @@ function M.shutdown_kernel(session)
     if not session or not session.connection_file then
         return
     end
+
     pcall(vim.fn.ShutdownKernel, session.connection_file)
     pcall(os.remove, session.connection_file)
     session.connection_file = nil

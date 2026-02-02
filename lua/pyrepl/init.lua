@@ -40,13 +40,25 @@ function M.open_repl(bufnr)
 end
 
 function M.hide_repl(bufnr)
-    local session = state.get_session(bufnr or 0, false)
+    local target_buf = bufnr or vim.api.nvim_get_current_buf()
+    if vim.bo[target_buf].filetype ~= "python" then
+        vim.notify("PyREPL: Only Python filetype is supported.", vim.log.levels.WARN)
+        return
+    end
+    local session = state.get_session(target_buf, false)
     terminal.hide(session)
 end
 
 function M.close_repl(bufnr)
-    local session = state.get_session(bufnr or 0, false)
+    local target_buf = bufnr or vim.api.nvim_get_current_buf()
+    if vim.bo[target_buf].filetype ~= "python" then
+        vim.notify("PyREPL: Only Python filetype is supported.", vim.log.levels.WARN)
+        return
+    end
+    local session = state.get_session(target_buf, false)
     terminal.close(session)
+    kernel.shutdown_kernel(session)
+    state.clear_session(target_buf)
 end
 
 function M.send_visual()

@@ -10,6 +10,7 @@ function M.get_session(bufnr, create)
     if not bufnr or bufnr == 0 then
         bufnr = vim.api.nvim_get_current_buf()
     end
+
     local session = M.state.sessions[bufnr]
     if session or not create then
         return session
@@ -28,6 +29,7 @@ function M.get_session(bufnr, create)
         closing = false,
     }
     M.state.sessions[bufnr] = session
+
     return session
 end
 

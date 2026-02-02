@@ -8,11 +8,13 @@ local function get_console_path()
     if console_path then
         return console_path
     end
+
     local candidates = vim.api.nvim_get_runtime_file("rplugin/python3/pyrepl/console.py", false)
     if candidates and #candidates > 0 then
         console_path = candidates[1]
         return console_path
     end
+
     return nil
 end
 
@@ -24,6 +26,7 @@ local function set_window_opts(winid, config, kernelname)
         vim.wo[winid].winfixwidth = true
         vim.wo[winid].winfixheight = false
     end
+
     local statusline_format = string.format("Kernel: %s  |  Line : %%l ", kernelname)
     vim.wo[winid].statusline = statusline_format
 end
@@ -36,6 +39,7 @@ local function open_split(config)
         local width = math.floor(vim.o.columns * config.split_ratio)
         vim.cmd("botright " .. width .. "vsplit")
     end
+
     return vim.api.nvim_get_current_win()
 end
 
@@ -43,19 +47,23 @@ function M.clear_term(session, term_buf, clear_buf)
     if not session then
         return
     end
+
     if term_buf and session.term_buf and session.term_buf ~= term_buf then
         return
     end
+
     if clear_buf then
         session.term_buf = nil
         session.term_chan = nil
         session.repl_ready = false
     end
+
     session.term_win = nil
 end
 
 local function attach_term_autocmds(session, bufid, winid)
     local group = vim.api.nvim_create_augroup("PyreplTerm" .. bufid, { clear = true })
+
     vim.api.nvim_create_autocmd({ "BufWipeout", "TermClose" }, {
         group = group,
         buffer = bufid,
@@ -64,6 +72,7 @@ local function attach_term_autocmds(session, bufid, winid)
         end,
         once = true,
     })
+
     vim.api.nvim_create_autocmd("WinClosed", {
         group = group,
         pattern = tostring(winid),
@@ -81,6 +90,7 @@ local function open_existing(session, config)
     session.term_win = winid
     set_window_opts(winid, config, session.kernel_name or "")
     attach_term_autocmds(session, session.term_buf, winid)
+
     if util.is_valid_win(origin_win) then
         vim.api.nvim_set_current_win(origin_win)
     end
@@ -100,7 +110,7 @@ function M.open(session, python_executable, config)
 
     local origin_win = vim.api.nvim_get_current_win()
     local bufid = vim.api.nvim_create_buf(false, true)
-    vim.bo[bufid].bufhidden = "wipe"
+    vim.bo[bufid].bufhidden = "hide"
 
     local winid = open_split(config)
     vim.api.nvim_win_set_buf(winid, bufid)
@@ -156,6 +166,7 @@ function M.hide(session)
     if not session or not util.is_valid_win(session.term_win) then
         return
     end
+
     vim.api.nvim_win_close(session.term_win, true)
     session.term_win = nil
 end
@@ -164,8 +175,10 @@ function M.close(session)
     if not session or not session.term_buf then
         return
     end
+
     local term_buf = session.term_buf
     M.clear_term(session, term_buf, true)
+
     if util.is_valid_buf(term_buf) then
         pcall(vim.api.nvim_buf_delete, term_buf, { force = true })
     end

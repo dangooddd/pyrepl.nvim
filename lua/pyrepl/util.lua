@@ -13,13 +13,16 @@ function M.has_path_prefix(path, prefix)
     if not path or not prefix then
         return false
     end
+
     if path == prefix then
         return true
     end
+
     local sep = "/"
     if prefix:sub(-1) ~= sep then
         prefix = prefix .. sep
     end
+
     return path:sub(1, #prefix) == prefix
 end
 
@@ -28,10 +31,12 @@ function M.get_active_venv()
     if venv and venv ~= "" then
         return venv
     end
+
     local conda = vim.env.CONDA_PREFIX
     if conda and conda ~= "" then
         return conda
     end
+
     return nil
 end
 
