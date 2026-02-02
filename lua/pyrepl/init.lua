@@ -6,8 +6,6 @@ local M = {
         split_ratio = 0.65,
         style = "default",
         image = {
-            cell_width = 10,
-            cell_height = 20,
             max_width_ratio = 0.5,
             max_height_ratio = 0.5
         }

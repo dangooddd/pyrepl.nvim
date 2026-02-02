@@ -20,21 +20,21 @@ T["setup registers PyREPL command"] = function()
 end
 
 T["setup merges config"] = function()
-    child.lua([[require("pyrepl").setup({ split_ratio = 0.7, image = { cell_width = 12 } })]])
+    child.lua([[require("pyrepl").setup({ split_ratio = 0.7, image = { max_width_ratio = 0.4 } })]])
 
     local ratio = child.lua_get('require("pyrepl").config.split_ratio')
-    local cell_width = child.lua_get('require("pyrepl").config.image.cell_width')
-    local cell_height = child.lua_get('require("pyrepl").config.image.cell_height')
+    local max_width_ratio = child.lua_get('require("pyrepl").config.image.max_width_ratio')
+    local max_height_ratio = child.lua_get('require("pyrepl").config.image.max_height_ratio')
 
     MiniTest.expect.equality(ratio, 0.7)
-    MiniTest.expect.equality(cell_width, 12)
-    MiniTest.expect.equality(cell_height, 20)
+    MiniTest.expect.equality(max_width_ratio, 0.4)
+    MiniTest.expect.equality(max_height_ratio, 0.5)
 end
 
 T["image history updates without image.nvim"] = function()
     child.lua('require("pyrepl.image").history = {}')
     child.lua('require("pyrepl.image").history_index = 0')
-    child.lua([[require("pyrepl.image").show_image_file("fake.png", 10, 10)]])
+    child.lua([[require("pyrepl.image").show_image_file("fake.png")]])
 
     local count = child.lua_get('#require("pyrepl.image").history')
     local index = child.lua_get('require("pyrepl.image").history_index')

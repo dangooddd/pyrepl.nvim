@@ -4,8 +4,6 @@ local fn = vim.fn
 local M = {}
 
 local default_image_config = {
-    cell_width = 10,
-    cell_height = 20,
     max_width_ratio = 0.5,
     max_height_ratio = 0.5
 }
@@ -39,36 +37,12 @@ local function ensure_image_module()
     return nil
 end
 
-local function pixels_to_cells(pixels, is_width)
-    local cell_width = nil
-    local cell_height = nil
-    local ok, utils = pcall(require, "image/utils")
-    if ok and utils.term and utils.term.get_size then
-        local size = utils.term.get_size()
-        cell_width = tonumber(size.cell_width)
-        cell_height = tonumber(size.cell_height)
-    end
-    cell_width = cell_width or tonumber(image_config.cell_width) or default_image_config.cell_width
-    cell_height = cell_height or tonumber(image_config.cell_height) or default_image_config.cell_height
-    if is_width then
-        return math.max(1, math.floor(pixels / cell_width))
-    end
-    return math.max(1, math.floor(pixels / cell_height))
-end
-
-local function compute_window_cells(width_px, height_px)
+local function compute_window_cells()
     local max_width_ratio = tonumber(image_config.max_width_ratio) or default_image_config.max_width_ratio
     local max_height_ratio = tonumber(image_config.max_height_ratio) or default_image_config.max_height_ratio
     local max_width_cells = math.max(1, math.floor(vim.o.columns * max_width_ratio))
     local max_height_cells = math.max(1, math.floor(vim.o.lines * max_height_ratio))
-
-    if not width_px or not height_px then
-        return max_width_cells, max_height_cells
-    end
-
-    local width_cells = pixels_to_cells(width_px, true)
-    local height_cells = pixels_to_cells(height_px, false)
-    return math.min(width_cells, max_width_cells), math.min(height_cells, max_height_cells)
+    return max_width_cells, max_height_cells
 end
 
 local function create_image_float(width_cells, height_cells, focus)
@@ -168,10 +142,6 @@ local function clear_current()
         api.nvim_win_close(M.current_winid, true)
     end
     M.current_winid = nil
-    if M.manager_guicursor then
-        vim.o.guicursor = M.manager_guicursor
-        M.manager_guicursor = nil
-    end
     M.manager_active = false
 end
 
@@ -238,20 +208,20 @@ local function render_image(entry, focus, auto_clear)
         return
     end
 
-    local width_px = tonumber(img.image_width) or entry.width
-    local height_px = tonumber(img.image_height) or entry.height
-    local width_cells, height_cells = compute_window_cells(width_px, height_px)
+    local width_cells, height_cells = compute_window_cells()
     local winid, bufnr = create_image_float(width_cells, height_cells, focus)
 
     img.window = winid
     img.buffer = bufnr
     img.ignore_global_max_size = true
+    img.max_width_window_percentage = 100
+    img.max_height_window_percentage = 100
 
     img:render({
         x = IMAGE_PADDING,
         y = IMAGE_PADDING,
-        width = width_cells,
-        height = height_cells
+        width = nil,
+        height = nil
     })
 
     local rendered = img.rendered_geometry or {}
@@ -274,10 +244,6 @@ local function render_image(entry, focus, auto_clear)
         M.manager_active = true
         set_manager_keymaps(bufnr)
         setup_manager_autocmd(bufnr, winid)
-        if not M.manager_guicursor then
-            M.manager_guicursor = vim.o.guicursor
-            vim.o.guicursor = "a:ver1-Cursor"
-        end
     end
 
     if auto_clear then
@@ -290,7 +256,6 @@ M.history_index = 0
 M.current_image = nil
 M.current_winid = nil
 M.manager_active = false
-M.manager_guicursor = nil
 
 local MAX_HISTORY = 50
 
@@ -315,20 +280,12 @@ local function show_history_at(index, focus, auto_clear)
     render_image(entry, focus, auto_clear)
 end
 
-function M.show_image_file(path, width, height)
+function M.show_image_file(path)
     if type(path) ~= "string" or path == "" then
         vim.notify("PyREPL: Image path missing or invalid.", vim.log.levels.WARN)
         return
     end
-    local width_num = tonumber(width)
-    local height_num = tonumber(height)
-    if not width_num or width_num <= 0 then
-        width_num = nil
-    end
-    if not height_num or height_num <= 0 then
-        height_num = nil
-    end
-    push_history({ path = path, width = width_num, height = height_num })
+    push_history({ path = path })
     show_history_at(#M.history, false, true)
 end
 

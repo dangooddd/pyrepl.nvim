@@ -55,8 +55,6 @@ Add pyrepl.nvim to your plugin manager. An example using `lazy.nvim` is provided
       split_ratio = 0.65, -- width of split REPL terminal
       style = "default", -- pygments style for REPL highlighting
       image = {
-        cell_width = 10, -- approximate terminal cell width in pixels
-        cell_height = 20, -- approximate terminal cell height in pixels
         max_width_ratio = 0.5, -- image width as a fraction of editor columns
         max_height_ratio = 0.5, -- image height as a fraction of editor lines
       },
