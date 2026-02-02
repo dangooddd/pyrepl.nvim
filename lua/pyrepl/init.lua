@@ -1,5 +1,3 @@
-local api, fn, ts = vim.api, vim.fn, vim.treesitter
-
 local M = {
     config = {
         split_horizontal = false,
@@ -14,87 +12,68 @@ local M = {
         bufid = 0,
         chanid = 0
     },
-    kernelname = nil,
     send_queue = {},
     send_flushing = false,
     repl_ready = false
 }
 
-local function is_vim_nil(value)
-    return vim.NIL ~= nil and value == vim.NIL
-end
-
-local function normalize_vim_value(value)
-    if is_vim_nil(value) then
-        return nil
-    end
-    return value
-end
-
-local function resolve_python_executable()
-    local host_prog = normalize_vim_value(vim.g.python3_host_prog)
-    if type(host_prog) == "string" and host_prog ~= "" then
-        return vim.fn.expand(host_prog)
-    end
-    return "python3"
-end
-
 local function validate_python_host()
     local host_prog = vim.g.python3_host_prog
-    if is_vim_nil(host_prog) then
+
+    if host_prog == nil
+        or host_prog == NIL
+        or host_prog == ""
+    then
+        host_prog = "python"
+    elseif type(host_prog) ~= "string" then
         vim.notify(
-            "PyREPL: g:python3_host_prog is v:null. Unset it or set a valid python3 path.",
+            "PyREPL: vim.g.python3_host_prog is not a string",
             vim.log.levels.ERROR
         )
         return nil
     end
-    host_prog = normalize_vim_value(host_prog)
-    if host_prog ~= nil and type(host_prog) ~= "string" then
-        vim.notify("PyREPL: g:python3_host_prog must be a string path to python3.", vim.log.levels.ERROR)
-        return nil
-    end
-    local python_executable = resolve_python_executable()
-    if fn.executable(python_executable) == 0 then
+
+    local python_path = vim.fn.expand(host_prog)
+
+    if vim.fn.executable(python_path) == 0 then
         vim.notify(
             string.format(
-                "PyREPL: python3 executable not found (%s). Set g:python3_host_prog to a valid python3 path.",
-                python_executable
+                "PyREPL: python3 executable not found (%s)",
+                python_path
             ),
             vim.log.levels.ERROR
         )
         return nil
     end
-    return python_executable
+
+    return python_path
 end
 
 local function normalize_path(path)
     if not path or path == "" then
         return nil
     end
-    local normalized = path
-    if vim.fs and vim.fs.normalize then
-        local ok, value = pcall(vim.fs.normalize, path)
-        if ok and value then
-            normalized = value
-        end
-    else
-        normalized = fn.fnamemodify(path, ":p")
-    end
-    normalized = normalized:gsub("/+$", "")
-    return normalized
+
+    path = vim.fn.fnamemodify(path, ":p")
+    path = path:gsub("/+$", "")
+
+    return path
 end
 
 local function has_path_prefix(path, prefix)
     if not path or not prefix then
         return false
     end
+
     if path == prefix then
         return true
     end
+
     local sep = "/"
     if prefix:sub(-1) ~= sep then
         prefix = prefix .. sep
     end
+
     return path:sub(1, #prefix) == prefix
 end
 
@@ -103,75 +82,56 @@ local function get_active_venv()
     if venv and venv ~= "" then
         return venv
     end
+
     local conda = vim.env.CONDA_PREFIX
     if conda and conda ~= "" then
         return conda
     end
+
     return nil
 end
 
 local function list_kernels()
-    local ok, result = pcall(fn.ListKernels)
+    local ok, kernels = pcall(vim.fn.ListKernels)
     if not ok then
-        if string.find(result, "Unknown function") then
+        if string.find(kernels, "Unknown function") then
             vim.notify(
-                "PyREPL: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim.",
+                "PyREPL: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim",
                 vim.log.levels.ERROR
             )
         else
-            vim.notify(string.format("PyREPL: Failed to list kernels: %s", result), vim.log.levels.ERROR)
+            vim.notify(
+                string.format("PyREPL: Failed to list kernels: %s", kernels),
+                vim.log.levels.ERROR
+            )
         end
         return nil
     end
 
-    result = normalize_vim_value(result)
-    if type(result) ~= "table" or #result == 0 then
-        vim.notify("PyREPL: No kernels found. Install ipykernel first.", vim.log.levels.ERROR)
+    if type(kernels) ~= "table" or #kernels == 0 then
+        vim.notify(
+            "PyREPL: No kernels found, install ipykernel first",
+            vim.log.levels.ERROR
+        )
         return nil
     end
-
-    local kernels = {}
-    for _, item in ipairs(result) do
-        if type(item) == "table" then
-            local name = item.name
-            if type(name) == "string" and name ~= "" then
-                table.insert(kernels, {
-                    name = name,
-                    path = item.path or "",
-                    argv0 = item.argv0 or ""
-                })
-            end
-        end
-    end
-
-    if #kernels == 0 then
-        vim.notify("PyREPL: No kernels found. Install ipykernel first.", vim.log.levels.ERROR)
-        return nil
-    end
-
-    table.sort(kernels, function(a, b)
-        return a.name < b.name
-    end)
 
     return kernels
 end
 
 local function preferred_kernel_index(kernels)
-    local venv = get_active_venv()
+    local venv = normalize_path(get_active_venv())
     if not venv then
         return 1
     end
-    local venv_path = normalize_path(venv)
-    if not venv_path then
-        return 1
-    end
+
     for idx, kernel in ipairs(kernels) do
-        local kernel_path = normalize_path(kernel.path)
-        local argv0 = normalize_path(kernel.argv0)
-        if has_path_prefix(kernel_path, venv_path) or has_path_prefix(argv0, venv_path) then
+        local kernel_venv_path = normalize_path(kernel.path)
+        if has_path_prefix(kernel_venv_path, venv_path) then
             return idx
         end
     end
+
     return 1
 end
 
@@ -195,38 +155,20 @@ local function prompt_kernel_choice(on_choice)
         on_choice(choice.name)
     end
 
-    if vim.ui and vim.ui.select then
-        vim.ui.select(
-            kernels,
-            {
-                prompt = "PyREPL: Select Jupyter kernel",
-                format_item = function(item)
-                    local path = item.path
-                    if type(path) ~= "string" or path == "" then
-                        return item.name
-                    end
-                    return string.format("%s  (%s)", item.name, path)
+    vim.ui.select(
+        kernels,
+        {
+            prompt = "PyREPL: Select Jupyter kernel",
+            format_item = function(item)
+                local path = item.path
+                if type(path) ~= "string" or path == "" then
+                    return item.name
                 end
-            },
-            handle_choice
-        )
-        return
-    end
-
-    local choices = { "Select Jupyter kernel:" }
-    for _, item in ipairs(kernels) do
-        local label = item.name
-        if item.path and item.path ~= "" then
-            label = string.format("%s (%s)", item.name, item.path)
-        end
-        table.insert(choices, label)
-    end
-    local selection = fn.inputlist(choices)
-    if selection < 1 or selection > #kernels then
-        vim.notify("PyREPL: Kernel selection cancelled.", vim.log.levels.WARN)
-        return
-    end
-    handle_choice(kernels[selection])
+                return string.format("%s  (%s)", item.name, path)
+            end
+        },
+        handle_choice
+    )
 end
 
 local function repl_ready()
@@ -237,11 +179,13 @@ local function get_console_path()
     if M.console_path then
         return M.console_path
     end
-    local candidates = api.nvim_get_runtime_file("rplugin/python3/console.py", false)
+
+    local candidates = vim.api.nvim_get_runtime_file("rplugin/python3/pyrepl/console.py", false)
     if candidates and #candidates > 0 then
         M.console_path = candidates[1]
         return M.console_path
     end
+
     return nil
 end
 
@@ -249,12 +193,12 @@ local function register_kernel_cleanup()
     if M.kernel_cleanup_set then
         return
     end
-    api.nvim_create_autocmd(
+    vim.api.nvim_create_autocmd(
         "VimLeavePre",
         {
             callback = function()
                 if M.connection_file_path then
-                    fn.ShutdownKernel(M.connection_file_path)
+                    vim.fn.ShutdownKernel(M.connection_file_path)
                     os.remove(M.connection_file_path)
                 end
             end,
@@ -264,8 +208,8 @@ local function register_kernel_cleanup()
     M.kernel_cleanup_set = true
 end
 
-local function init_kernel(kernelname)
-    local success, result = pcall(fn.InitKernel, kernelname)
+local function init_kernel(kernel_name)
+    local success, result = pcall(vim.fn.InitKernel, kernel_name)
     if not success then
         if string.find(result, "Unknown function") then
             vim.notify(
@@ -273,14 +217,17 @@ local function init_kernel(kernelname)
                 vim.log.levels.ERROR
             )
         else
-            vim.notify(string.format("PyREPL: Kernel initialization failed: %s", result), vim.log.levels.ERROR)
+            vim.notify(
+                string.format("PyREPL: Kernel initialization failed: %s", result),
+                vim.log.levels.ERROR
+            )
         end
         return nil
     end
-    result = normalize_vim_value(result)
+
     if type(result) == "table" then
         if result.ok == true then
-            local connection_file = normalize_vim_value(result.connection_file)
+            local connection_file = result.connection_file
             if type(connection_file) ~= "string" or connection_file == "" then
                 vim.notify("PyREPL: Kernel initialization failed with empty connection file.", vim.log.levels.ERROR)
                 return nil
@@ -288,11 +235,11 @@ local function init_kernel(kernelname)
             return connection_file
         end
 
-        local error_type = normalize_vim_value(result.error_type)
-        local error_message = normalize_vim_value(result.error)
-        local requested_kernel_name = normalize_vim_value(result.requested_kernel_name)
-        local effective_kernel_name = normalize_vim_value(result.effective_kernel_name)
-        local spec_argv0 = normalize_vim_value(result.spec_argv0)
+        local error_type = result.error_type
+        local error_message = result.error
+        local requested_kernel_name = result.requested_kernel_name
+        local effective_kernel_name = result.effective_kernel_name
+        local spec_argv0 = result.spec_argv0
 
         local debug_parts = {}
         if type(requested_kernel_name) == "string" and requested_kernel_name ~= "" then
@@ -313,7 +260,7 @@ local function init_kernel(kernelname)
             vim.notify(
                 string.format(
                     "PyREPL: Kernel '%s' not found. Please install it manually (see README) and try again.",
-                    kernelname
+                    kernel_name
                 ),
                 vim.log.levels.ERROR
             )
@@ -321,7 +268,8 @@ local function init_kernel(kernelname)
             vim.notify("PyREPL: Kernel name is missing.", vim.log.levels.ERROR)
         else
             local message = error_message or "Unknown error"
-            vim.notify(string.format("PyREPL: Kernel initialization failed: %s%s", message, debug_suffix), vim.log.levels.ERROR)
+            vim.notify(string.format("PyREPL: Kernel initialization failed: %s%s", message, debug_suffix),
+                vim.log.levels.ERROR)
         end
         return nil
     end
@@ -333,8 +281,8 @@ local function init_kernel(kernelname)
 end
 
 local function open_terminal(python_executable, kernelname)
-    local origin_win = api.nvim_get_current_win()
-    kernelname = kernelname or M.kernelname
+    local origin_win = vim.api.nvim_get_current_win()
+
     if not kernelname or kernelname == "" then
         vim.notify("PyREPL: Kernel name is missing.", vim.log.levels.ERROR)
         return
@@ -346,11 +294,11 @@ local function open_terminal(python_executable, kernelname)
             return
         end
         M.connection_file_path = connection_file
-        M.kernelname = kernelname
+        M.kernel_name = kernelname
         register_kernel_cleanup()
     end
 
-    local bufid = api.nvim_create_buf(false, true)
+    local bufid = vim.api.nvim_create_buf(false, true)
 
     if M.config.split_horizontal then
         local height = math.floor(vim.o.lines * M.config.split_ratio)
@@ -364,8 +312,8 @@ local function open_terminal(python_executable, kernelname)
 
     vim.opt.termguicolors = true
 
-    api.nvim_win_set_buf(0, bufid)
-    local winid = api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(0, bufid)
+    local winid = vim.api.nvim_get_current_win()
 
     if M.config.split_horizontal then
         vim.wo.winfixheight = true
@@ -398,11 +346,11 @@ local function open_terminal(python_executable, kernelname)
             "--nvim-socket",
             nvim_socket,
             "--pygments-style",
-            tostring(style)
+            tostring(style),
         }
 
         -- Open terminal with options
-        local chanid = fn.termopen(term_cmd)
+        local chanid = vim.fn.termopen(term_cmd)
 
         M.term = {
             opened = 1,
@@ -411,11 +359,11 @@ local function open_terminal(python_executable, kernelname)
             chanid = chanid
         }
         M.repl_ready = false
-        if api.nvim_win_is_valid(origin_win) then
-            api.nvim_set_current_win(origin_win)
+        if vim.api.nvim_win_is_valid(origin_win) then
+            vim.api.nvim_set_current_win(origin_win)
         end
     else
-        api.nvim_err_writeln("PyREPL: Failed to initialize kernel")
+        vim.api.nvim_err_writeln("PyREPL: Failed to initialize kernel")
     end
 end
 
@@ -483,16 +431,16 @@ local function raw_send_message(message)
         return
     end
 
-    local prefix = api.nvim_replace_termcodes("<esc>[200~", true, false, true)
-    local suffix = api.nvim_replace_termcodes("<esc>[201~", true, false, true)
+    local prefix = vim.api.nvim_replace_termcodes("<esc>[200~", true, false, true)
+    local suffix = vim.api.nvim_replace_termcodes("<esc>[201~", true, false, true)
 
     local normalized = normalize_python_message(message)
-    api.nvim_chan_send(M.term.chanid, prefix .. normalized .. suffix .. "\n")
+    vim.api.nvim_chan_send(M.term.chanid, prefix .. normalized .. suffix .. "\n")
 
-    if api.nvim_win_is_valid(M.term.winid) then
-        api.nvim_win_set_cursor(
+    if vim.api.nvim_win_is_valid(M.term.winid) then
+        vim.api.nvim_win_set_cursor(
             M.term.winid,
-            { api.nvim_buf_line_count(api.nvim_win_get_buf(M.term.winid)), 0 }
+            { vim.api.nvim_buf_line_count(vim.api.nvim_win_get_buf(M.term.winid)), 0 }
         )
     end
 end
@@ -529,14 +477,14 @@ end
 
 local function move_cursor_to_next_line(end_row)
     local comment_char = "#"
-    local line_count = api.nvim_buf_line_count(0)
+    local line_count = vim.api.nvim_buf_line_count(0)
     local row = end_row + 2
 
     while row <= line_count do
-        local line = api.nvim_buf_get_lines(0, row - 1, row, false)[1] or ""
+        local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1] or ""
         local col = line:find("%S")
         if col and line:sub(col, col + (#comment_char - 1)) ~= comment_char then
-            api.nvim_win_set_cursor(0, { row, 0 })
+            vim.api.nvim_win_set_cursor(0, { row, 0 })
             return
         end
         row = row + 1
@@ -544,43 +492,41 @@ local function move_cursor_to_next_line(end_row)
 end
 
 local function get_visual_selection()
-    local start_pos, end_pos = fn.getpos("v"), fn.getcurpos()
+    local start_pos, end_pos = vim.fn.getpos("v"), vim.fn.getcurpos()
     local start_line, end_line = start_pos[2], end_pos[2]
     if start_line > end_line then
         start_line, end_line = end_line, start_line
     end
-    local lines = api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+    local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
     return table.concat(lines, "\n"), end_line
 end
 
-local function check_and_install_dependencies(python_executable)
-    python_executable = python_executable or resolve_python_executable()
-
-    if fn.executable(python_executable) == 0 then
+local function check_and_install_dependencies(python_host)
+    if vim.fn.executable(python_host) == 0 then
         return false
     end
 
     local check_cmd = {
-        python_executable,
+        python_host,
         "-c",
         "import pynvim, jupyter_client, prompt_toolkit, PIL, pygments"
     }
 
-    fn.system(check_cmd)
+    vim.fn.system(check_cmd)
 
     if vim.v.shell_error ~= 0 then
-        local pip_path = fn.system({ python_executable, "-m", "pip", "--version" }):gsub("\n", "")
-        local install_path = fn.system({
-            python_executable,
+        local pip_path = vim.fn.system({ python_host, "-m", "pip", "--version" }):gsub("\n", "")
+        local install_path = vim.fn.system({
+            python_host,
             "-c",
             "import site, sys; "
             .. "print(site.getsitepackages()[0] if hasattr(site, 'getsitepackages') and site.getsitepackages() else sys.prefix)"
         }):gsub("\n", "")
 
-        local choice = fn.confirm(
+        local choice = vim.fn.confirm(
             string.format(
                 "PyREPL: Missing packages. Install?\n\nPython: %s\nPip: %s\nInstall path: %s",
-                python_executable,
+                python_host,
                 pip_path,
                 install_path
             ),
@@ -588,12 +534,12 @@ local function check_and_install_dependencies(python_executable)
             1
         )
         if choice == 1 then
-            local bufnr = api.nvim_create_buf(false, true)
-            api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Installing dependencies..." })
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Installing dependencies..." })
 
             local width = math.floor(vim.o.columns * 0.6)
             local height = math.floor(vim.o.lines * 0.4)
-            local winid = api.nvim_open_win(bufnr, false, {
+            local winid = vim.api.nvim_open_win(bufnr, false, {
                 relative = "editor",
                 width = width,
                 height = height,
@@ -607,14 +553,14 @@ local function check_and_install_dependencies(python_executable)
 
             local error_lines = {}
 
-            local pip_args = { python_executable, "-m", "pip", "install" }
+            local pip_args = { python_host, "-m", "pip", "install" }
             table.insert(pip_args, "pynvim")
             table.insert(pip_args, "jupyter-client")
             table.insert(pip_args, "prompt-toolkit")
             table.insert(pip_args, "pillow")
             table.insert(pip_args, "pygments")
 
-            fn.jobstart(pip_args, {
+            vim.fn.jobstart(pip_args, {
                 stdout_buffered = false,
                 stderr_buffered = false,
                 on_stdout = function(_, data)
@@ -622,7 +568,7 @@ local function check_and_install_dependencies(python_executable)
                         vim.schedule(function()
                             for _, line in ipairs(data) do
                                 if line ~= "" then
-                                    api.nvim_buf_set_lines(bufnr, -1, -1, false, { line })
+                                    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { line })
                                 end
                             end
                         end)
@@ -634,7 +580,7 @@ local function check_and_install_dependencies(python_executable)
                             for _, line in ipairs(data) do
                                 if line ~= "" then
                                     table.insert(error_lines, line)
-                                    api.nvim_buf_set_lines(bufnr, -1, -1, false, { line })
+                                    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { line })
                                 end
                             end
                         end)
@@ -642,8 +588,8 @@ local function check_and_install_dependencies(python_executable)
                 end,
                 on_exit = function(_, return_val)
                     vim.schedule(function()
-                        if api.nvim_win_is_valid(winid) then
-                            api.nvim_win_close(winid, true)
+                        if vim.api.nvim_win_is_valid(winid) then
+                            vim.api.nvim_win_close(winid, true)
                         end
                         if return_val == 0 then
                             vim.cmd("UpdateRemotePlugins")
@@ -653,7 +599,7 @@ local function check_and_install_dependencies(python_executable)
                         else
                             vim.notify(string.format(
                                 "PyREPL: Failed to install dependencies (exit code: %d)\nPython: %s\nCheck output above for details.",
-                                return_val, python_executable), vim.log.levels.ERROR)
+                                return_val, python_host), vim.log.levels.ERROR)
                         end
                     end)
                 end
@@ -667,30 +613,35 @@ end
 function M.setup(opts)
     vim.env.PYTHONDONTWRITEBYTECODE = "1"
     M.config = vim.tbl_deep_extend("force", M.config, opts or {})
+
     if not M.commands_set then
-        api.nvim_create_user_command("PyREPL", function()
+        vim.api.nvim_create_user_command("PyREPL", function()
             M.init()
         end, { nargs = 0 })
         M.commands_set = true
     end
+
     return M
 end
 
 function M.init()
-    local python_executable = validate_python_host()
-    if not python_executable then
+    local python_host = validate_python_host()
+    if not python_host then
         return
     end
-    if not check_and_install_dependencies(python_executable) then
+
+    if not check_and_install_dependencies(python_host) then
         return
     end
+
     local filetype = vim.bo.filetype
     if filetype ~= "python" then
         vim.notify("PyREPL: Only Python filetype is supported.", vim.log.levels.WARN)
         return
     end
+
     if M.connection_file_path then
-        open_terminal(python_executable, M.kernelname)
+        open_terminal(python_host, M.kernel_name)
         return
     end
 
@@ -704,9 +655,9 @@ function M.init()
             return
         end
         M.connection_file_path = connection_file
-        M.kernelname = kernelname
+        M.kernel_name = kernelname
         register_kernel_cleanup()
-        open_terminal(python_executable, kernelname)
+        open_terminal(python_host, kernelname)
     end)
 end
 
@@ -714,48 +665,53 @@ function M.send_visual()
     if not repl_ready() then
         return
     end
-    local current_winid = api.nvim_get_current_win()
+
+    local current_winid = vim.api.nvim_get_current_win()
     local msg, end_row = get_visual_selection()
+
     send_message(msg)
-    api.nvim_set_current_win(current_winid)
+    vim.api.nvim_set_current_win(current_winid)
     move_cursor_to_next_line(end_row)
-    api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
 end
 
 function M.send_buffer()
     if not repl_ready() then
         return
     end
-    local current_winid = api.nvim_get_current_win()
-    local lines = api.nvim_buf_get_lines(0, 0, -1, false)
+
+    local current_winid = vim.api.nvim_get_current_win()
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
     if not lines or #lines == 0 then
         return
     end
+
     local msg = table.concat(lines, "\n")
     if msg == "" then
         return
     end
+
     send_message(msg)
-    if api.nvim_win_is_valid(current_winid) then
-        api.nvim_set_current_win(current_winid)
+    if vim.api.nvim_win_is_valid(current_winid) then
+        vim.api.nvim_set_current_win(current_winid)
     end
 end
 
 local function handle_cursor_move()
-    local row = api.nvim_win_get_cursor(0)[1]
+    local row = vim.api.nvim_win_get_cursor(0)[1]
     local comment_char = "#"
-    while row <= api.nvim_buf_line_count(0) do
-        local line = api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+    while row <= vim.api.nvim_buf_line_count(0) do
+        local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
         local col = line:find("%S")
 
         -- Skip empty lines or comment lines
         if not col or line:sub(col, col + (#comment_char - 1)) == comment_char then
             row = row + 1
             pcall(function()
-                api.nvim_win_set_cursor(0, { row, 0 })
+                vim.api.nvim_win_set_cursor(0, { row, 0 })
             end)
         else
-            local cursor_pos = api.nvim_win_get_cursor(0)
+            local cursor_pos = vim.api.nvim_win_get_cursor(0)
             local current_col = cursor_pos[2] + 1
 
             -- If cursor is already on a non-whitespace character, do nothing
@@ -785,9 +741,9 @@ local function handle_cursor_move()
             local forward_dist = forward_pos and (forward_pos - current_col) or math.huge
 
             if backward_dist < forward_dist then
-                api.nvim_win_set_cursor(0, { row, backward_pos - 1 })
+                vim.api.nvim_win_set_cursor(0, { row, backward_pos - 1 })
             elseif forward_dist <= backward_dist then
-                api.nvim_win_set_cursor(0, { row, forward_pos - 1 })
+                vim.api.nvim_win_set_cursor(0, { row, forward_pos - 1 })
             end
 
             break
@@ -797,15 +753,15 @@ end
 
 function M.send_statement()
     if not repl_ready() then
-        api.nvim_feedkeys(
-            api.nvim_replace_termcodes("<CR>", true, false, true),
+        vim.api.nvim_feedkeys(
+            vim.api.nvim_replace_termcodes("<CR>", true, false, true),
             "n",
             false
         )
         return
     end
     handle_cursor_move()
-    local ok_parser, parser = pcall(ts.get_parser, 0)
+    local ok_parser, parser = pcall(vim.treesitter.get_parser, 0)
     if not ok_parser or not parser then
         vim.notify("PyREPL: Tree-sitter parser not available for this buffer.", vim.log.levels.WARN)
         return
@@ -817,9 +773,9 @@ function M.send_statement()
     end
     local root = tree:root()
     local function node_at_cursor()
-        local row, col = unpack(api.nvim_win_get_cursor(0))
+        local row, col = unpack(vim.api.nvim_win_get_cursor(0))
         row = row - 1
-        local line = api.nvim_buf_get_lines(0, row, row + 1, false)[1] or ""
+        local line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1] or ""
         local max_col = math.max(#line - 1, 0)
         if col > max_col then
             col = max_col
@@ -838,7 +794,7 @@ function M.send_statement()
     end
     local node = node_at_cursor()
 
-    local current_winid = api.nvim_get_current_win()
+    local current_winid = vim.api.nvim_get_current_win()
 
     local function find_and_return_node()
         local function immediate_child(node)
@@ -863,7 +819,7 @@ function M.send_statement()
         return
     end
 
-    local ok, msg = pcall(ts.get_node_text, node, 0)
+    local ok, msg = pcall(vim.treesitter.get_node_text, node, 0)
 
     if not ok then
         print("Error getting node text!")
@@ -874,7 +830,7 @@ function M.send_statement()
     if msg then
         send_message(msg)
     end
-    api.nvim_set_current_win(winid)
+    vim.api.nvim_set_current_win(winid)
     move_cursor_to_next_line(end_row)
 end
 

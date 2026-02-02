@@ -1,7 +1,7 @@
 import json
 import sys
 import time
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Optional, cast
 
 import pynvim
 from jupyter_client.blocking.client import BlockingKernelClient
@@ -41,7 +41,7 @@ class PyreplPlugin:
         return manager
 
     @pynvim.function("InitKernel", sync=True)
-    def init_kernel(self, args) -> Dict[str, object]:
+    def init_kernel(self, args: list) -> dict[str, Any]:
         """Initialize Jupyter kernel and return status data."""
         if not args:
             return {
@@ -57,6 +57,7 @@ class PyreplPlugin:
                 "error_type": "missing_kernel_name",
                 "error": "missing kernel name",
             }
+
         kernel_name = kernel_name.strip()
         requested_kernel_name = kernel_name
         effective_kernel_name = ""
@@ -112,23 +113,24 @@ class PyreplPlugin:
             }
 
     @pynvim.function("ListKernels", sync=True)
-    def list_kernels(self, args) -> List[Dict[str, str]]:
+    def list_kernels(self, args) -> list[dict[str, str]]:
         try:
             manager = self._get_kernelspec_manager()
             specs = manager.get_all_specs()
-            kernels: List[Dict[str, str]] = []
+            kernels: list[dict[str, str]] = []
+
             for name, info in specs.items():
-                resource_dir = ""
-                argv0 = ""
+                path = ""
                 if isinstance(info, dict):
-                    resource_dir = info.get("resource_dir") or ""
                     spec = info.get("spec") or {}
                     argv = spec.get("argv") or []
                     if argv:
-                        argv0 = argv[0]
-                kernels.append({"name": name, "path": resource_dir, "argv0": argv0})
-            kernels.sort(key=lambda item: item.get("name", ""))
+                        path = argv[0]
+                kernels.append({"name": name, "path": path})
+
+            kernels.sort(key=lambda item: item["name"])
             return kernels
+
         except Exception as exc:
             self.nvim.err_write(f"PyREPL: Failed to list kernels: {exc}\n")
             return []
