@@ -1,14 +1,13 @@
 local state = require("pyrepl.state")
 local M = {}
 
----@param session pyrepl.Session|nil
+---@param session pyrepl.Session
 ---@return boolean
 function M.repl_ready(session)
-    return session
-        and session.connection_file
-        and session.term_chan
+    return session.connection_file ~= nil
+        and session.term_chan ~= nil
         and session.term_chan ~= 0
-        and session.term_buf
+        and session.term_buf ~= nil
         and vim.api.nvim_buf_is_valid(session.term_buf)
 end
 
@@ -215,13 +214,13 @@ local function move_cursor_to_next_line(end_row)
 end
 
 ---@return string|nil
----@return integer|nil
+---@return integer
 ---@return string|nil
 local function get_visual_selection()
     local start_pos = vim.api.nvim_buf_get_mark(0, "<")
     local end_pos = vim.api.nvim_buf_get_mark(0, ">")
     if not start_pos or start_pos[1] == 0 or not end_pos or end_pos[1] == 0 then
-        return nil, nil, "no_mark"
+        return nil, 0, "no_mark"
     end
     local start_line, end_line = start_pos[1], end_pos[1]
     if start_line > end_line then
@@ -280,7 +279,7 @@ local function handle_cursor_move()
     end
 end
 
----@param session pyrepl.Session|nil
+---@param session pyrepl.Session
 function M.send_visual(session)
     if not M.repl_ready(session) then
         return
@@ -300,7 +299,7 @@ function M.send_visual(session)
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
 end
 
----@param session pyrepl.Session|nil
+---@param session pyrepl.Session
 function M.send_buffer(session)
     if not M.repl_ready(session) then
         return
@@ -321,7 +320,7 @@ function M.send_buffer(session)
     vim.api.nvim_set_current_win(current_winid)
 end
 
----@param session pyrepl.Session|nil
+---@param session pyrepl.Session
 function M.send_statement(session)
     if not M.repl_ready(session) then
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "n", false)

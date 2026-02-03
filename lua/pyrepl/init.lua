@@ -57,16 +57,25 @@ end
 
 function M.send_visual()
     local session = state.get_session(0, false)
+    if not session then
+        return
+    end
     send.send_visual(session)
 end
 
 function M.send_buffer()
     local session = state.get_session(0, false)
+    if not session then
+        return
+    end
     send.send_buffer(session)
 end
 
 function M.send_statement()
     local session = state.get_session(0, false)
+    if not session then
+        return
+    end
     send.send_statement(session)
 end
 
@@ -81,7 +90,7 @@ end
 
 function M.show_last_image()
     local session = state.get_session(0, false)
-    if not send.repl_ready(session) then
+    if not session or not send.repl_ready(session) then
         return
     end
     require("pyrepl.image").show_last_image()
@@ -89,7 +98,7 @@ end
 
 function M.show_previous_image()
     local session = state.get_session(0, false)
-    if not send.repl_ready(session) then
+    if not session or not send.repl_ready(session) then
         return
     end
     require("pyrepl.image").show_previous_image()
@@ -97,7 +106,7 @@ end
 
 function M.show_next_image()
     local session = state.get_session(0, false)
-    if not send.repl_ready(session) then
+    if not session or not send.repl_ready(session) then
         return
     end
     require("pyrepl.image").show_next_image()

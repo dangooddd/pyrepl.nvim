@@ -1,5 +1,3 @@
-local util = require("pyrepl.util")
-
 local M = {}
 
 local console_path = nil
@@ -144,7 +142,9 @@ function M.open(session, python_executable, config)
         tostring(session.bufnr),
     }
 
-    local chanid = vim.fn.termopen(term_cmd, {
+    local chanid = vim.fn.jobstart(term_cmd, {
+        term = true,
+        pty = true,
         on_exit = function()
             vim.schedule(function()
                 M.clear_term(session, bufid, true)

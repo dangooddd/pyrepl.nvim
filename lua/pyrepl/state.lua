@@ -8,7 +8,7 @@ M.state = {
 
 ---@param bufnr integer|nil
 ---@param create boolean
----@return pyrepl.Session|nil
+---@return pyrepl.Session
 function M.get_session(bufnr, create)
     if not bufnr or bufnr == 0 then
         bufnr = vim.api.nvim_get_current_buf()

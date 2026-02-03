@@ -24,22 +24,51 @@ pyrepl.nvim provides a Python REPL inside Neovim using Jupyter kernels.
 }
 ```
 
+Example with keymaps:
+
+```lua
+{
+    "dangooddd/pyrepl.nvim",
+    dependencies = {
+        "nvim-treesitter/nvim-treesitter",
+        "3rd/image.nvim",
+    },
+    build = ":UpdateRemotePlugins",
+    config = function()
+        local pyrepl = require("pyrepl")
+
+        pyrepl.setup({
+            style = "gruvbox-dark",
+        })
+
+        vim.keymap.set("n", "<leader>jo", ":PyREPLOpen<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>jh", ":PyREPLHide<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>jc", ":PyREPLClose<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>js", ":PyREPLSendStatement<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>jb", ":PyREPLSendBuffer<CR>", { silent = true })
+        vim.keymap.set("v", "<leader>jv", ":<C-u>PyREPLSendVisual<CR>gv", { silent = true })
+        vim.keymap.set("n", "<leader>ji", ":PyREPLOpenImages<CR>", { silent = true })
+    end,
+}
+```
+
 If you use image rendering, also call `require("image").setup()` in your
 Neovim config per image.nvim docs.
 
 ## Usage
 
 - Start REPL: `:PyREPLOpen`
-- Send code: `require("pyrepl").send_statement()`,
-  `require("pyrepl").send_visual()` (uses last visual selection; map like `:<C-u>PyREPLSendVisual<CR>gv`),
-  `require("pyrepl").send_buffer()`
-- Image manager: `require("pyrepl").open_images()`
+- Send code: `:PyREPLSendStatement`, `:PyREPLSendVisual`, `:PyREPLSendBuffer`
+  (visual uses last selection; map like `:<C-u>PyREPLSendVisual<CR>gv`)
+- Image manager: `:PyREPLOpenImages`
+- Image history: `:PyREPLShowLastImage`, `:PyREPLShowPreviousImage`, `:PyREPLShowNextImage`
 
 Notes:
-- Each Python buffer has its own kernel session.
-- Closing the Python buffer shuts down its kernel and closes its terminal.
-- Closing the terminal only clears the terminal; the kernel stays attached.
-- Use `:PyREPLHide` to hide the REPL window and `:PyREPLClose` to close the REPL buffer.
+- Each buffer has its own kernel session.
+- Closing the buffer shuts down its kernel and closes its terminal.
+- Closing the REPL terminal window only clears the terminal; the kernel stays attached.
+- Use `:PyREPLHide` to hide the REPL window and `:PyREPLClose` to close the REPL buffer and kernel.
+- Commands are buffer-local and available in any filetype.
 
 ## Dependencies
 
@@ -47,6 +76,7 @@ Notes:
 - Python packages installed in the `python3_host_prog` interpreter:
   `pynvim`, `jupyter-client`, `prompt-toolkit`, `pillow`, `pygments`,
   `ipykernel`
+- pyrepl.nvim does not auto-install dependencies.
 - Tree-sitter Python parser (for `send_statement`)
 - Image rendering uses image.nvim and supports whatever image.nvim supports
   (formats and backends). Install image.nvim dependencies as documented there.
