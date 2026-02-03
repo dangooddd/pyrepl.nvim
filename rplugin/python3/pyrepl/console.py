@@ -439,14 +439,14 @@ class REPLInterpreter:
                         try:
                             with self.nvim_lock:
                                 nvim = cast(pynvim.Nvim, self.nvim)
-                                if self._session_id:
-                                    nvim.command(
-                                        f'lua require("pyrepl")._on_repl_ready({self._session_id})'
-                                    )
-                                else:
-                                    nvim.command(
-                                        'lua require("pyrepl")._on_repl_ready()'
-                                    )
+                                session_id = (
+                                    str(self._session_id)
+                                    if self._session_id is not None
+                                    else ""
+                                )
+                                nvim.command(
+                                    f'lua require("pyrepl")._on_repl_ready({session_id})'
+                                )
                         except Exception as e:
                             if self._handle_nvim_disconnect(e, "repl_ready"):
                                 continue
