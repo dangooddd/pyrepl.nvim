@@ -24,15 +24,6 @@ function M.set(bufnr)
         PyREPLOpenImages = function()
             require("pyrepl").open_images()
         end,
-        PyREPLShowLastImage = function()
-            require("pyrepl").show_last_image()
-        end,
-        PyREPLShowPreviousImage = function()
-            require("pyrepl").show_previous_image()
-        end,
-        PyREPLShowNextImage = function()
-            require("pyrepl").show_next_image()
-        end,
     }
 
     for name, callback in pairs(commands) do

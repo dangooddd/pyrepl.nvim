@@ -61,7 +61,6 @@ Neovim config per image.nvim docs.
 - Send code: `:PyREPLSendStatement`, `:PyREPLSendVisual`, `:PyREPLSendBuffer`
   (visual uses last selection; map like `:<C-u>PyREPLSendVisual<CR>gv`)
 - Image manager: `:PyREPLOpenImages`
-- Image history: `:PyREPLShowLastImage`, `:PyREPLShowPreviousImage`, `:PyREPLShowNextImage`
 
 Notes:
 - Each buffer has its own kernel session.

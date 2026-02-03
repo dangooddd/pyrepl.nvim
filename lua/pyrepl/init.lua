@@ -88,28 +88,4 @@ function M.open_images()
     require("pyrepl.image").open_images()
 end
 
-function M.show_last_image()
-    local session = state.get_session(0, false)
-    if not session or not send.repl_ready(session) then
-        return
-    end
-    require("pyrepl.image").show_last_image()
-end
-
-function M.show_previous_image()
-    local session = state.get_session(0, false)
-    if not session or not send.repl_ready(session) then
-        return
-    end
-    require("pyrepl.image").show_previous_image()
-end
-
-function M.show_next_image()
-    local session = state.get_session(0, false)
-    if not session or not send.repl_ready(session) then
-        return
-    end
-    require("pyrepl.image").show_next_image()
-end
-
 return M

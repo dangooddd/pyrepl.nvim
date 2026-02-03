@@ -63,10 +63,6 @@ COMMANDS                                                        *pyrepl-commands
 :PyREPLOpenImages                                               *PyREPLOpenImages*
     Open the images manager.
 
-:PyREPLShowLastImage                                            *PyREPLShowLastImage*
-:PyREPLShowPreviousImage                                        *PyREPLShowPreviousImage*
-:PyREPLShowNextImage                                            *PyREPLShowNextImage*
-    Navigate image history.
 
 ==============================================================================
 LUA API                                                         *pyrepl-api*
@@ -96,10 +92,6 @@ require("pyrepl").send_buffer()                                 *pyrepl.send_buf
 require("pyrepl").open_images()                                 *pyrepl.open_images*
     Open the images manager.
 
-require("pyrepl").show_last_image()                             *pyrepl.show_last_image*
-require("pyrepl").show_previous_image()                         *pyrepl.show_previous_image*
-require("pyrepl").show_next_image()                             *pyrepl.show_next_image*
-    Navigate image history.
 
 ==============================================================================
 CONFIGURATION                                                   *pyrepl-config*
