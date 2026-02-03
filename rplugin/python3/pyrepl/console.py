@@ -206,11 +206,9 @@ class REPLInterpreter:
         try:
             with self.nvim_lock:
                 nvim = cast(pynvim.Nvim, self.nvim)
-                nvim.command(f'let g:pyrepl_image_path = "{escaped_path}"')
                 nvim.command(
-                    'lua require("pyrepl.image").show_image_file(vim.g.pyrepl_image_path)'
+                    f'lua require("pyrepl.image").show_image_file("{escaped_path}")'
                 )
-                nvim.command("unlet g:pyrepl_image_path")
         except Exception as e:
             if self._handle_nvim_disconnect(e, "image sync"):
                 return
