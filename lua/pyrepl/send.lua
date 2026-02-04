@@ -1,4 +1,3 @@
-local state = require("pyrepl.state")
 local M = {}
 
 ---@param session pyrepl.Session
@@ -143,58 +142,6 @@ local function raw_send_message(session, message)
     end
 end
 
----@param session pyrepl.Session
-local function flush_send_queue(session)
-    if session.send_flushing then
-        return
-    end
-
-    if not session.repl_ready then
-        return
-    end
-
-    if #session.send_queue == 0 then
-        return
-    end
-
-    local next_message = table.remove(session.send_queue, 1)
-    session.send_flushing = true
-    session.repl_ready = false
-    raw_send_message(session, next_message)
-    session.send_flushing = false
-end
-
----@param session pyrepl.Session
----@param message string
-local function send_message(session, message)
-    if not message or message == "" then
-        return
-    end
-    table.insert(session.send_queue, message)
-    flush_send_queue(session)
-end
-
----@param session_id integer|nil
-function M.on_repl_ready(session_id)
-    local session = nil
-    if session_id then
-        session = state.get_session(session_id, false)
-    else
-        for _, candidate in pairs(state.state.sessions) do
-            if candidate.term_chan and not candidate.repl_ready then
-                session = candidate
-                break
-            end
-        end
-    end
-
-    if not session then
-        return
-    end
-
-    session.repl_ready = true
-    flush_send_queue(session)
-end
 
 ---@param end_row integer
 local function move_cursor_to_next_line(end_row)
@@ -293,7 +240,7 @@ function M.send_visual(session)
         end
         return
     end
-    send_message(session, msg)
+    raw_send_message(session, msg)
     vim.api.nvim_set_current_win(current_winid)
     move_cursor_to_next_line(end_row)
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
@@ -316,7 +263,7 @@ function M.send_buffer(session)
         return
     end
 
-    send_message(session, msg)
+    raw_send_message(session, msg)
     vim.api.nvim_set_current_win(current_winid)
 end
 
@@ -395,7 +342,7 @@ function M.send_statement(session)
 
     local end_row = select(3, found_node:range())
     if msg then
-        send_message(session, msg)
+        raw_send_message(session, msg)
     end
     vim.api.nvim_set_current_win(winid)
     move_cursor_to_next_line(end_row)

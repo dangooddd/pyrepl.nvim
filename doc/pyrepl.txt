@@ -16,10 +16,11 @@ REQUIREMENTS                                                   *pyrepl-reqs*
 - The Python interpreter set in g:python3_host_prog must have these packages:
   - pynvim
   - jupyter-client
-  - prompt-toolkit
-  - pillow
-  - pygments
+  - jupyter-console
   - ipykernel
+- Optional for images:
+  - pillow (JPEG conversion)
+  - cairosvg (SVG conversion)
 - A Jupyter kernel registered:
 >
   python3 -m pip install ipykernel

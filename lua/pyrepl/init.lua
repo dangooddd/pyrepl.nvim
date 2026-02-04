@@ -94,11 +94,6 @@ function M.send_statement()
     send.send_statement(session)
 end
 
----@param session_id integer|nil
-function M._on_repl_ready(session_id)
-    send.on_repl_ready(session_id)
-end
-
 function M.open_images()
     require("pyrepl.image").open_images()
 end

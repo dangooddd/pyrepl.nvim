@@ -26,9 +26,6 @@ function M.get_session(bufnr, create)
         term_buf = nil,
         term_win = nil,
         term_chan = nil,
-        send_queue = {},
-        send_flushing = false,
-        repl_ready = false,
         closing = false,
     }
     M.state.sessions[bufnr] = session

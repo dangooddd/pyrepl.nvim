@@ -72,8 +72,8 @@ Notes:
 
 - Neovim Python provider configured (see `:help provider-python`)
 - Python packages installed in the `python3_host_prog` interpreter:
-  `pynvim`, `jupyter-client`, `prompt-toolkit`, `pillow`, `pygments`,
-  `ipykernel`
+  `pynvim`, `jupyter-client`, `jupyter-console`, `ipykernel`
+- Optional for images: `pillow` (JPEG conversion), `cairosvg` (SVG conversion)
 - pyrepl.nvim does not auto-install dependencies.
 - Tree-sitter Python parser (for `send_statement`)
 - Image rendering uses a terminal graphics protocol backend (kitty-compatible)

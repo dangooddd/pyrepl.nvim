@@ -8,9 +8,6 @@ error("Cannot require a meta file")
 ---@field term_buf integer|nil
 ---@field term_win integer|nil
 ---@field term_chan integer|nil
----@field send_queue string[]
----@field send_flushing boolean
----@field repl_ready boolean
 ---@field closing boolean
 
 ---@class pyrepl.State

@@ -25,7 +25,7 @@ local function check_dependencies(python_host)
     local check_cmd = {
         python_host,
         "-c",
-        "import pynvim, jupyter_client, prompt_toolkit, PIL, pygments",
+        "import pynvim, jupyter_client, jupyter_console",
     }
     local result = vim.system(check_cmd, { text = true }):wait()
     if result and result.code == 0 then
@@ -33,7 +33,7 @@ local function check_dependencies(python_host)
     end
 
     vim.notify(
-        "PyREPL: Missing Python packages, check the docs for instructions",
+        "PyREPL: Missing Python packages (jupyter-console), check the docs for instructions",
         vim.log.levels.ERROR
     )
     return false

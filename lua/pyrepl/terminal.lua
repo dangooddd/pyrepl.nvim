@@ -56,7 +56,6 @@ function M.clear_term(session, term_buf, clear_buf)
     if clear_buf then
         session.term_buf = nil
         session.term_chan = nil
-        session.repl_ready = false
     end
 
     session.term_win = nil
@@ -139,13 +138,14 @@ function M.open(session, python_executable)
         nvim_socket,
         "--pygments-style",
         tostring(style),
-        "--session-id",
-        tostring(session.bufnr),
     }
 
     local chanid = vim.fn.jobstart(term_cmd, {
         term = true,
         pty = true,
+        env = {
+            NVIM_LISTEN_ADDRESS = nvim_socket,
+        },
         on_exit = function()
             vim.schedule(function()
                 M.clear_term(session, bufid, true)
@@ -156,8 +156,6 @@ function M.open(session, python_executable)
     session.term_buf = bufid
     session.term_win = winid
     session.term_chan = chanid
-    session.repl_ready = false
-
     vim.b[bufid].pyrepl_owner = session.bufnr
 
     attach_term_autocmds(session, bufid, winid)
