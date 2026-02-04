@@ -7,7 +7,6 @@ import json
 import os
 import signal
 import sys
-import tempfile
 import time
 from queue import Empty, Queue
 from threading import Lock, Thread
@@ -76,14 +75,6 @@ class REPLInterpreter:
         self._auto_indent = auto_indent
         self._pygments_style = pygments_style
         self._session_id = session_id
-        self._temp_paths = set()
-
-        try:
-            self._temp_dir: Optional[tempfile.TemporaryDirectory[str]] = (
-                tempfile.TemporaryDirectory(prefix="pyrepl-")
-            )
-        except Exception:
-            self._temp_dir = None
 
         # Setup prompt toolkit
         self.history = InMemoryHistory()
@@ -201,15 +192,15 @@ class REPLInterpreter:
     def _vim_escape_string(self, value: str) -> str:
         return value.replace("\\", "\\\\").replace('"', '\\"')
 
-    def _send_image_to_nvim(self, path: str) -> None:
+    def _send_image_to_nvim(self, data: str) -> None:
         if not self._ensure_nvim():
             return
-        escaped_path = self._vim_escape_string(path)
+        escaped_data = self._vim_escape_string(data)
         try:
             with self.nvim_lock:
                 nvim = cast(pynvim.Nvim, self.nvim)
                 nvim.command(
-                    f'lua require("pyrepl.image").show_image_file("{escaped_path}")'
+                    f'lua require("pyrepl.image").show_image_data("{escaped_data}")'
                 )
         except Exception as e:
             if self._handle_nvim_disconnect(e, "image sync"):
@@ -455,7 +446,7 @@ class REPLInterpreter:
                             print(f"Error in Neovim thread: {e}", file=sys.stderr)
                         continue
 
-                    if kind == "image_path":
+                    if kind == "image_data":
                         if not self._ensure_nvim():
                             continue
                         if isinstance(payload, str) and payload:
@@ -475,55 +466,11 @@ class REPLInterpreter:
 
                     if not self._ensure_nvim():
                         continue
-                    tmp_path = None
 
                     try:
-                        suffix = ".png"
-                        if image_mime == "image/jpeg":
-                            suffix = ".jpg"
-                        elif image_mime == "image/svg+xml":
-                            suffix = ".svg"
-
-                        if image_mime == "image/svg+xml":
-                            if isinstance(image_data, str):
-                                svg_text = image_data
-                            elif isinstance(image_data, (bytes, bytearray)):
-                                svg_text = bytes(image_data).decode("utf-8")
-                            else:
-                                svg_text = ""
-                            if not svg_text:
-                                continue
-                            with tempfile.NamedTemporaryFile(
-                                suffix=suffix,
-                                delete=False,
-                                dir=self._temp_dir.name if self._temp_dir else None,
-                            ) as tmp:
-                                tmp.write(svg_text.encode("utf-8"))
-                                tmp_path = tmp.name
-                        else:
-                            if isinstance(image_data, str):
-                                img_bytes = base64.b64decode(image_data)
-                            elif isinstance(image_data, (bytes, bytearray)):
-                                img_bytes = bytes(image_data)
-                            else:
-                                continue
-
-                            with tempfile.NamedTemporaryFile(
-                                suffix=suffix,
-                                delete=False,
-                                dir=self._temp_dir.name if self._temp_dir else None,
-                            ) as tmp:
-                                tmp.write(img_bytes)
-                                tmp_path = tmp.name
-
-                        if tmp_path:
-                            self._register_temp_path(tmp_path)
-                            if self._image_debug:
-                                print(
-                                    f"[pyrepl] wrote image temp: {tmp_path}",
-                                    file=sys.stderr,
-                                )
-                            self._send_image_to_nvim(tmp_path)
+                        prepared = self._prepare_image_data(image_mime, image_data)
+                        if prepared:
+                            self._send_image_to_nvim(prepared)
                     except Exception as e:
                         print(f"Error handling image: {e}", file=sys.stderr)
                 except Exception as e:
@@ -539,11 +486,7 @@ class REPLInterpreter:
             self.nvim_queue.put(None)  # Send exit signal
             self.nvim_thread.join(timeout=1.0)
 
-    def _register_temp_path(self, path: Optional[str]) -> None:
-        if path:
-            self._temp_paths.add(path)
-
-    def _write_image_file(self, image_mime: str, image_data: object) -> Optional[str]:
+    def _prepare_image_data(self, image_mime: str, image_data: object) -> Optional[str]:
         if image_mime == "image/svg+xml":
             if self._image_debug:
                 print(
@@ -551,6 +494,9 @@ class REPLInterpreter:
                     file=sys.stderr,
                 )
             return None
+
+        if image_mime == "image/png" and isinstance(image_data, str):
+            return image_data
 
         if isinstance(image_data, str):
             try:
@@ -562,54 +508,22 @@ class REPLInterpreter:
         else:
             return None
 
-        temp_dir = self._temp_dir.name if self._temp_dir else None
-
         if image_mime == "image/jpeg":
             try:
                 img = Image.open(io.BytesIO(raw))
-                with tempfile.NamedTemporaryFile(
-                    suffix=".png",
-                    delete=False,
-                    dir=temp_dir,
-                ) as tmp:
-                    img.save(tmp, format="PNG")
-                    return tmp.name
+                output = io.BytesIO()
+                img.save(output, format="PNG")
+                return base64.b64encode(output.getvalue()).decode("utf-8")
             except Exception:
                 return None
 
         if image_mime == "image/png":
-            with tempfile.NamedTemporaryFile(
-                suffix=".png",
-                delete=False,
-                dir=temp_dir,
-            ) as tmp:
-                tmp.write(raw)
-                return tmp.name
+            return base64.b64encode(raw).decode("utf-8")
 
         return None
 
-    def _cleanup_temp_path(self, path: Optional[str]) -> None:
-        if not path:
-            return
-        try:
-            os.unlink(path)
-        except Exception:
-            pass
-        self._temp_paths.discard(path)
-
-    def _cleanup_temp_paths(self) -> None:
-        for path in list(self._temp_paths):
-            self._cleanup_temp_path(path)
-
     def _cleanup_resources(self) -> None:
         self._cleanup()
-        self._cleanup_temp_paths()
-        if self._temp_dir:
-            try:
-                self._temp_dir.cleanup()
-            except Exception:
-                pass
-            self._temp_dir = None
 
     async def handle_iopub_msgs(self, msg_id) -> None:
         client = self._get_client()
@@ -673,17 +587,16 @@ class REPLInterpreter:
                             file=sys.stderr,
                         )
                     if self._nvim_address:
-                        tmp_path = self._write_image_file(image_mime, image_data)
-                        if not tmp_path:
+                        prepared = self._prepare_image_data(image_mime, image_data)
+                        if not prepared:
                             continue
-                        self._register_temp_path(tmp_path)
                         if self._image_debug:
                             print(
-                                f"[pyrepl] wrote image temp: {tmp_path}",
+                                f"[pyrepl] prepared image b64len={len(prepared)}",
                                 file=sys.stderr,
                             )
                         self._start_nvim_thread()
-                        self.nvim_queue.put(("image_path", tmp_path))
+                        self.nvim_queue.put(("image_data", prepared))
 
             elif msg_type == "error":
                 content = msg["content"]

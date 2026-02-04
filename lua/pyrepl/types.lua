@@ -40,4 +40,4 @@ error("Cannot require a meta file")
 ---@field max_height_ratio number
 
 ---@class pyrepl.ImageEntry
----@field path string
+---@field data string

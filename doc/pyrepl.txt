@@ -151,7 +151,9 @@ Example with keymaps:
 IMAGES                                                         *pyrepl-images*
 
 Image rendering requires a terminal graphics protocol backend (kitty-compatible).
-Supported formats are PNG and JPEG (JPEG is converted to PNG).
+Supported formats are PNG and JPEG (JPEG is converted to PNG). Images are sent
+as PNG data and require a terminal that allows graphics APC sequences (including
+over SSH).
 
 The images manager can be opened with:
 >

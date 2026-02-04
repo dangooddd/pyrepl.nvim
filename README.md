@@ -50,8 +50,9 @@ Example with keymaps:
 }
 ```
 
-Image rendering uses a terminal graphics protocol backend. Use a compatible
-terminal (for example kitty).
+Image rendering uses a terminal graphics protocol backend and sends PNG data.
+Use a compatible terminal (for example kitty). Over SSH it requires a terminal
+that passes graphics APC sequences.
 
 ## Usage
 
@@ -75,8 +76,9 @@ Notes:
   `ipykernel`
 - pyrepl.nvim does not auto-install dependencies.
 - Tree-sitter Python parser (for `send_statement`)
-- Image rendering uses a terminal graphics protocol backend (kitty-compatible).
-  `image_max_*_ratio` sets the target render size and can upscale images.
+- Image rendering uses a terminal graphics protocol backend (kitty-compatible)
+  and sends PNG data (JPEG is converted). `image_max_*_ratio` sets the target
+  render size and can upscale images.
 
 ## Docs
 

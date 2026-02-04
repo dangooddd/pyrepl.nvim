@@ -53,29 +53,6 @@ local function diac(n)
     return DIACRITICS[n + 1]
 end
 
-local function b64_encode(data)
-    if vim.base64 and vim.base64.encode then
-        return vim.base64.encode(data)
-    end
-    local b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-    return ((data:gsub(".", function(x)
-        local r, bits = "", x:byte()
-        for i = 8, 1, -1 do
-            r = r .. ((bits % 2 ^ i - bits % 2 ^ (i - 1) > 0) and "1" or "0")
-        end
-        return r
-    end) .. "0000"):gsub("%d%d%d?%d?%d?%d?", function(x)
-        if #x < 6 then
-            return ""
-        end
-        local c = 0
-        for i = 1, 6 do
-            c = c + ((x:sub(i, i) == "1") and 2 ^ (6 - i) or 0)
-        end
-        return b:sub(c + 1, c + 1)
-    end) .. ({ "", "==", "=" })[#data % 3 + 1])
-end
-
 local function send_apc(body)
     api.nvim_chan_send(vim.v.stderr, "\x1b_G" .. body .. "\x1b\\")
 end
@@ -113,9 +90,8 @@ local function ensure_placeholder_hl(img_id, truecolor)
     return hl
 end
 
-local function upload_image_file(img_id, abs_path)
-    local payload = b64_encode(abs_path)
-    send_apc(("f=100,t=f,i=%d,q=2;%s"):format(img_id, payload))
+local function upload_image_data(img_id, data)
+    send_apc(("f=100,t=d,i=%d,q=2;%s"):format(img_id, data))
 end
 
 local function create_virtual_placement(img_id, cols, rows)
@@ -175,16 +151,15 @@ local function render_placeholders(buf, win)
     api.nvim_set_option_value("modifiable", false, { buf = buf })
 end
 
-local function create_placeholder_buffer(img_path)
-    local abs = fn.fnamemodify(img_path, ":p")
-    if fn.filereadable(abs) ~= 1 then
-        error("file not readable: " .. abs)
+local function create_placeholder_buffer(data)
+    if type(data) ~= "string" or data == "" then
+        error("image data missing")
     end
 
     local truecolor = vim.o.termguicolors
     local img_id = truecolor and gen_id(0xFFFFFF) or gen_id(255)
 
-    upload_image_file(img_id, abs)
+    upload_image_data(img_id, data)
 
     local buf = api.nvim_create_buf(false, true)
     vim.bo[buf].buftype = "nofile"
@@ -195,7 +170,7 @@ local function create_placeholder_buffer(img_path)
 
     buffer_state[buf] = {
         img_id = img_id,
-        path = abs,
+        data_len = #data,
         truecolor = truecolor,
         last_cols = nil,
         last_rows = nil,
@@ -217,8 +192,8 @@ local function create_placeholder_buffer(img_path)
     return buf
 end
 
-function M.create_handle(img_path)
-    local buf = create_placeholder_buffer(img_path)
+function M.create_handle(data)
+    local buf = create_placeholder_buffer(data)
     local st = buffer_state[buf]
     local handle = {
         buf = buf,

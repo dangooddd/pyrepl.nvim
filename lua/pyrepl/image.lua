@@ -12,6 +12,29 @@ local IMAGE_PADDING = 0
 
 local image_config = vim.deepcopy(default_image_config)
 
+local function base64_encode(data)
+    if vim.base64 and vim.base64.encode then
+        return vim.base64.encode(data)
+    end
+    local b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    return ((data:gsub(".", function(x)
+        local r, bits = "", x:byte()
+        for i = 8, 1, -1 do
+            r = r .. ((bits % 2 ^ i - bits % 2 ^ (i - 1) > 0) and "1" or "0")
+        end
+        return r
+    end) .. "0000"):gsub("%d%d%d?%d?%d?%d?", function(x)
+        if #x < 6 then
+            return ""
+        end
+        local c = 0
+        for i = 1, 6 do
+            c = c + ((x:sub(i, i) == "1") and 2 ^ (6 - i) or 0)
+        end
+        return b:sub(c + 1, c + 1)
+    end) .. ({ "", "==", "=" })[#data % 3 + 1])
+end
+
 local function refresh_image_config()
     local ok, pyrepl = pcall(require, "pyrepl")
     if ok and pyrepl.config then
@@ -202,7 +225,7 @@ local function render_image(entry, focus, auto_clear)
 
     clear_current()
 
-    local ok, handle = pcall(placeholders.create_handle, entry.path)
+    local ok, handle = pcall(placeholders.create_handle, entry.data)
     if not ok or not handle then
         vim.notify("PyREPL: Failed to load image.", vim.log.levels.WARN)
         return
@@ -262,11 +285,43 @@ end
 
 ---@param path string
 function M.show_image_file(path)
-    if type(path) ~= "string" or path == "" then
+    local normalized = path
+    if type(normalized) ~= "string" or normalized == "" then
         vim.notify("PyREPL: Image path missing or invalid.", vim.log.levels.WARN)
         return
     end
-    push_history({ path = path })
+
+    local abs = vim.fn.fnamemodify(normalized, ":p")
+    if vim.fn.filereadable(abs) ~= 1 then
+        vim.notify("PyREPL: Image file not readable.", vim.log.levels.WARN)
+        return
+    end
+
+    local fd = (vim.uv or vim.loop).fs_open(abs, "r", 438)
+    if not fd then
+        vim.notify("PyREPL: Failed to read image file.", vim.log.levels.WARN)
+        return
+    end
+    local stat = (vim.uv or vim.loop).fs_fstat(fd)
+    local data = stat and (vim.uv or vim.loop).fs_read(fd, stat.size, 0) or nil
+    (vim.uv or vim.loop).fs_close(fd)
+
+    if not data or data == "" then
+        vim.notify("PyREPL: Failed to read image file.", vim.log.levels.WARN)
+        return
+    end
+
+    local encoded = base64_encode(data)
+    M.show_image_data(encoded)
+end
+
+---@param data string
+function M.show_image_data(data)
+    if type(data) ~= "string" or data == "" then
+        vim.notify("PyREPL: Image data missing or invalid.", vim.log.levels.WARN)
+        return
+    end
+    push_history({ data = data })
     show_history_at(#M.history, false, true)
 end
 
