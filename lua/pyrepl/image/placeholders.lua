@@ -53,8 +53,17 @@ local function diac(n)
     return DIACRITICS[n + 1]
 end
 
+local function wrap_tmux_passthrough(sequence)
+    if not vim.env.TMUX or vim.env.TMUX == "" then
+        return sequence
+    end
+    local escaped = sequence:gsub("\x1b", "\x1b\x1b")
+    return "\x1bPtmux;" .. escaped .. "\x1b\\"
+end
+
 local function send_apc(body)
-    api.nvim_chan_send(vim.v.stderr, "\x1b_G" .. body .. "\x1b\\")
+    local sequence = "\x1b_G" .. body .. "\x1b\\"
+    api.nvim_chan_send(vim.v.stderr, wrap_tmux_passthrough(sequence))
 end
 
 local function gen_id(maxn)
