@@ -90,11 +90,12 @@ end
 local function ensure_placeholder_hl(img_id, truecolor)
     local hl = ("PyREPLImagePlaceholder_%d"):format(img_id)
     if fn.hlexists(hl) == 0 then
-        if truecolor then
-            api.nvim_set_hl(0, hl, { fg = img_id })
-        else
-            api.nvim_set_hl(0, hl, { ctermfg = img_id })
-        end
+        api.nvim_set_hl(0, hl, { fg = img_id, ctermfg = img_id })
+        -- if truecolor then
+        --     api.nvim_set_hl(0, hl, { fg = img_id })
+        -- else
+        --     api.nvim_set_hl(0, hl, { ctermfg = img_id })
+        -- end
     end
     return hl
 end
