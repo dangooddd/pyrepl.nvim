@@ -5,7 +5,7 @@ INTRODUCTION                                                     *pyrepl*
 
 pyrepl.nvim provides a Python REPL inside Neovim using the Jupyter kernel
 stack. It lets you send code from buffers, see results immediately, and view
-image outputs when image.nvim is installed.
+    image outputs when a terminal graphics protocol backend is available.
 
 Project: https://github.com/dangooddd/pyrepl.nvim
 
@@ -26,7 +26,7 @@ REQUIREMENTS                                                   *pyrepl-reqs*
   python3 -m ipykernel install --user --name python3
 <
 - Tree-sitter Python parser (required for |pyrepl.send_statement|).
-- Image rendering requires image.nvim and its dependencies.
+- Image rendering requires a terminal graphics protocol backend (kitty-compatible).
 - pyrepl.nvim does not auto-install dependencies.
 
 ==============================================================================
@@ -127,8 +127,7 @@ Example with keymaps:
       "dangooddd/pyrepl.nvim",
       dependencies = {
           "nvim-treesitter/nvim-treesitter",
-          "3rd/image.nvim",
-      },
+        },
       build = ":UpdateRemotePlugins",
       config = function()
           local pyrepl = require("pyrepl")
@@ -151,10 +150,8 @@ Example with keymaps:
 ==============================================================================
 IMAGES                                                         *pyrepl-images*
 
-Image rendering requires image.nvim and its dependencies:
-https://github.com/3rd/image.nvim
-
-Supported image formats and backends are whatever image.nvim supports.
+Image rendering requires a terminal graphics protocol backend (kitty-compatible).
+Supported formats are PNG and JPEG (JPEG is converted to PNG).
 
 The images manager can be opened with:
 >
@@ -196,8 +193,7 @@ TROUBLESHOOTING                                                *pyrepl-troublesh
   python3 -m pip install ipykernel
   python3 -m ipykernel install --user --name python3
 <
-- If images do not render, verify image.nvim dependencies and terminal backend
-  support.
+- If images do not render, verify terminal graphics protocol support.
 
 ==============================================================================
 END

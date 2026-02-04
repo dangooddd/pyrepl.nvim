@@ -3,15 +3,13 @@ local fn = vim.fn
 
 local M = {}
 
----@type pyrepl.ImageConfig
 local default_image_config = {
     max_width_ratio = 0.5,
-    max_height_ratio = 0.5
+    max_height_ratio = 0.5,
 }
 
-local IMAGE_PADDING = 1
+local IMAGE_PADDING = 0
 
----@type pyrepl.ImageConfig
 local image_config = vim.deepcopy(default_image_config)
 
 local function refresh_image_config()
@@ -21,24 +19,13 @@ local function refresh_image_config()
             max_width_ratio = tonumber(pyrepl.config.image_max_width_ratio)
                 or default_image_config.max_width_ratio,
             max_height_ratio = tonumber(pyrepl.config.image_max_height_ratio)
-                or default_image_config.max_height_ratio
+                or default_image_config.max_height_ratio,
         }
     else
         image_config = vim.deepcopy(default_image_config)
     end
 end
 
-local function ensure_image_module()
-    local ok, image = pcall(require, "image")
-    if ok then
-        return image
-    end
-    vim.notify(
-        "PyREPL: image.nvim not available. Install '3rd/image.nvim' to render images.",
-        vim.log.levels.WARN
-    )
-    return nil
-end
 
 local function compute_window_cells()
     local max_width_ratio = tonumber(image_config.max_width_ratio) or default_image_config.max_width_ratio
@@ -48,7 +35,7 @@ local function compute_window_cells()
     return max_width_cells, max_height_cells
 end
 
-local function create_image_float(width_cells, height_cells, focus)
+local function create_image_float(width_cells, height_cells, focus, bufnr)
     local win_width = vim.o.columns
     local win_height = vim.o.lines
 
@@ -70,9 +57,16 @@ local function create_image_float(width_cells, height_cells, focus)
         title_pos = "center"
     }
 
-    local bufnr = api.nvim_create_buf(false, true)
-    vim.bo[bufnr].modifiable = false
-    vim.bo[bufnr].buftype = "nofile"
+    local own_buf = false
+    if not bufnr then
+        bufnr = api.nvim_create_buf(false, true)
+        own_buf = true
+    end
+
+    if own_buf then
+        vim.bo[bufnr].modifiable = false
+        vim.bo[bufnr].buftype = "nofile"
+    end
 
     local winid = api.nvim_open_win(bufnr, focus or false, opts)
 
@@ -112,38 +106,17 @@ local function create_image_float(width_cells, height_cells, focus)
     return winid, bufnr
 end
 
-local function update_image_float(winid, width_cells, height_cells)
-    if not winid or not api.nvim_win_is_valid(winid) then
-        return
-    end
-
-    local win_width = vim.o.columns
-    local win_height = vim.o.lines
-
-    local float_width = width_cells + (IMAGE_PADDING * 2)
-    local float_height = height_cells + (IMAGE_PADDING * 2)
-
-    local row = math.max(0, math.floor((win_height - float_height) / 2))
-    local col = math.max(0, math.floor((win_width - float_width) / 2))
-
-    local opts = api.nvim_win_get_config(winid)
-    opts.width = float_width
-    opts.height = float_height
-    opts.row = row
-    opts.col = col
-    api.nvim_win_set_config(winid, opts)
-end
-
 local function clear_current()
-    if M.current_image then
-        pcall(function()
-            M.current_image:clear()
-        end)
-        M.current_image = nil
-    end
     if M.current_winid and api.nvim_win_is_valid(M.current_winid) then
         api.nvim_win_close(M.current_winid, true)
     end
+    if M.current_handle then
+        pcall(function()
+            M.current_handle.wipe()
+        end)
+    end
+    pcall(api.nvim_del_augroup_by_name, "PyreplImageResize")
+    M.current_handle = nil
     M.current_winid = nil
     M.manager_active = false
 end
@@ -180,6 +153,30 @@ local function setup_manager_autocmd(bufnr, winid)
     })
 end
 
+local function setup_resize_autocmd(handle)
+    local group = api.nvim_create_augroup("PyreplImageResize", { clear = true })
+    api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
+        group = group,
+        callback = function()
+            vim.schedule(function()
+                if handle and handle.redraw then
+                    handle.redraw()
+                end
+            end)
+        end,
+    })
+    api.nvim_create_autocmd({ "BufWinEnter", "WinEnter", "TabEnter" }, {
+        group = group,
+        callback = function()
+            vim.schedule(function()
+                if handle and handle.redraw then
+                    handle.redraw()
+                end
+            end)
+        end,
+    })
+end
+
 local function set_manager_keymaps(bufnr)
     local opts = { noremap = true, silent = true, nowait = true, buffer = bufnr }
     vim.keymap.set("n", "h", function()
@@ -200,51 +197,23 @@ end
 ---@param focus boolean
 ---@param auto_clear boolean
 local function render_image(entry, focus, auto_clear)
-    local image = ensure_image_module()
-    if not image then
-        return
-    end
     refresh_image_config()
+    local placeholders = require("pyrepl.image.placeholders")
 
     clear_current()
 
-    local ok, img = pcall(image.from_file, entry.path)
-    if not ok or not img then
+    local ok, handle = pcall(placeholders.create_handle, entry.path)
+    if not ok or not handle then
         vim.notify("PyREPL: Failed to load image.", vim.log.levels.WARN)
         return
     end
 
     local width_cells, height_cells = compute_window_cells()
-    local winid, bufnr = create_image_float(width_cells, height_cells, focus)
-
-    img.window = winid
-    img.buffer = bufnr
-    img.ignore_global_max_size = true
-    img.max_width_window_percentage = 100
-    img.max_height_window_percentage = 100
-
-    img:render({
-        x = IMAGE_PADDING,
-        y = IMAGE_PADDING,
-        width = width_cells,
-        height = height_cells
-    })
-
-    local rendered = img.rendered_geometry or {}
-    local rendered_width = tonumber(rendered.width)
-    local rendered_height = tonumber(rendered.height)
-    if rendered_width and rendered_height and rendered_width > 0 and rendered_height > 0 then
-        update_image_float(winid, rendered_width, rendered_height)
-        img:render({
-            x = IMAGE_PADDING,
-            y = IMAGE_PADDING,
-            width = rendered_width,
-            height = rendered_height
-        })
-    end
-
-    M.current_image = img
+    local winid, bufnr = create_image_float(width_cells, height_cells, focus, handle.buf)
+    handle.attach(winid)
+    M.current_handle = handle
     M.current_winid = winid
+    setup_resize_autocmd(handle)
 
     if focus then
         M.manager_active = true
@@ -260,7 +229,7 @@ end
 ---@type pyrepl.ImageEntry[]
 M.history = {}
 M.history_index = 0
-M.current_image = nil
+M.current_handle = nil
 M.current_winid = nil
 M.manager_active = false
 

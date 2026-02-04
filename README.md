@@ -9,7 +9,6 @@ pyrepl.nvim provides a Python REPL inside Neovim using Jupyter kernels.
     "dangooddd/pyrepl.nvim",
     dependencies = {
         "nvim-treesitter/nvim-treesitter",
-        "3rd/image.nvim",
     },
     build = ":UpdateRemotePlugins",
     config = function()
@@ -31,7 +30,6 @@ Example with keymaps:
     "dangooddd/pyrepl.nvim",
     dependencies = {
         "nvim-treesitter/nvim-treesitter",
-        "3rd/image.nvim",
     },
     build = ":UpdateRemotePlugins",
     config = function()
@@ -52,8 +50,8 @@ Example with keymaps:
 }
 ```
 
-If you use image rendering, also call `require("image").setup()` in your
-Neovim config per image.nvim docs.
+Image rendering uses a terminal graphics protocol backend. Use a compatible
+terminal (for example kitty).
 
 ## Usage
 
@@ -77,8 +75,7 @@ Notes:
   `ipykernel`
 - pyrepl.nvim does not auto-install dependencies.
 - Tree-sitter Python parser (for `send_statement`)
-- Image rendering uses image.nvim and supports whatever image.nvim supports
-  (formats and backends). Install image.nvim dependencies as documented there.
+- Image rendering uses a terminal graphics protocol backend (kitty-compatible).
   `image_max_*_ratio` sets the target render size and can upscale images.
 
 ## Docs
