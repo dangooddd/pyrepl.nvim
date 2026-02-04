@@ -134,8 +134,6 @@ function M.open(session, python_executable)
         console,
         "--connection-file",
         session.connection_file,
-        "--nvim-socket",
-        nvim_socket,
         "--pygments-style",
         tostring(style),
     }

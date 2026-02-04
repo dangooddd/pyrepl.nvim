@@ -88,8 +88,6 @@ class PyreplPlugin:
             manager_any._kernel_spec = spec
             effective_kernel_name = kernel_manager.kernel_name
             kernel_manager.start_kernel()
-            client = kernel_manager.client()
-            client.start_channels()
             self.kernels[kernel_manager.connection_file] = kernel_manager
             return {
                 "ok": True,

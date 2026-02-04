@@ -23,20 +23,12 @@ def main() -> None:
         help="path to an existing kernel connection file.",
     )
     parser.add_argument(
-        "--nvim-socket",
-        type=str,
-        help="Neovim socket address",
-    )
-    parser.add_argument(
         "--pygments-style",
         type=str,
         default="default",
         help="Pygments style name for REPL syntax highlighting",
     )
     args, extra = parser.parse_known_args()
-
-    if args.nvim_socket:
-        os.environ["NVIM_LISTEN_ADDRESS"] = args.nvim_socket
 
     _ensure_package_root()
 

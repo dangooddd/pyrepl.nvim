@@ -2,7 +2,7 @@ local M = {}
 
 ---@param session pyrepl.Session
 ---@return boolean
-function M.repl_ready(session)
+local function repl_ready(session)
     return session.connection_file ~= nil
         and session.term_chan ~= nil
         and session.term_chan ~= 0
@@ -120,7 +120,7 @@ end
 ---@param session pyrepl.Session
 ---@param message string
 local function raw_send_message(session, message)
-    if not M.repl_ready(session) then
+    if not repl_ready(session) then
         return
     end
 
@@ -228,7 +228,7 @@ end
 
 ---@param session pyrepl.Session
 function M.send_visual(session)
-    if not M.repl_ready(session) then
+    if not repl_ready(session) then
         return
     end
 
@@ -248,7 +248,7 @@ end
 
 ---@param session pyrepl.Session
 function M.send_buffer(session)
-    if not M.repl_ready(session) then
+    if not repl_ready(session) then
         return
     end
 
@@ -269,7 +269,7 @@ end
 
 ---@param session pyrepl.Session
 function M.send_statement(session)
-    if not M.repl_ready(session) then
+    if not repl_ready(session) then
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "n", false)
         return
     end
