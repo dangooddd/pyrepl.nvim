@@ -54,9 +54,6 @@ local function diac(n)
 end
 
 local function wrap_tmux_passthrough(sequence)
-    if not vim.env.TMUX or vim.env.TMUX == "" then
-        return sequence
-    end
     local escaped = sequence:gsub("\x1b", "\x1b\x1b")
     return "\x1bPtmux;" .. escaped .. "\x1b\\"
 end
