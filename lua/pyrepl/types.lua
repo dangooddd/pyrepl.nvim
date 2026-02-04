@@ -21,23 +21,23 @@ error("Cannot require a meta file")
 ---@field split_horizontal boolean
 ---@field split_ratio number
 ---@field style string
----@field image_max_width_ratio number
----@field image_max_height_ratio number
+---@field image_width_ratio number
+---@field image_height_ratio number
 
 ---@class pyrepl.ConfigOpts
 ---@field split_horizontal? boolean
 ---@field split_ratio? number
 ---@field style? string
----@field image_max_width_ratio? number
----@field image_max_height_ratio? number
+---@field image_width_ratio? number
+---@field image_height_ratio? number
 
 ---@class pyrepl.KernelSpec
 ---@field name string
 ---@field path string|nil
 
 ---@class pyrepl.ImageConfig
----@field max_width_ratio number
----@field max_height_ratio number
+---@field image_width_ratio number
+---@field image_height_ratio number
 
 ---@class pyrepl.ImageEntry
 ---@field data string

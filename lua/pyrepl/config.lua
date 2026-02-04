@@ -5,8 +5,8 @@ M.defaults = {
     split_horizontal = false,
     split_ratio = 0.5,
     style = "default",
-    image_max_width_ratio = 0.4,
-    image_max_height_ratio = 0.5,
+    image_width_ratio = 0.4,
+    image_height_ratio = 0.5,
 }
 
 local function clamp_ratio(value, fallback)

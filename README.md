@@ -16,8 +16,8 @@ pyrepl.nvim provides a Python REPL inside Neovim using Jupyter kernels.
             style = "default",
             split_horizontal = false,
             split_ratio = 0.5,
-            image_max_width_ratio = 0.4,
-            image_max_height_ratio = 0.4,
+            image_width_ratio = 0.4,
+            image_height_ratio = 0.4,
         })
     end,
 }
@@ -77,7 +77,7 @@ Notes:
 - pyrepl.nvim does not auto-install dependencies.
 - Tree-sitter Python parser (for `send_statement`)
 - Image rendering uses a terminal graphics protocol backend (kitty-compatible)
-  and sends PNG data (JPEG is converted). `image_max_*_ratio` sets the target
+  and sends PNG data (JPEG is converted). `image_*_ratio` sets the target
   render size and can upscale images.
 
 ## Docs

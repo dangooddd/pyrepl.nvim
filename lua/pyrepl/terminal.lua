@@ -16,8 +16,8 @@ local function get_console_path()
     return nil
 end
 
-local function set_window_opts(winid, config, kernelname)
-    if config.split_horizontal then
+local function set_window_opts(winid, cfg, kernelname)
+    if cfg.split_horizontal then
         vim.wo[winid].winfixheight = true
         vim.wo[winid].winfixwidth = false
     else
@@ -29,12 +29,12 @@ local function set_window_opts(winid, config, kernelname)
     vim.wo[winid].statusline = statusline_format
 end
 
-local function open_split(config)
-    if config.split_horizontal then
-        local height = math.floor(vim.o.lines * config.split_ratio)
+local function open_split(cfg)
+    if cfg.split_horizontal then
+        local height = math.floor(vim.o.lines * cfg.split_ratio)
         vim.cmd("botright " .. height .. "split")
     else
-        local width = math.floor(vim.o.columns * config.split_ratio)
+        local width = math.floor(vim.o.columns * cfg.split_ratio)
         vim.cmd("botright " .. width .. "vsplit")
     end
 
@@ -84,12 +84,12 @@ local function attach_term_autocmds(session, bufid, winid)
     })
 end
 
-local function open_existing(session, config)
+local function open_existing(session, cfg)
     local origin_win = vim.api.nvim_get_current_win()
-    local winid = open_split(config)
+    local winid = open_split(cfg)
     vim.api.nvim_win_set_buf(winid, session.term_buf)
     session.term_win = winid
-    set_window_opts(winid, config, session.kernel_name or "")
+    set_window_opts(winid, cfg, session.kernel_name or "")
     attach_term_autocmds(session, session.term_buf, winid)
 
     vim.api.nvim_set_current_win(origin_win)
@@ -97,15 +97,16 @@ end
 
 ---@param session pyrepl.Session|nil
 ---@param python_executable string
----@param config pyrepl.Config
-function M.open(session, python_executable, config)
+function M.open(session, python_executable)
     if not session or not session.connection_file then
         return
     end
 
+    local cfg = require("pyrepl").get_config()
+
     if session.term_buf and vim.api.nvim_buf_is_valid(session.term_buf) then
         if not session.term_win or not vim.api.nvim_win_is_valid(session.term_win) then
-            open_existing(session, config)
+            open_existing(session, cfg)
         end
         return
     end
@@ -114,9 +115,9 @@ function M.open(session, python_executable, config)
     local bufid = vim.api.nvim_create_buf(false, true)
     vim.bo[bufid].bufhidden = "hide"
 
-    local winid = open_split(config)
+    local winid = open_split(cfg)
     vim.api.nvim_win_set_buf(winid, bufid)
-    set_window_opts(winid, config, session.kernel_name or "")
+    set_window_opts(winid, cfg, session.kernel_name or "")
 
     local console = get_console_path()
     if not console then
@@ -127,7 +128,7 @@ function M.open(session, python_executable, config)
         return
     end
 
-    local style = config.style or "default"
+    local style = cfg.style or "default"
     local nvim_socket = vim.v.servername
     local term_cmd = {
         python_executable,

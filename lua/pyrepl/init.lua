@@ -8,13 +8,28 @@ local terminal = require("pyrepl.terminal")
 local send = require("pyrepl.send")
 
 ---@type pyrepl.Config
-M.config = config.apply(nil)
+local config_state = config.apply(nil)
+
+local function readonly_config(value)
+    return setmetatable({}, {
+        __index = value,
+        __newindex = function()
+            error("pyrepl: config is read-only")
+        end,
+        __metatable = false,
+    })
+end
+
+---@return pyrepl.Config
+function M.get_config()
+    return readonly_config(config_state)
+end
 
 ---@param opts pyrepl.ConfigOpts|nil
 ---@return table
 function M.setup(opts)
     vim.env.PYTHONDONTWRITEBYTECODE = "1"
-    M.config = config.apply(opts)
+    config_state = config.apply(opts)
     autocmds.setup()
     autocmds.attach_existing()
     autocmds.setup_vimleave()
@@ -35,7 +50,7 @@ function M.open_repl(bufnr)
         if not ok then
             return
         end
-        terminal.open(session, python_host, M.config)
+        terminal.open(session, python_host)
     end)
 end
 
