@@ -87,15 +87,10 @@ local function configure_placeholder_window(win)
     api.nvim_set_option_value("spell", false, { win = win })
 end
 
-local function ensure_placeholder_hl(img_id, truecolor)
+local function ensure_placeholder_hl(img_id)
     local hl = ("PyREPLImagePlaceholder_%d"):format(img_id)
     if fn.hlexists(hl) == 0 then
         api.nvim_set_hl(0, hl, { fg = img_id, ctermfg = img_id })
-        -- if truecolor then
-        --     api.nvim_set_hl(0, hl, { fg = img_id })
-        -- else
-        --     api.nvim_set_hl(0, hl, { ctermfg = img_id })
-        -- end
     end
     return hl
 end
@@ -153,7 +148,7 @@ local function render_placeholders(buf, win)
     api.nvim_buf_set_lines(buf, 0, -1, false, lines)
     api.nvim_buf_clear_namespace(buf, NS, 0, -1)
 
-    local hl = ensure_placeholder_hl(st.img_id, st.truecolor)
+    local hl = ensure_placeholder_hl(st.img_id)
     for r = 0, rows_with_img - 1 do
         api.nvim_buf_add_highlight(buf, NS, hl, r, 0, -1)
     end
@@ -166,8 +161,7 @@ local function create_placeholder_buffer(data)
         error("image data missing")
     end
 
-    local truecolor = vim.o.termguicolors
-    local img_id = truecolor and gen_id(0xFFFFFF) or gen_id(255)
+    local img_id = gen_id(255)
 
     upload_image_data(img_id, data)
 
@@ -180,8 +174,6 @@ local function create_placeholder_buffer(data)
 
     buffer_state[buf] = {
         img_id = img_id,
-        data_len = #data,
-        truecolor = truecolor,
         last_cols = nil,
         last_rows = nil,
     }
