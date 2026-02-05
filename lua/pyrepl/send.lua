@@ -14,6 +14,7 @@ end
 ---@param msg string
 ---@return string
 local function normalize_python_message(msg)
+    -- insert blank lines after top-level compound statements so pasted code executes as separate blocks in a repl
     local lines = vim.split(msg, "\n", { plain = true, trimempty = false })
     if #lines <= 1 then
         return msg

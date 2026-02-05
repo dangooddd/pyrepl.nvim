@@ -1,7 +1,8 @@
 import json
 import sys
 import time
-from typing import Any, Optional, cast
+from contextlib import contextmanager
+from typing import Any, Iterator, Optional, cast
 
 import pynvim
 from jupyter_client.blocking.client import BlockingKernelClient
@@ -78,6 +79,9 @@ class PyreplPlugin:
                 kernel_name=kernel_name,
                 kernel_spec_manager=kernelspec_manager,
             )
+
+            # set internal fields so KernelManager starts the exact kernelspec we just resolved
+            # and so later consumers see a consistent kernel_name/spec pairing
             manager_any = cast(Any, kernel_manager)
             manager_any.kernel_name = kernel_name
             manager_any._kernel_spec = spec
@@ -110,6 +114,8 @@ class PyreplPlugin:
                     spec = info.get("spec") or {}
                     argv = spec.get("argv") or []
                     if argv:
+                        # argv[0] is typically the interpreter path used by the kernelspec
+                        # lua uses this to prefer a kernel that matches the active venv
                         path = argv[0]
                 kernels.append({"name": name, "path": path})
 
@@ -135,50 +141,72 @@ class PyreplPlugin:
         client.start_channels()
         self.client = client
 
+    def _extract_connection_file(self, args: list[Any]) -> Optional[str]:
+        """Return the connection file argument if valid."""
+        if not args:
+            return None
+        value = args[0]
+        if not isinstance(value, str) or not value:
+            return None
+        return value
+
+    def _wait_dead_best_effort(
+        self,
+        client: BlockingKernelClient,
+        total_timeout: float = 0.2,
+    ) -> None:
+        """Wait for kernel shutdown without failing on iopub errors."""
+        start_time = time.time()
+        while time.time() - start_time < total_timeout:
+            try:
+                msg = client.get_iopub_msg(timeout=0.5)
+            except Exception:
+                # best effort only since iopub can stall or disappear during shutdown
+                continue
+            if (
+                msg.get("msg_type") == "status"
+                and msg.get("content", {}).get("execution_state") == "dead"
+            ):
+                return
+
+    @contextmanager
+    def _connected_client(self, connection_file: str) -> Iterator[BlockingKernelClient]:
+        """Connect a client for a single operation."""
+        self._connect_kernel(connection_file)
+        try:
+            yield self._get_client()
+        finally:
+            self._disconnect_client()
+
     @pynvim.function("ShutdownKernel", sync=True)
     def shutdown_kernel(self, args) -> dict[str, Any]:
         """Shut down a Jupyter kernel by connection file."""
-        if not args:
+        connection_file = self._extract_connection_file(args)
+        if not connection_file:
             return {
                 "ok": False,
                 "message": "Connection file is missing.",
             }
 
-        connection_file = args[-1]
-        if not isinstance(connection_file, str) or not connection_file:
-            return {
-                "ok": False,
-                "message": "Connection file is missing.",
-            }
-
-        try:
-            manager = self.kernels.pop(connection_file, None)
-            if manager is not None:
+        # self.kernels only tracks kernels started by this plugin instance
+        # if the python host was restarted or the kernel was started elsewhere, fall back to a client shutdown
+        manager = self.kernels.pop(connection_file, None)
+        if manager is not None:
+            try:
                 manager.shutdown_kernel(now=True)
                 return {
                     "ok": True,
                 }
+            except Exception as exc:
+                return {
+                    "ok": False,
+                    "message": f"Kernel shutdown failed: {exc}",
+                }
 
-            self._connect_kernel(connection_file)
-            client = self._get_client()
-
-            # Send shutdown request
-            client.shutdown()
-
-            # Wait for confirmation (optional, but recommended)
-            timeout = 0.2
-            start_time = time.time()
-            while time.time() - start_time < timeout:
-                try:
-                    msg = client.get_iopub_msg(timeout=0.5)
-                    if (
-                        msg["msg_type"] == "status"
-                        and msg["content"]["execution_state"] == "dead"
-                    ):
-                        break
-                except Exception:
-                    pass
-
+        try:
+            with self._connected_client(connection_file) as client:
+                client.shutdown()
+                self._wait_dead_best_effort(client, total_timeout=0.2)
             return {
                 "ok": True,
             }
@@ -187,5 +215,3 @@ class PyreplPlugin:
                 "ok": False,
                 "message": f"Kernel shutdown failed: {exc}",
             }
-        finally:
-            self._disconnect_client()
