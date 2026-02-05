@@ -65,15 +65,7 @@ end
 --- List available Jupyter kernels via the remote plugin.
 ---@return pyrepl.KernelSpec[]|nil
 local function list_kernels()
-    local ok, result = pcall(vim.fn.ListKernels)
-    if not ok then
-        vim.notify(
-            string.format("PyREPL: Failed to list kernels: %s", result),
-            vim.log.levels.ERROR
-        )
-        return nil
-    end
-
+    local result = vim.fn.ListKernels()
     if not result.ok then
         local message = result.message or "Failed to list kernels."
         vim.notify("PyREPL: " .. message, vim.log.levels.ERROR)
@@ -150,15 +142,7 @@ end
 ---@param kernel_name string
 ---@return string|nil
 local function init_kernel(kernel_name)
-    local ok, result = pcall(vim.fn.InitKernel, kernel_name)
-    if not ok then
-        vim.notify(
-            string.format("PyREPL: Kernel initialization failed: %s", result),
-            vim.log.levels.ERROR
-        )
-        return nil
-    end
-
+    local result = vim.fn.InitKernel(kernel_name)
     if result.ok then
         return result.connection_file
     end
@@ -203,13 +187,8 @@ function M.shutdown_kernel(session)
         return
     end
 
-    local ok, result = pcall(vim.fn.ShutdownKernel, session.connection_file)
-    if not ok then
-        vim.notify(
-            string.format("PyREPL: Kernel shutdown failed: %s", result),
-            vim.log.levels.ERROR
-        )
-    elseif not result.ok then
+    local result = vim.fn.ShutdownKernel(session.connection_file)
+    if not result.ok then
         local message = result.message or "Kernel shutdown failed."
         vim.notify("PyREPL: " .. message, vim.log.levels.ERROR)
     end
