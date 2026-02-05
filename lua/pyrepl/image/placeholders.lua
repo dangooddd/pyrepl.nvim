@@ -65,7 +65,7 @@ end
 ---@return boolean
 --- Detect tmux by sending DSR and waiting briefly for a reply.
 local function detect_tmux(timeout_ms)
-    timeout_ms = timeout_ms or 50
+    timeout_ms = timeout_ms or 100
 
     -- send DSR
     vim.api.nvim_chan_send(vim.v.stderr, wrap_tmux("\x1b[5n"))
@@ -100,7 +100,7 @@ local function detect_tmux(timeout_ms)
     end)
 
     -- result
-    vim.wait(timeout_ms + 10, function() return got end, 1)
+    vim.wait(timeout_ms + 10, function() return got end, 5)
     return got
 end
 
@@ -113,7 +113,7 @@ local function is_tmux()
         return tmux_detected
     end
 
-    tmux_detected = detect_tmux(50)
+    tmux_detected = detect_tmux(100)
     return tmux_detected
 end
 
