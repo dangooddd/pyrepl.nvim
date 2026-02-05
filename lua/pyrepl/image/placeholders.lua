@@ -159,7 +159,7 @@ end
 ---@param img_id integer
 ---@return string
 local function ensure_placeholder_hl(img_id)
-    local hl = ("PyREPLImagePlaceholder_%d"):format(img_id)
+    local hl = ("PyreplImagePlaceholder_%d"):format(img_id)
     if vim.fn.hlexists(hl) == 0 then
         vim.api.nvim_set_hl(0, hl, { fg = img_id, ctermfg = img_id })
     end

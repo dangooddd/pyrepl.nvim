@@ -30,7 +30,7 @@ def _build_config(
 
 def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     """Parse command-line arguments for the console wrapper."""
-    parser = argparse.ArgumentParser(description="PyREPL Jupyter Console")
+    parser = argparse.ArgumentParser(description="Pyrepl Jupyter Console")
     parser.add_argument(
         "--pygments-style",
         type=str,

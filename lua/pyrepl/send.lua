@@ -250,7 +250,7 @@ function M.send_visual(session)
     local msg, end_row, err = get_visual_selection()
     if not msg or msg == "" then
         if err == "no_mark" then
-            vim.notify("PyREPL: Visual selection not available. Invoke from Visual mode.", vim.log.levels.WARN)
+            vim.notify("Pyrepl: Visual selection not available. Invoke from Visual mode.", vim.log.levels.WARN)
         end
         return
     end
@@ -292,7 +292,7 @@ function M.send_statement(session)
     handle_cursor_move()
     local ok_parser, parser = pcall(vim.treesitter.get_parser, 0)
     if not ok_parser or not parser then
-        vim.notify("PyREPL: Tree-sitter parser not available for this buffer.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: Tree-sitter parser not available for this buffer.", vim.log.levels.WARN)
         return
     end
 

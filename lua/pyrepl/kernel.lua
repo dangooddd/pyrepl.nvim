@@ -9,13 +9,13 @@ local function validate_python_host()
     if host_prog == nil or host_prog == "" then
         host_prog = "python"
     elseif type(host_prog) ~= "string" then
-        vim.notify("PyREPL: vim.g.python3_host_prog is not a string", vim.log.levels.ERROR)
+        vim.notify("Pyrepl: vim.g.python3_host_prog is not a string", vim.log.levels.ERROR)
         return nil
     end
 
     local python_path = vim.fn.expand(host_prog)
     if vim.fn.executable(python_path) == 0 then
-        vim.notify(string.format("PyREPL: python3 executable not found (%s)", python_path), vim.log.levels.ERROR)
+        vim.notify(string.format("Pyrepl: python3 executable not found (%s)", python_path), vim.log.levels.ERROR)
         return nil
     end
 
@@ -37,7 +37,7 @@ local function check_dependencies(python_host)
     end
 
     vim.notify(
-        "PyREPL: Missing Python packages (jupyter-console), check the docs for instructions",
+        "Pyrepl: Missing Python packages (jupyter-console), check the docs for instructions",
         vim.log.levels.ERROR
     )
     return false
@@ -68,14 +68,14 @@ local function list_kernels()
     local result = vim.fn.ListKernels()
     if not result.ok then
         local message = result.message or "Failed to list kernels."
-        vim.notify("PyREPL: " .. message, vim.log.levels.ERROR)
+        vim.notify("Pyrepl: " .. message, vim.log.levels.ERROR)
         return nil
     end
 
     local kernels = result.value
     if type(kernels) ~= "table" or #kernels == 0 then
         vim.notify(
-            "PyREPL: No kernels found, install ipykernel first",
+            "Pyrepl: No kernels found, install ipykernel first",
             vim.log.levels.ERROR
         )
         return nil
@@ -119,7 +119,7 @@ local function prompt_kernel_choice(on_choice)
     vim.ui.select(
         kernels,
         {
-            prompt = "PyREPL: Select Jupyter kernel",
+            prompt = "Pyrepl: Select Jupyter kernel",
             format_item = function(item)
                 local path = item.path
                 if type(path) ~= "string" or path == "" then
@@ -130,7 +130,7 @@ local function prompt_kernel_choice(on_choice)
         },
         function(choice)
             if not choice then
-                vim.notify("PyREPL: Kernel selection cancelled.", vim.log.levels.WARN)
+                vim.notify("Pyrepl: Kernel selection cancelled.", vim.log.levels.WARN)
                 return
             end
             on_choice(choice.name)
@@ -149,7 +149,7 @@ local function init_kernel(kernel_name)
 
     local error_message = result.message
     local message = error_message or "Unknown error"
-    vim.notify("PyREPL: " .. message, vim.log.levels.ERROR)
+    vim.notify("Pyrepl: " .. message, vim.log.levels.ERROR)
     return nil
 end
 
@@ -164,7 +164,7 @@ function M.ensure_kernel(session, callback)
 
     prompt_kernel_choice(function(kernel_name)
         if not kernel_name or kernel_name == "" then
-            vim.notify("PyREPL: Kernel name is missing.", vim.log.levels.ERROR)
+            vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
             callback(false)
             return
         end
@@ -190,7 +190,7 @@ function M.shutdown_kernel(session)
     local result = vim.fn.ShutdownKernel(session.connection_file)
     if not result.ok then
         local message = result.message or "Kernel shutdown failed."
-        vim.notify("PyREPL: " .. message, vim.log.levels.ERROR)
+        vim.notify("Pyrepl: " .. message, vim.log.levels.ERROR)
     end
     pcall(os.remove, session.connection_file)
     session.connection_file = nil

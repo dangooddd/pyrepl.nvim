@@ -3,25 +3,25 @@ local M = {}
 ---@param bufnr integer
 function M.set(bufnr)
     local commands = {
-        PyREPLOpen = function()
+        PyreplOpen = function()
             require("pyrepl").open_repl(bufnr)
         end,
-        PyREPLHide = function()
+        PyreplHide = function()
             require("pyrepl").hide_repl(bufnr)
         end,
-        PyREPLClose = function()
+        PyreplClose = function()
             require("pyrepl").close_repl(bufnr)
         end,
-        PyREPLSendVisual = function()
+        PyreplSendVisual = function()
             require("pyrepl").send_visual()
         end,
-        PyREPLSendStatement = function()
+        PyreplSendStatement = function()
             require("pyrepl").send_statement()
         end,
-        PyREPLSendBuffer = function()
+        PyreplSendBuffer = function()
             require("pyrepl").send_buffer()
         end,
-        PyREPLOpenImages = function()
+        PyreplOpenImages = function()
             require("pyrepl").open_images()
         end,
     }

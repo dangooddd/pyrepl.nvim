@@ -15,7 +15,7 @@ sys.dont_write_bytecode = True
 @pynvim.plugin
 class PyreplPlugin:
     def __init__(self, nvim: pynvim.Nvim):
-        """Create the PyREPL Neovim remote plugin."""
+        """Create the Pyrepl Neovim remote plugin."""
         self.nvim = nvim
         self.kernels: dict[str, KernelManager] = {}
         self.client: Optional[BlockingKernelClient] = None

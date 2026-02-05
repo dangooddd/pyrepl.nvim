@@ -70,9 +70,9 @@ local function create_image_float(width_cells, height_cells, focus, bufnr)
 
     local winid = vim.api.nvim_open_win(bufnr, focus or false, opts)
 
-    local border_hl = "PyREPLImageBorder"
-    local title_hl = "PyREPLImageTitle"
-    local normal_hl = "PyREPLImageNormal"
+    local border_hl = "PyreplImageBorder"
+    local title_hl = "PyreplImageTitle"
+    local normal_hl = "PyreplImageNormal"
 
     local border_target = vim.fn.hlexists("FloatBorder") == 1 and "FloatBorder" or "WinSeparator"
     local title_target = vim.fn.hlexists("FloatTitle") == 1 and "FloatTitle" or "Title"
@@ -204,7 +204,7 @@ local function render_image(entry, focus, auto_clear)
 
     local ok, buf = pcall(placeholders.create_buffer, entry.data)
     if not ok or not buf then
-        vim.notify("PyREPL: Failed to load image.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: Failed to load image.", vim.log.levels.WARN)
         return
     end
 
@@ -244,7 +244,7 @@ end
 ---@param auto_clear boolean
 local function show_history_at(index, focus, auto_clear)
     if #state.history == 0 then
-        vim.notify("PyREPL: No image history available.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: No image history available.", vim.log.levels.WARN)
         return
     end
     if index < 1 or index > #state.history then
@@ -259,19 +259,19 @@ end
 function M.show_image_file(path)
     local normalized = path
     if type(normalized) ~= "string" or normalized == "" then
-        vim.notify("PyREPL: Image path missing or invalid.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: Image path missing or invalid.", vim.log.levels.WARN)
         return
     end
 
     local abs = vim.fn.fnamemodify(normalized, ":p")
     if vim.fn.filereadable(abs) ~= 1 then
-        vim.notify("PyREPL: Image file not readable.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: Image file not readable.", vim.log.levels.WARN)
         return
     end
 
     local fd = vim.uv.fs_open(abs, "r", 438)
     if not fd then
-        vim.notify("PyREPL: Failed to read image file.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: Failed to read image file.", vim.log.levels.WARN)
         return
     end
     local stat = vim.uv.fs_fstat(fd)
@@ -279,7 +279,7 @@ function M.show_image_file(path)
     vim.uv.fs_close(fd)
 
     if not data or data == "" then
-        vim.notify("PyREPL: Failed to read image file.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: Failed to read image file.", vim.log.levels.WARN)
         return
     end
 
@@ -291,7 +291,7 @@ end
 ---@param data string
 function M.show_image_data(data)
     if type(data) ~= "string" or data == "" then
-        vim.notify("PyREPL: Image data missing or invalid.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: Image data missing or invalid.", vim.log.levels.WARN)
         return
     end
     push_history({ data = data })
@@ -301,7 +301,7 @@ end
 --- Open the image manager focused on the latest image.
 function M.open_images()
     if #state.history == 0 then
-        vim.notify("PyREPL: No image history available.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: No image history available.", vim.log.levels.WARN)
         return
     end
     show_history_at(#state.history, true, false)
@@ -314,12 +314,12 @@ end
 ---@param focus boolean|nil
 function M.show_previous_image(focus)
     if #state.history == 0 then
-        vim.notify("PyREPL: No image history available.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: No image history available.", vim.log.levels.WARN)
         return
     end
     if state.history_index <= 1 then
         state.history_index = 1
-        vim.notify("PyREPL: Already at oldest image.", vim.log.levels.INFO)
+        vim.notify("Pyrepl: Already at oldest image.", vim.log.levels.INFO)
         return
     end
     show_history_at(
@@ -332,12 +332,12 @@ end
 ---@param focus boolean|nil
 function M.show_next_image(focus)
     if #state.history == 0 then
-        vim.notify("PyREPL: No image history available.", vim.log.levels.WARN)
+        vim.notify("Pyrepl: No image history available.", vim.log.levels.WARN)
         return
     end
     if state.history_index >= #state.history then
         state.history_index = #state.history
-        vim.notify("PyREPL: Already at newest image.", vim.log.levels.INFO)
+        vim.notify("Pyrepl: Already at newest image.", vim.log.levels.INFO)
         return
     end
     show_history_at(

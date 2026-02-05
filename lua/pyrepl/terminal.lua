@@ -76,7 +76,7 @@ end
 --- We treat the REPL console as the owner of the session lifecycle. If the
 --- console exits (e.g. typing `exit` inside jupyter-console), the kernel may
 --- already be shut down. Regardless, the session connection file becomes stale
---- and must be cleared so :PyREPLOpen starts fresh.
+--- and must be cleared so :PyreplOpen starts fresh.
 ---@param session pyrepl.Session|nil
 ---@param term_buf integer
 local function on_console_exit(session, term_buf)
@@ -176,7 +176,7 @@ function M.open(session, python_executable)
     local console = get_console_path()
     if not console then
         vim.notify(
-            "PyREPL: Console script not found. Run :UpdateRemotePlugins and restart Neovim.",
+            "Pyrepl: Console script not found. Run :UpdateRemotePlugins and restart Neovim.",
             vim.log.levels.ERROR
         )
         return
