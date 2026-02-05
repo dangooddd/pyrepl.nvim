@@ -146,7 +146,7 @@ function M.open(session, python_executable)
         term = true,
         pty = true,
         env = {
-            NVIM_LISTEN_ADDRESS = nvim_socket,
+            NVIM = nvim_socket,
         },
         on_exit = function()
             vim.schedule(function()

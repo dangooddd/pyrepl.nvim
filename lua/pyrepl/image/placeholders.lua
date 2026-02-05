@@ -238,7 +238,7 @@ local function render_placeholders(buf, win)
 
     local hl = ensure_placeholder_hl(st.img_id)
     for r = 0, rows_with_img - 1 do
-        vim.api.nvim_buf_add_highlight(buf, ns, hl, r, 0, -1)
+        vim.hl.range(buf, ns, hl, { r, 0 }, { r, cols }, { inclusive = false })
     end
 
     vim.api.nvim_set_option_value("modifiable", false, { buf = buf })

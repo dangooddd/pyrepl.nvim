@@ -119,7 +119,7 @@ def _prepare_image_data(image_mime: str, image_data: Any) -> Optional[str]:
 def _get_nvim(
     address: Optional[str], current: Optional[pynvim.Nvim]
 ) -> Optional[pynvim.Nvim]:
-    """Attach to Neovim via NVIM_LISTEN_ADDRESS if needed."""
+    """Attach to Neovim via NVIM if needed."""
     if not address:
         return None
 
@@ -141,7 +141,7 @@ def _nvim_worker() -> None:
             if data is None:
                 break
 
-            address = os.environ.get("NVIM_LISTEN_ADDRESS")
+            address = os.environ.get("NVIM")
             nvim = _get_nvim(address, nvim)
             if nvim is None:
                 continue

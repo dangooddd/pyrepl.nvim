@@ -278,14 +278,14 @@ function M.show_image_file(path)
         return
     end
 
-    local fd = (vim.uv or vim.loop).fs_open(abs, "r", 438)
+    local fd = vim.uv.fs_open(abs, "r", 438)
     if not fd then
         vim.notify("PyREPL: Failed to read image file.", vim.log.levels.WARN)
         return
     end
-    local stat = (vim.uv or vim.loop).fs_fstat(fd)
-    local data = stat and (vim.uv or vim.loop).fs_read(fd, stat.size, 0) or nil
-    (vim.uv or vim.loop).fs_close(fd)
+    local stat = vim.uv.fs_fstat(fd)
+    local data = stat and vim.uv.fs_read(fd, stat.size, 0) or nil
+    vim.uv.fs_close(fd)
 
     if not data or data == "" then
         vim.notify("PyREPL: Failed to read image file.", vim.log.levels.WARN)
