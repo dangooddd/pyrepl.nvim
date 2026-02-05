@@ -238,7 +238,8 @@ local function render_placeholders(buf, win)
 
     local hl = ensure_placeholder_hl(st.img_id)
     for r = 0, rows_with_img - 1 do
-        vim.hl.range(buf, ns, hl, { r, 0 }, { r, cols }, { inclusive = false })
+        local line = lines[r + 1] or ""
+        vim.hl.range(buf, ns, hl, { r, 0 }, { r, #line }, { inclusive = false })
     end
 
     vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
