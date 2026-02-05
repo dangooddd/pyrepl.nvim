@@ -3,6 +3,7 @@ local util = require("pyrepl.util")
 
 local M = {}
 
+---@return string|nil
 local function validate_python_host()
     local host_prog = vim.g.python3_host_prog
     if host_prog == nil or host_prog == "" then
@@ -22,6 +23,8 @@ local function validate_python_host()
 end
 
 --- Check required Python packages in the host interpreter.
+---@param python_host string
+---@return boolean
 local function check_dependencies(python_host)
     local check_cmd = {
         python_host,
@@ -59,25 +62,25 @@ function M.ensure_python()
     return python_host
 end
 
----@return pyrepl.KernelSpec[]|nil
 --- List available Jupyter kernels via the remote plugin.
+---@return pyrepl.KernelSpec[]|nil
 local function list_kernels()
-    local ok, kernels = pcall(vim.fn.ListKernels)
+    local ok, result = pcall(vim.fn.ListKernels)
     if not ok then
-        if string.find(kernels, "Unknown function") then
-            vim.notify(
-                "PyREPL: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim",
-                vim.log.levels.ERROR
-            )
-        else
-            vim.notify(
-                string.format("PyREPL: Failed to list kernels: %s", kernels),
-                vim.log.levels.ERROR
-            )
-        end
+        vim.notify(
+            string.format("PyREPL: Failed to list kernels: %s", result),
+            vim.log.levels.ERROR
+        )
         return nil
     end
 
+    if not result.ok then
+        local message = result.message or "Failed to list kernels."
+        vim.notify("PyREPL: " .. message, vim.log.levels.ERROR)
+        return nil
+    end
+
+    local kernels = result.value
     if type(kernels) ~= "table" or #kernels == 0 then
         vim.notify(
             "PyREPL: No kernels found, install ipykernel first",
@@ -89,9 +92,9 @@ local function list_kernels()
     return kernels
 end
 
+--- Prefer a kernel that matches the active virtual environment.
 ---@param kernels pyrepl.KernelSpec[]
 ---@return integer
---- Prefer a kernel that matches the active virtual environment.
 local function preferred_kernel_index(kernels)
     local venv = util.normalize_path(util.get_active_venv())
     if not venv then
@@ -143,91 +146,32 @@ local function prompt_kernel_choice(on_choice)
     )
 end
 
+--- Start a kernel via the remote plugin and return a connection file.
 ---@param kernel_name string
 ---@return string|nil
---- Start a kernel via the remote plugin and return a connection file.
 local function init_kernel(kernel_name)
-    local success, result = pcall(vim.fn.InitKernel, kernel_name)
-    if not success then
-        if string.find(result, "Unknown function") then
-            vim.notify(
-                "PyREPL: Remote plugin not loaded. Run :UpdateRemotePlugins and restart Neovim.",
-                vim.log.levels.ERROR
-            )
-        else
-            vim.notify(
-                string.format("PyREPL: Kernel initialization failed: %s", result),
-                vim.log.levels.ERROR
-            )
-        end
-        return nil
-    end
-
-    if type(result) == "table" then
-        if result.ok == true then
-            local connection_file = result.connection_file
-            if type(connection_file) ~= "string" or connection_file == "" then
-                vim.notify("PyREPL: Kernel initialization failed with empty connection file.", vim.log.levels.ERROR)
-                return nil
-            end
-            return connection_file
-        end
-
-        local error_type = result.error_type
-        local error_message = result.error
-        local requested_kernel_name = result.requested_kernel_name
-        local effective_kernel_name = result.effective_kernel_name
-        local spec_argv0 = result.spec_argv0
-
-        local debug_parts = {}
-        if type(requested_kernel_name) == "string" and requested_kernel_name ~= "" then
-            table.insert(debug_parts, string.format("requested: %s", requested_kernel_name))
-        end
-        if type(effective_kernel_name) == "string" and effective_kernel_name ~= "" then
-            table.insert(debug_parts, string.format("effective: %s", effective_kernel_name))
-        end
-        if type(spec_argv0) == "string" and spec_argv0 ~= "" then
-            table.insert(debug_parts, string.format("argv0: %s", spec_argv0))
-        end
-        local debug_suffix = ""
-        if #debug_parts > 0 then
-            debug_suffix = string.format(" (%s)", table.concat(debug_parts, "; "))
-        end
-
-        if error_type == "no_such_kernel" then
-            vim.notify(
-                string.format(
-                    "PyREPL: Kernel '%s' not found. Please install it manually (see README) and try again.",
-                    kernel_name
-                ),
-                vim.log.levels.ERROR
-            )
-        elseif error_type == "missing_kernel_name" then
-            vim.notify("PyREPL: Kernel name is missing.", vim.log.levels.ERROR)
-        else
-            local message = error_message or "Unknown error"
-            vim.notify(
-                string.format("PyREPL: Kernel initialization failed: %s%s", message, debug_suffix),
-                vim.log.levels.ERROR
-            )
-        end
-        return nil
-    end
-
-    if not result or result == "" then
+    local ok, result = pcall(vim.fn.InitKernel, kernel_name)
+    if not ok then
         vim.notify(
-            "PyREPL: Kernel initialization failed with empty connection file.",
+            string.format("PyREPL: Kernel initialization failed: %s", result),
             vim.log.levels.ERROR
         )
         return nil
     end
 
-    return result
+    if result.ok then
+        return result.connection_file
+    end
+
+    local error_message = result.message
+    local message = error_message or "Unknown error"
+    vim.notify("PyREPL: " .. message, vim.log.levels.ERROR)
+    return nil
 end
 
+--- Ensure a session has a running kernel and connection file.
 ---@param session pyrepl.Session
 ---@param callback fun(ok: boolean)
---- Ensure a session has a running kernel and connection file.
 function M.ensure_kernel(session, callback)
     if session.connection_file then
         callback(true)
@@ -259,7 +203,16 @@ function M.shutdown_kernel(session)
         return
     end
 
-    pcall(vim.fn.ShutdownKernel, session.connection_file)
+    local ok, result = pcall(vim.fn.ShutdownKernel, session.connection_file)
+    if not ok then
+        vim.notify(
+            string.format("PyREPL: Kernel shutdown failed: %s", result),
+            vim.log.levels.ERROR
+        )
+    elseif not result.ok then
+        local message = result.message or "Kernel shutdown failed."
+        vim.notify("PyREPL: " .. message, vim.log.levels.ERROR)
+    end
     pcall(os.remove, session.connection_file)
     session.connection_file = nil
     session.kernel_name = nil

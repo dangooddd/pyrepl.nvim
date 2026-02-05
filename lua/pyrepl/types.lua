@@ -1,6 +1,8 @@
 ---@meta
 error("Cannot require a meta file")
 
+---@alias TSNode any
+
 ---@class pyrepl.Session
 ---@field bufnr integer
 ---@field kernel_name string|nil

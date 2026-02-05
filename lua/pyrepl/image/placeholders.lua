@@ -53,17 +53,17 @@ local function diac(n)
     return diacritics[n + 1]
 end
 
+--- Wrap an escape sequence so tmux passes it through to the terminal.
 ---@param sequence string
 ---@return string
---- Wrap an escape sequence so tmux passes it through to the terminal.
 local function wrap_tmux(sequence)
     local escaped = sequence:gsub("\x1b", "\x1b\x1b")
     return "\x1bPtmux;" .. escaped .. "\x1b\\"
 end
 
+--- Detect tmux by sending DSR and waiting briefly for a reply.
 ---@param timeout_ms integer
 ---@return boolean
---- Detect tmux by sending DSR and waiting briefly for a reply.
 local function detect_tmux(timeout_ms)
     timeout_ms = timeout_ms or 100
 
@@ -117,9 +117,8 @@ local function is_tmux()
     return tmux_detected
 end
 
+--- Send a kitty graphics APC sequence to stderr.
 ---@param body string
----@return nil
---- Send a kitty graphics APC sequence to stderr (tmux-safe).
 local function send_apc(body)
     local sequence = "\x1b_G" .. body .. "\x1b\\"
     if is_tmux() then sequence = wrap_tmux(sequence) end
@@ -144,7 +143,6 @@ local state = {
 }
 
 ---@param win integer
----@return nil
 local function configure_placeholder_window(win)
     if not vim.api.nvim_win_is_valid(win) then
         return
@@ -168,33 +166,29 @@ local function ensure_placeholder_hl(img_id)
     return hl
 end
 
+--- Upload base64 PNG data to the terminal image store.
 ---@param img_id integer
 ---@param data string
----@return nil
---- Upload base64 PNG data to the terminal image store.
 local function upload_image_data(img_id, data)
     send_apc(("f=100,t=d,i=%d,q=2;%s"):format(img_id, data))
 end
 
+--- Place an uploaded image into a cell region.
 ---@param img_id integer
 ---@param cols integer
 ---@param rows integer
----@return nil
---- Place an uploaded image into a cell region.
 local function create_virtual_placement(img_id, cols, rows)
     send_apc(("a=p,U=1,i=%d,c=%d,r=%d,C=1,q=2"):format(img_id, cols, rows))
 end
 
 ---@param img_id integer
----@return nil
 local function delete_image(img_id)
     pcall(send_apc, ("a=d,d=I,i=%d,q=2"):format(img_id))
 end
 
+--- Render a placeholder grid that the terminal replaces with the image.
 ---@param buf integer
 ---@param win integer
----@return nil
---- Render a placeholder grid that the terminal replaces with the image.
 local function render_placeholders(buf, win)
     if not (vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win)) then
         return
@@ -220,6 +214,7 @@ local function render_placeholders(buf, win)
 
     vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
 
+    -- write unicode placeholders
     local lines = {}
     for r = 0, rows - 1 do
         if r < rows_with_img then
@@ -258,9 +253,9 @@ local function next_image_id(maxn)
     return state.next_id
 end
 
+--- Create a scratch buffer that owns a terminal image id.
 ---@param data string
 ---@return integer
---- Create a scratch buffer that owns a terminal image id.
 local function create_placeholder_buffer(data)
     if type(data) ~= "string" or data == "" then
         error("image data missing")

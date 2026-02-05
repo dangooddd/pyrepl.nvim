@@ -11,6 +11,8 @@ local function repl_ready(session)
 end
 
 --- Normalize pasted Python so multi-block code executes correctly in a REPL.
+---@param msg string
+---@return string
 local function normalize_python_message(msg)
     local lines = vim.split(msg, "\n", { plain = true, trimempty = false })
     if #lines <= 1 then
@@ -50,6 +52,8 @@ local function normalize_python_message(msg)
         with_statement = true,
     }
 
+    ---@param node TSNode
+    ---@return integer
     local function node_last_row(node)
         local _, _, end_row, end_col = node:range()
         if end_col == 0 then
@@ -58,10 +62,15 @@ local function normalize_python_message(msg)
         return end_row
     end
 
+    ---@param line string|nil
+    ---@return boolean
     local function is_blank_line(line)
-        return line and line:match("^%s*$") ~= nil
+        return (line and line:match("^%s*$")) ~= nil
     end
 
+    ---@param last_row0 integer
+    ---@param next_start0 integer
+    ---@return boolean
     local function has_blank_line_between(last_row0, next_start0)
         for row0 = last_row0 + 1, next_start0 - 1 do
             local line = lines[row0 + 1]
@@ -118,9 +127,9 @@ local function normalize_python_message(msg)
     return table.concat(out, "\n")
 end
 
+--- Send code to the REPL using bracketed paste mode.
 ---@param session pyrepl.Session
 ---@param message string
---- Send code to the REPL using bracketed paste mode.
 local function raw_send_message(session, message)
     if not repl_ready(session) then
         return
@@ -145,8 +154,8 @@ local function raw_send_message(session, message)
 end
 
 
----@param end_row integer
 --- Move cursor to the next non-comment line after sending code.
+---@param end_row integer
 local function move_cursor_to_next_line(end_row)
     local comment_char = "#"
     local line_count = vim.api.nvim_buf_line_count(0)
@@ -271,8 +280,8 @@ function M.send_buffer(session)
     vim.api.nvim_set_current_win(current_winid)
 end
 
----@param session pyrepl.Session
 --- Send the current top-level Tree-sitter statement under the cursor.
+---@param session pyrepl.Session
 function M.send_statement(session)
     if not repl_ready(session) then
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "n", false)
@@ -293,6 +302,7 @@ function M.send_statement(session)
     end
 
     local root = tree:root()
+    ---@return TSNode|nil
     local function node_at_cursor()
         local row, col = unpack(vim.api.nvim_win_get_cursor(0))
         row = row - 1
@@ -317,7 +327,11 @@ function M.send_statement(session)
     local node = node_at_cursor()
     local current_winid = vim.api.nvim_get_current_win()
 
+    ---@return TSNode|nil
+    ---@return integer
     local function find_and_return_node()
+        ---@param child TSNode
+        ---@return boolean
         local function immediate_child(child)
             for c in root:iter_children() do
                 if c:id() == child:id() then

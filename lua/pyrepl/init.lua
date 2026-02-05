@@ -10,6 +10,8 @@ local send = require("pyrepl.send")
 ---@type pyrepl.Config
 local config_state = config.apply(nil)
 
+---@param value pyrepl.Config
+---@return pyrepl.Config
 local function readonly_config(value)
     return setmetatable({}, {
         __index = value,

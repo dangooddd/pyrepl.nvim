@@ -9,6 +9,9 @@ M.defaults = {
     image_height_ratio = 0.5,
 }
 
+---@param value any
+---@param fallback number
+---@return number
 local function clamp_ratio(value, fallback)
     local num = tonumber(value)
     if not num then

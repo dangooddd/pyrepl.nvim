@@ -6,6 +6,7 @@ local state = require("pyrepl.state")
 local console_path = nil
 
 --- Find the console.py script in runtimepath (cached).
+---@return string|nil
 local function get_console_path()
     if console_path then
         return console_path
@@ -20,6 +21,9 @@ local function get_console_path()
     return nil
 end
 
+---@param winid integer
+---@param cfg pyrepl.Config
+---@param kernelname string
 local function set_window_opts(winid, cfg, kernelname)
     if cfg.split_horizontal then
         vim.wo[winid].winfixheight = true
@@ -33,6 +37,8 @@ local function set_window_opts(winid, cfg, kernelname)
     vim.wo[winid].statusline = statusline_format
 end
 
+---@param cfg pyrepl.Config
+---@return integer
 local function open_split(cfg)
     if cfg.split_horizontal then
         local height = math.floor(vim.o.lines * cfg.split_ratio)
@@ -65,42 +71,46 @@ function M.clear_term(session, term_buf, clear_buf)
     session.term_win = nil
 end
 
+--- Finalize a session when the REPL console process exits.
+---
+--- We treat the REPL console as the owner of the session lifecycle. If the
+--- console exits (e.g. typing `exit` inside jupyter-console), the kernel may
+--- already be shut down. Regardless, the session connection file becomes stale
+--- and must be cleared so :PyREPLOpen starts fresh.
+---@param session pyrepl.Session|nil
+---@param term_buf integer
+local function on_console_exit(session, term_buf)
+    if not session then
+        return
+    end
+
+    -- Avoid double-finalization from TermClose + on_exit, etc.
+    if session.closing then
+        return
+    end
+    session.closing = true
+
+    -- Clear terminal references first so we don't try to reuse dead buffers.
+    M.clear_term(session, term_buf, true)
+
+    -- Shut down kernel (idempotent) and clear the session so next open will
+    -- re-init and re-prompt if needed.
+    kernel.shutdown_kernel(session)
+    state.clear_session(session.bufnr)
+end
+
 --- Keep session state in sync with terminal lifecycle events.
+---@param session pyrepl.Session
+---@param bufid integer
+---@param winid integer
 local function attach_term_autocmds(session, bufid, winid)
     local group = vim.api.nvim_create_augroup("PyreplTerm" .. bufid, { clear = true })
-
-    --- Finalize a session when the REPL terminal process exits.
-    ---
-    --- We treat the REPL console as the owner of the session lifecycle. If the
-    --- console exits (e.g. typing `exit` inside jupyter-console), the kernel may
-    --- already be shut down. Regardless, the session connection file becomes
-    --- stale and must be cleared so :PyREPLOpen starts fresh.
-    ---@param term_buf integer
-    local function finalize_on_term_exit(term_buf)
-        if not session then
-            return
-        end
-
-        -- Avoid double-finalization from TermClose + on_exit, etc.
-        if session.closing then
-            return
-        end
-        session.closing = true
-
-        -- Clear terminal references first so we don't try to reuse dead buffers.
-        M.clear_term(session, term_buf, true)
-
-        -- Shut down kernel (idempotent) and clear the session so next open
-        -- will re-init and re-prompt if needed.
-        kernel.shutdown_kernel(session)
-        state.clear_session(session.bufnr)
-    end
 
     vim.api.nvim_create_autocmd({ "BufWipeout" }, {
         group = group,
         buffer = bufid,
         callback = function()
-            finalize_on_term_exit(bufid)
+            on_console_exit(session, bufid)
         end,
         once = true,
     })
@@ -109,7 +119,7 @@ local function attach_term_autocmds(session, bufid, winid)
         group = group,
         buffer = bufid,
         callback = function()
-            finalize_on_term_exit(bufid)
+            on_console_exit(session, bufid)
         end,
         once = true,
     })
@@ -125,6 +135,8 @@ local function attach_term_autocmds(session, bufid, winid)
 end
 
 --- Reopen an existing REPL terminal buffer in a split.
+---@param session pyrepl.Session
+---@param cfg pyrepl.Config
 local function open_existing(session, cfg)
     local origin_win = vim.api.nvim_get_current_win()
     local winid = open_split(cfg)
@@ -136,9 +148,9 @@ local function open_existing(session, cfg)
     vim.api.nvim_set_current_win(origin_win)
 end
 
+--- Start a Jupyter console job attached to the session kernel.
 ---@param session pyrepl.Session|nil
 ---@param python_executable string
---- Start a Jupyter console job attached to the session kernel.
 function M.open(session, python_executable)
     if not session or not session.connection_file then
         return
@@ -189,15 +201,7 @@ function M.open(session, python_executable)
         },
         on_exit = function()
             vim.schedule(function()
-                -- Keep consistent with TermClose: if the console exits, the
-                -- session is no longer usable. Clear it so :PyREPLOpen starts
-                -- a new kernel.
-                if session and not session.closing then
-                    session.closing = true
-                    M.clear_term(session, bufid, true)
-                    kernel.shutdown_kernel(session)
-                    state.clear_session(session.bufnr)
-                end
+                on_console_exit(session, bufid)
             end)
         end,
     })
