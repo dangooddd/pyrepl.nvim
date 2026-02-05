@@ -14,12 +14,14 @@ sys.dont_write_bytecode = True
 @pynvim.plugin
 class PyreplPlugin:
     def __init__(self, nvim: pynvim.Nvim):
+        """Create the PyREPL Neovim remote plugin."""
         self.nvim = nvim
         self.kernels: dict[str, KernelManager] = {}
         self.client: Optional[BlockingKernelClient] = None
         self.kernelspec_manager: Optional[KernelSpecManager] = None
 
     def _disconnect_client(self) -> None:
+        """Stop kernel client channels and clear the client."""
         if not self.client:
             return
         try:
@@ -29,11 +31,13 @@ class PyreplPlugin:
         self.client = None
 
     def _get_client(self) -> BlockingKernelClient:
+        """Return the active kernel client or raise if missing."""
         if self.client is None:
             raise RuntimeError("Kernel client is not initialized")
         return self.client
 
     def _get_kernelspec_manager(self) -> KernelSpecManager:
+        """Return a cached KernelSpecManager instance."""
         manager = self.kernelspec_manager
         if manager is None:
             manager = KernelSpecManager()
@@ -42,7 +46,7 @@ class PyreplPlugin:
 
     @pynvim.function("InitKernel", sync=True)
     def init_kernel(self, args: list) -> dict[str, Any]:
-        """Initialize Jupyter kernel and return status data."""
+        """Start a Jupyter kernel and return connection info."""
         if not args:
             return {
                 "ok": False,
@@ -111,6 +115,7 @@ class PyreplPlugin:
 
     @pynvim.function("ListKernels", sync=True)
     def list_kernels(self, args) -> list[dict[str, str]]:
+        """List available Jupyter kernelspecs."""
         try:
             manager = self._get_kernelspec_manager()
             specs = manager.get_all_specs()
@@ -133,7 +138,7 @@ class PyreplPlugin:
             return []
 
     def _connect_kernel(self, connection_file: str) -> None:
-        """Connect to the Jupyter kernel using the connection file."""
+        """Connect a client to a kernel using a connection file."""
         with open(connection_file, "r", encoding="utf-8") as file_handle:
             connection_info = json.load(file_handle)
 
@@ -144,7 +149,7 @@ class PyreplPlugin:
 
     @pynvim.function("ShutdownKernel", sync=True)
     def shutdown_kernel(self, args) -> bool:
-        """Shutdown the Jupyter kernel."""
+        """Shut down a Jupyter kernel by connection file."""
         if not args:
             return False
 

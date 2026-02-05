@@ -132,7 +132,7 @@ function M.open(session, python_executable)
     local term_cmd = {
         python_executable,
         console,
-        "--connection-file",
+        "--existing",
         session.connection_file,
         "--pygments-style",
         tostring(style),
