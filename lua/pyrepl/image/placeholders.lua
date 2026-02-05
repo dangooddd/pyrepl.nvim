@@ -2,6 +2,7 @@ local M = {}
 
 local ns = vim.api.nvim_create_namespace("PyreplImagePlaceholders")
 local augroup = vim.api.nvim_create_augroup("PyreplImagePlaceholders", { clear = true })
+local tmux_detected = nil
 
 local placeholder_char = "\u{10EEEE}"
 
@@ -54,18 +55,71 @@ end
 
 ---@param sequence string
 ---@return string
-local function wrap_tmux_passthrough(sequence)
+local function wrap_tmux(sequence)
     local escaped = sequence:gsub("\x1b", "\x1b\x1b")
     return "\x1bPtmux;" .. escaped .. "\x1b\\"
+end
+
+---@param timeout_ms integer
+---@return boolean
+local function detect_tmux(timeout_ms)
+    timeout_ms = timeout_ms or 50
+
+    -- send DSR
+    vim.api.nvim_chan_send(vim.v.stderr, wrap_tmux("\x1b[5n"))
+
+    -- reading
+    local stdin = vim.uv.new_tty(0, true)
+    if not stdin then return false end
+
+    local got = false
+    local buf = ""
+
+    local closed = false
+    local function close_stdin()
+        if closed then return end
+        closed = true
+        stdin:read_stop()
+        stdin:close()
+    end
+
+    vim.defer_fn(function()
+        close_stdin()
+    end, timeout_ms)
+
+    stdin:read_start(function(err, chunk)
+        if err or not chunk then return end
+        buf = buf .. chunk
+        -- check for DSR result
+        if buf:find("\x1b%[[0-9]+n") then
+            got = true
+            close_stdin()
+        end
+    end)
+
+    -- result
+    vim.wait(timeout_ms + 10, function() return got end, 1)
+    return got
+end
+
+---@return boolean
+local function is_tmux()
+    if tmux_detected ~= nil then return tmux_detected end
+
+    if vim.env.TMUX and vim.env.TMUX ~= "" then
+        tmux_detected = true
+        return tmux_detected
+    end
+
+    tmux_detected = detect_tmux(50)
+    return tmux_detected
 end
 
 ---@param body string
 ---@return nil
 local function send_apc(body)
     local sequence = "\x1b_G" .. body .. "\x1b\\"
-    if vim.env.TMUX and vim.env.TMUX ~= "" then
-        sequence = wrap_tmux_passthrough(sequence)
-    end
+    if is_tmux() then sequence = wrap_tmux(sequence) end
     vim.api.nvim_chan_send(vim.v.stderr, sequence)
 end
 
