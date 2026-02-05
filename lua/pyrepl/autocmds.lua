@@ -6,6 +6,7 @@ local kernel = require("pyrepl.kernel")
 local M = {}
 
 ---@param bufnr integer
+--- Attach buffer-local commands and cleanup hooks for pyrepl sessions.
 local function attach_buffer(bufnr)
     if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
         return

@@ -159,6 +159,7 @@ end
 ---@param buf integer
 ---@param winid integer
 ---@return nil
+--- Redraw image placeholders on editor resize/focus changes.
 local function setup_resize_autocmd(buf, winid)
     local group = vim.api.nvim_create_augroup("PyreplImageResize", { clear = true })
     vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
@@ -201,6 +202,7 @@ end
 ---@param focus boolean
 ---@param auto_clear boolean
 ---@return nil
+--- Render an image entry into a floating window.
 local function render_image(entry, focus, auto_clear)
     local placeholders = require("pyrepl.image.placeholders")
 
@@ -234,6 +236,7 @@ local MAX_HISTORY = 50
 
 ---@param entry pyrepl.ImageEntry
 ---@return nil
+--- Add an image entry to bounded history.
 local function push_history(entry)
     if #state.history >= MAX_HISTORY then
         table.remove(state.history, 1)
@@ -246,6 +249,7 @@ end
 ---@param focus boolean
 ---@param auto_clear boolean
 ---@return nil
+--- Show a specific image from history.
 local function show_history_at(index, focus, auto_clear)
     if #state.history == 0 then
         vim.notify("PyREPL: No image history available.", vim.log.levels.WARN)
@@ -294,6 +298,7 @@ end
 
 ---@param data string
 ---@return nil
+--- Store base64 PNG data and display it.
 function M.show_image_data(data)
     if type(data) ~= "string" or data == "" then
         vim.notify("PyREPL: Image data missing or invalid.", vim.log.levels.WARN)
@@ -304,6 +309,7 @@ function M.show_image_data(data)
 end
 
 ---@return nil
+--- Open the image manager focused on the latest image.
 function M.open_images()
     if #state.history == 0 then
         vim.notify("PyREPL: No image history available.", vim.log.levels.WARN)

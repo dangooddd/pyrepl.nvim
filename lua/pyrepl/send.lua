@@ -10,6 +10,7 @@ local function repl_ready(session)
         and vim.api.nvim_buf_is_valid(session.term_buf)
 end
 
+--- Normalize pasted Python so multi-block code executes correctly in a REPL.
 local function normalize_python_message(msg)
     local lines = vim.split(msg, "\n", { plain = true, trimempty = false })
     if #lines <= 1 then
@@ -119,6 +120,7 @@ end
 
 ---@param session pyrepl.Session
 ---@param message string
+--- Send code to the REPL using bracketed paste mode.
 local function raw_send_message(session, message)
     if not repl_ready(session) then
         return
@@ -144,6 +146,7 @@ end
 
 
 ---@param end_row integer
+--- Move cursor to the next non-comment line after sending code.
 local function move_cursor_to_next_line(end_row)
     local comment_char = "#"
     local line_count = vim.api.nvim_buf_line_count(0)
@@ -178,6 +181,7 @@ local function get_visual_selection()
     return table.concat(lines, "\n"), end_line, nil
 end
 
+--- Adjust cursor to avoid whitespace/comment edge cases before parsing.
 local function handle_cursor_move()
     local row = vim.api.nvim_win_get_cursor(0)[1]
     local comment_char = "#"
@@ -268,6 +272,7 @@ function M.send_buffer(session)
 end
 
 ---@param session pyrepl.Session
+--- Send the current top-level Tree-sitter statement under the cursor.
 function M.send_statement(session)
     if not repl_ready(session) then
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "n", false)

@@ -55,6 +55,7 @@ end
 
 ---@param sequence string
 ---@return string
+--- Wrap an escape sequence so tmux passes it through to the terminal.
 local function wrap_tmux(sequence)
     local escaped = sequence:gsub("\x1b", "\x1b\x1b")
     return "\x1bPtmux;" .. escaped .. "\x1b\\"
@@ -62,6 +63,7 @@ end
 
 ---@param timeout_ms integer
 ---@return boolean
+--- Detect tmux by sending DSR and waiting briefly for a reply.
 local function detect_tmux(timeout_ms)
     timeout_ms = timeout_ms or 50
 
@@ -117,6 +119,7 @@ end
 
 ---@param body string
 ---@return nil
+--- Send a kitty graphics APC sequence to stderr (tmux-safe).
 local function send_apc(body)
     local sequence = "\x1b_G" .. body .. "\x1b\\"
     if is_tmux() then sequence = wrap_tmux(sequence) end
@@ -168,6 +171,7 @@ end
 ---@param img_id integer
 ---@param data string
 ---@return nil
+--- Upload base64 PNG data to the terminal image store.
 local function upload_image_data(img_id, data)
     send_apc(("f=100,t=d,i=%d,q=2;%s"):format(img_id, data))
 end
@@ -176,6 +180,7 @@ end
 ---@param cols integer
 ---@param rows integer
 ---@return nil
+--- Place an uploaded image into a cell region.
 local function create_virtual_placement(img_id, cols, rows)
     send_apc(("a=p,U=1,i=%d,c=%d,r=%d,C=1,q=2"):format(img_id, cols, rows))
 end
@@ -189,6 +194,7 @@ end
 ---@param buf integer
 ---@param win integer
 ---@return nil
+--- Render a placeholder grid that the terminal replaces with the image.
 local function render_placeholders(buf, win)
     if not (vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win)) then
         return
@@ -253,6 +259,7 @@ end
 
 ---@param data string
 ---@return integer
+--- Create a scratch buffer that owns a terminal image id.
 local function create_placeholder_buffer(data)
     if type(data) ~= "string" or data == "" then
         error("image data missing")

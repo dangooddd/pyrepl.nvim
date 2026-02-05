@@ -2,6 +2,7 @@ local M = {}
 
 local console_path = nil
 
+--- Find the console.py script in runtimepath (cached).
 local function get_console_path()
     if console_path then
         return console_path
@@ -61,6 +62,7 @@ function M.clear_term(session, term_buf, clear_buf)
     session.term_win = nil
 end
 
+--- Keep session state in sync with terminal lifecycle events.
 local function attach_term_autocmds(session, bufid, winid)
     local group = vim.api.nvim_create_augroup("PyreplTerm" .. bufid, { clear = true })
 
@@ -83,6 +85,7 @@ local function attach_term_autocmds(session, bufid, winid)
     })
 end
 
+--- Reopen an existing REPL terminal buffer in a split.
 local function open_existing(session, cfg)
     local origin_win = vim.api.nvim_get_current_win()
     local winid = open_split(cfg)
@@ -96,6 +99,7 @@ end
 
 ---@param session pyrepl.Session|nil
 ---@param python_executable string
+--- Start a Jupyter console job attached to the session kernel.
 function M.open(session, python_executable)
     if not session or not session.connection_file then
         return

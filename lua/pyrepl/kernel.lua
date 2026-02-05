@@ -21,6 +21,7 @@ local function validate_python_host()
     return python_path
 end
 
+--- Check required Python packages in the host interpreter.
 local function check_dependencies(python_host)
     local check_cmd = {
         python_host,
@@ -59,6 +60,7 @@ function M.ensure_python()
 end
 
 ---@return pyrepl.KernelSpec[]|nil
+--- List available Jupyter kernels via the remote plugin.
 local function list_kernels()
     local ok, kernels = pcall(vim.fn.ListKernels)
     if not ok then
@@ -89,6 +91,7 @@ end
 
 ---@param kernels pyrepl.KernelSpec[]
 ---@return integer
+--- Prefer a kernel that matches the active virtual environment.
 local function preferred_kernel_index(kernels)
     local venv = util.normalize_path(util.get_active_venv())
     if not venv then
@@ -142,6 +145,7 @@ end
 
 ---@param kernel_name string
 ---@return string|nil
+--- Start a kernel via the remote plugin and return a connection file.
 local function init_kernel(kernel_name)
     local success, result = pcall(vim.fn.InitKernel, kernel_name)
     if not success then
@@ -223,6 +227,7 @@ end
 
 ---@param session pyrepl.Session
 ---@param callback fun(ok: boolean)
+--- Ensure a session has a running kernel and connection file.
 function M.ensure_kernel(session, callback)
     if session.connection_file then
         callback(true)
