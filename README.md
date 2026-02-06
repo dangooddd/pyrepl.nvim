@@ -106,7 +106,7 @@ Lua API:
 ```lua
 require("pyrepl").setup(opts)
 require("pyrepl").open_repl([buf])
-require("pyrepl").hide_repl([buf]])
+require("pyrepl").hide_repl([buf])
 require("pyrepl").close_repl([buf])
 require("pyrepl").send_visual([buf])
 require("pyrepl").send_buffer([buf])
