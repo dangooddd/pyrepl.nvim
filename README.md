@@ -2,6 +2,8 @@
 
 pyrepl.nvim is a Python REPL inside Neovim powered by Jupyter kernels. It opens a real `jupyter-console` UI in a terminal split and provides commands to send code from your buffer to the selected kernel.
 
+https://github.com/user-attachments/assets/49b31678-5333-47af-87b4-643bf1635478
+
 ## Quickstart
 
 Important: this is a Python remote plugin. After installation you must run `:UpdateRemotePlugins` (for example via `build = ":UpdateRemotePlugins"` in lazy.nvim) and restart Neovim.
@@ -104,7 +106,7 @@ Lua API:
 ```lua
 require("pyrepl").setup(opts)
 require("pyrepl").open_repl([buf])
-require("pyrepl").hide_repl([buf])
+require("pyrepl").hide_repl([buf]])
 require("pyrepl").close_repl([buf])
 require("pyrepl").send_visual([buf])
 require("pyrepl").send_buffer([buf])

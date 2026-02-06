@@ -33,10 +33,12 @@ pygments==2.19.2
 pynvim==0.6.0
 python-dateutil==2.9.0.post0
 pyzmq==27.1.0
+ruff==0.15.0
 six==1.17.0
 stack-data==0.6.3
 tinycss2==1.5.1
 tornado==6.5.4
 traitlets==5.14.3
+ty==0.0.15
 wcwidth==0.5.3
 webencodings==0.5.1
