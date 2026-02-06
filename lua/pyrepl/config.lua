@@ -7,6 +7,8 @@ M.defaults = {
     style = "default",
     image_width_ratio = 0.4,
     image_height_ratio = 0.5,
+    filetypes = nil,
+    block_pattern = "^# %%%%.*$",
 }
 
 ---@param value any

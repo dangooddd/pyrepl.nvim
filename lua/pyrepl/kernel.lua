@@ -1,10 +1,11 @@
-local state = require("pyrepl.state")
-local util = require("pyrepl.util")
-
 local M = {}
 
+local python_path = nil
+
 ---@return string|nil
-local function validate_python_host()
+function M.get_python_path()
+    if python_path then return python_path end
+
     local host_prog = vim.g.python3_host_prog
     if host_prog == nil or host_prog == "" then
         host_prog = "python"
@@ -13,53 +14,14 @@ local function validate_python_host()
         return nil
     end
 
-    local python_path = vim.fn.expand(host_prog)
-    if vim.fn.executable(python_path) == 0 then
+    local python_host = vim.fn.expand(host_prog)
+    if vim.fn.executable(python_host) == 0 then
         vim.notify(string.format("Pyrepl: python3 executable not found (%s)", python_path), vim.log.levels.ERROR)
         return nil
     end
 
+    python_path = python_host
     return python_path
-end
-
---- Check required Python packages in the host interpreter.
----@param python_host string
----@return boolean
-local function check_dependencies(python_host)
-    local check_cmd = {
-        python_host,
-        "-c",
-        "import pynvim, jupyter_client, jupyter_console",
-    }
-    local result = vim.system(check_cmd, { text = true }):wait()
-    if result and result.code == 0 then
-        return true
-    end
-
-    vim.notify(
-        "Pyrepl: Missing Python packages (jupyter-console), check the docs for instructions",
-        vim.log.levels.ERROR
-    )
-    return false
-end
-
----@return string|nil
-function M.ensure_python()
-    if state.state.python_host then
-        return state.state.python_host
-    end
-
-    local python_host = validate_python_host()
-    if not python_host then
-        return nil
-    end
-
-    if not check_dependencies(python_host) then
-        return nil
-    end
-
-    state.state.python_host = python_host
-    return python_host
 end
 
 --- List available Jupyter kernels via the remote plugin.
@@ -84,18 +46,62 @@ local function list_kernels()
     return kernels
 end
 
+---@return string|nil
+local function get_active_venv()
+    local venv = vim.env.VIRTUAL_ENV
+    if venv and venv ~= "" then
+        return venv
+    end
+
+    local conda = vim.env.CONDA_PREFIX
+    if conda and conda ~= "" then
+        return conda
+    end
+
+    return nil
+end
+
+---@param path string|nil
+---@return string|nil
+local function normalize_path(path)
+    if not path or path == "" then return nil end
+    path = vim.fn.fnamemodify(path, ":p")
+    path = path:gsub("/+$", "")
+    return path
+end
+
+---@param path string|nil
+---@param prefix string|nil
+---@return boolean
+local function has_path_prefix(path, prefix)
+    if not path or not prefix then
+        return false
+    end
+
+    if path == prefix then
+        return true
+    end
+
+    local sep = "/"
+    if prefix:sub(-1) ~= sep then
+        prefix = prefix .. sep
+    end
+
+    return path:sub(1, #prefix) == prefix
+end
+
 --- Prefer a kernel that matches the active virtual environment.
 ---@param kernels pyrepl.KernelSpec[]
 ---@return integer
 local function preferred_kernel_index(kernels)
-    local venv = util.normalize_path(util.get_active_venv())
+    local venv = normalize_path(get_active_venv())
     if not venv then
         return 1
     end
 
     for idx, kernel in ipairs(kernels) do
-        local kernel_venv_path = util.normalize_path(kernel.path)
-        if util.has_path_prefix(kernel_venv_path, venv) then
+        local kernel_venv_path = normalize_path(kernel.path)
+        if has_path_prefix(kernel_venv_path, venv) then
             return idx
         end
     end
@@ -138,63 +144,38 @@ local function prompt_kernel_choice(on_choice)
     )
 end
 
---- Start a kernel via the remote plugin and return a connection file.
----@param kernel_name string
----@return string|nil
-local function init_kernel(kernel_name)
-    local result = vim.fn.InitKernel(kernel_name)
-    if result.ok then
-        return result.connection_file
-    end
+---@param connection_file? string
+function M.shutdown_kernel(connection_file)
+    if not connection_file then return end
 
-    local error_message = result.message
-    local message = error_message or "Unknown error"
-    vim.notify("Pyrepl: " .. message, vim.log.levels.ERROR)
-    return nil
-end
-
---- Ensure a session has a running kernel and connection file.
----@param session pyrepl.Session
----@param callback fun(ok: boolean)
-function M.ensure_kernel(session, callback)
-    if session.connection_file then
-        callback(true)
-        return
-    end
-
-    prompt_kernel_choice(function(kernel_name)
-        if not kernel_name or kernel_name == "" then
-            vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
-            callback(false)
-            return
-        end
-
-        local connection_file = init_kernel(kernel_name)
-        if not connection_file then
-            callback(false)
-            return
-        end
-
-        session.connection_file = connection_file
-        session.kernel_name = kernel_name
-        callback(true)
-    end)
-end
-
----@param session pyrepl.Session|nil
-function M.shutdown_kernel(session)
-    if not session or not session.connection_file then
-        return
-    end
-
-    local result = vim.fn.ShutdownKernel(session.connection_file)
+    local result = vim.fn.ShutdownKernel(connection_file)
     if not result.ok then
         local message = result.message or "Kernel shutdown failed."
         vim.notify("Pyrepl: " .. message, vim.log.levels.ERROR)
     end
-    pcall(os.remove, session.connection_file)
-    session.connection_file = nil
-    session.kernel_name = nil
+
+    pcall(os.remove, connection_file)
+end
+
+--- Get connection_file and kernel_name.
+function M.prompt_kernel(buf)
+    buf = buf or vim.api.nvim_get_current_buf()
+
+    prompt_kernel_choice(function(kernel_name)
+        if not kernel_name or kernel_name == "" then
+            vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
+            return
+        end
+
+        local result = vim.fn.InitKernel(kernel_name)
+        if not result.ok then
+            vim.notify("Pyrepl: " .. result.message, vim.log.levels.ERROR)
+            return
+        end
+
+        vim.b[buf].pyrepl_kernel_name = kernel_name
+        vim.b[buf].pyrepl_connection_file = result.connection_file
+    end)
 end
 
 return M

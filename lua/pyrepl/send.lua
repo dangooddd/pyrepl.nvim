@@ -1,15 +1,5 @@
 local M = {}
 
----@param session pyrepl.Session
----@return boolean
-local function repl_ready(session)
-    return session.connection_file ~= nil
-        and session.term_chan ~= nil
-        and session.term_chan ~= 0
-        and session.term_buf ~= nil
-        and vim.api.nvim_buf_is_valid(session.term_buf)
-end
-
 --- Normalize pasted Python so multi-block code executes correctly in a REPL.
 ---@param msg string
 ---@return string
@@ -125,247 +115,118 @@ local function normalize_python_message(msg)
         end
     end
 
+    -- strip up
+    while #out > 0 and out[1]:match("^%s*$") do
+        table.remove(out, 1)
+    end
+
+    -- strip down
+    while #out > 0 and out[#out]:match("^%s*$") do
+        table.remove(out, #out)
+    end
+
     return table.concat(out, "\n")
 end
 
 --- Send code to the REPL using bracketed paste mode.
----@param session pyrepl.Session
----@param message string
-local function raw_send_message(session, message)
-    if not repl_ready(session) then
-        return
-    end
-
-    if not message or message == "" then
-        return
-    end
+---@param chan? integer
+---@param message? string
+local function raw_send_message(chan, message)
+    if not chan then return end
+    if not message or message == "" then return end
 
     local prefix = vim.api.nvim_replace_termcodes("<esc>[200~", true, false, true)
     local suffix = vim.api.nvim_replace_termcodes("<esc>[201~", true, false, true)
 
     local normalized = normalize_python_message(message)
-    vim.api.nvim_chan_send(session.term_chan, prefix .. normalized .. suffix .. "\n")
-
-    if session.term_win and vim.api.nvim_win_is_valid(session.term_win) then
-        vim.api.nvim_win_set_cursor(
-            session.term_win,
-            { vim.api.nvim_buf_line_count(vim.api.nvim_win_get_buf(session.term_win)), 0 }
-        )
-    end
+    vim.api.nvim_chan_send(chan, prefix .. normalized .. suffix .. "\n")
 end
 
 
---- Move cursor to the next non-comment line after sending code.
----@param end_row integer
-local function move_cursor_to_next_line(end_row)
-    local comment_char = "#"
-    local line_count = vim.api.nvim_buf_line_count(0)
-    local row = end_row + 2
-
-    while row <= line_count do
-        local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1] or ""
-        local col = line:find("%S")
-        if col and line:sub(col, col + (#comment_char - 1)) ~= comment_char then
-            vim.api.nvim_win_set_cursor(0, { row, 0 })
-            return
-        end
-        row = row + 1
-    end
-end
-
----@return string|nil
----@return integer
 ---@return string|nil
 local function get_visual_selection()
     local start_pos = vim.api.nvim_buf_get_mark(0, "<")
     local end_pos = vim.api.nvim_buf_get_mark(0, ">")
-    if not start_pos or start_pos[1] == 0 or not end_pos or end_pos[1] == 0 then
-        return nil, 0, "no_mark"
+
+    if (start_pos[1] == 0 and start_pos[2] == 0)
+        or (end_pos[1] == 0 and end_pos[2] == 0)
+    then
+        return nil
     end
+
     local start_line, end_line = start_pos[1], end_pos[1]
     if start_line > end_line then
         start_line, end_line = end_line, start_line
     end
 
     local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
-    return table.concat(lines, "\n"), end_line, nil
+    return table.concat(lines, "\n")
 end
 
---- Adjust cursor to avoid whitespace/comment edge cases before parsing.
-local function handle_cursor_move()
-    local row = vim.api.nvim_win_get_cursor(0)[1]
-    local comment_char = "#"
+---@param buf integer?
+---@return boolean
+function M.ready_to_send(buf)
+    buf = buf or vim.api.nvim_get_current_buf()
 
-    while row <= vim.api.nvim_buf_line_count(0) do
-        local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
-        local col = line:find("%S")
-        if not col or line:sub(col, col + (#comment_char - 1)) == comment_char then
-            row = row + 1
-            pcall(function()
-                vim.api.nvim_win_set_cursor(0, { row, 0 })
-            end)
-        else
-            local cursor_pos = vim.api.nvim_win_get_cursor(0)
-            local current_col = cursor_pos[2] + 1
-            local char_under_cursor = line:sub(current_col, current_col)
-            if not char_under_cursor:match("%s") then
-                break
-            end
+    return vim.b[buf].pyrepl_connection_file ~= nil
+        and vim.b[buf].pyrepl_term_buf ~= nil
+        and vim.b[buf].pyrepl_term_chan ~= nil
+        and vim.b[buf].pyrepl_term_win ~= nil
+        and vim.api.nvim_buf_is_valid(vim.b[buf].pyrepl_term_buf)
+        and vim.api.nvim_win_is_valid(vim.b[buf].pyrepl_term_win)
+end
 
-            local backward_pos, forward_pos
-            for i = current_col - 1, 1, -1 do
-                if not line:sub(i, i):match("%s") then
-                    backward_pos = i
-                    break
-                end
-            end
+---@param chan? integer
+function M.send_visual(chan)
+    if not chan then return end
+    local msg = get_visual_selection()
+    if not msg then return end
+    raw_send_message(chan, msg)
+end
 
-            for i = current_col + 1, #line do
-                if not line:sub(i, i):match("%s") then
-                    forward_pos = i
-                    break
-                end
-            end
+---@param chan? integer
+function M.send_buffer(chan)
+    if not chan then return end
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    if #lines == 0 then return end
+    local msg = table.concat(lines, "\n")
+    raw_send_message(chan, msg)
+end
 
-            local backward_dist = backward_pos and (current_col - backward_pos) or math.huge
-            local forward_dist = forward_pos and (forward_pos - current_col) or math.huge
+---@param chan? integer
+---@param block_pattern? string
+function M.send_block(chan, block_pattern)
+    if not chan then return end
+    block_pattern = block_pattern or "^# %%%%.*$"
 
-            if backward_dist < forward_dist then
-                vim.api.nvim_win_set_cursor(0, { row, backward_pos - 1 })
-            elseif forward_dist <= backward_dist then
-                vim.api.nvim_win_set_cursor(0, { row, forward_pos - 1 })
-            end
+    local buf = vim.api.nvim_get_current_buf()
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    if #lines == 0 then return end
+
+    local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+
+    -- block start
+    local start_line = 1
+    for i = cursor_line, 1, -1 do
+        if lines[i]:match(block_pattern) then
+            start_line = i + 1
             break
         end
     end
-end
 
----@param session pyrepl.Session
-function M.send_visual(session)
-    if not repl_ready(session) then
-        return
-    end
-
-    local current_winid = vim.api.nvim_get_current_win()
-    local msg, end_row, err = get_visual_selection()
-    if not msg or msg == "" then
-        if err == "no_mark" then
-            vim.notify("Pyrepl: Visual selection not available. Invoke from Visual mode.", vim.log.levels.WARN)
+    -- block end
+    local end_line = #lines
+    for i = cursor_line + 1, #lines do
+        if lines[i]:match(block_pattern) then
+            end_line = i - 1
+            break
         end
-        return
-    end
-    raw_send_message(session, msg)
-    vim.api.nvim_set_current_win(current_winid)
-    move_cursor_to_next_line(end_row)
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
-end
-
----@param session pyrepl.Session
-function M.send_buffer(session)
-    if not repl_ready(session) then
-        return
     end
 
-    local current_winid = vim.api.nvim_get_current_win()
-    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    if not lines or #lines == 0 then
-        return
-    end
-
-    local msg = table.concat(lines, "\n")
-    if msg == "" then
-        return
-    end
-
-    raw_send_message(session, msg)
-    vim.api.nvim_set_current_win(current_winid)
-end
-
---- Send the current top-level Tree-sitter statement under the cursor.
----@param session pyrepl.Session
-function M.send_statement(session)
-    if not repl_ready(session) then
-        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "n", false)
-        return
-    end
-
-    handle_cursor_move()
-    local ok_parser, parser = pcall(vim.treesitter.get_parser, 0)
-    if not ok_parser or not parser then
-        vim.notify("Pyrepl: Tree-sitter parser not available for this buffer.", vim.log.levels.WARN)
-        return
-    end
-
-    local tree = parser:parse()[1]
-    if not tree then
-        print("No valid node found!")
-        return
-    end
-
-    local root = tree:root()
-    ---@return TSNode|nil
-    local function node_at_cursor()
-        local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-        row = row - 1
-        local line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1] or ""
-        local max_col = math.max(#line - 1, 0)
-        if col > max_col then
-            col = max_col
-        end
-        local node = root:named_descendant_for_range(row, col, row, col)
-        if node == root then
-            node = nil
-        end
-        if not node and #line > 0 then
-            node = root:named_descendant_for_range(row, 0, row, max_col)
-            if node == root then
-                node = nil
-            end
-        end
-        return node
-    end
-
-    local node = node_at_cursor()
-    local current_winid = vim.api.nvim_get_current_win()
-
-    ---@return TSNode|nil
-    ---@return integer
-    local function find_and_return_node()
-        ---@param child TSNode
-        ---@return boolean
-        local function immediate_child(child)
-            for c in root:iter_children() do
-                if c:id() == child:id() then
-                    return true
-                end
-            end
-            return false
-        end
-
-        while node and not immediate_child(node) do
-            node = node:parent()
-        end
-        return node, current_winid
-    end
-
-    local found_node, winid = find_and_return_node()
-    if not found_node then
-        print("No valid node found!")
-        return
-    end
-
-    local ok, msg = pcall(vim.treesitter.get_node_text, found_node, 0)
-    if not ok then
-        print("Error getting node text!")
-        return
-    end
-
-    local end_row = select(3, found_node:range())
-    if msg then
-        raw_send_message(session, msg)
-    end
-    vim.api.nvim_set_current_win(winid)
-    move_cursor_to_next_line(end_row)
+    if start_line > end_line then return end
+    local block_lines = vim.api.nvim_buf_get_lines(buf, start_line - 1, end_line, false)
+    if #block_lines == 0 then return end
+    raw_send_message(chan, table.concat(block_lines, "\n"))
 end
 
 return M
