@@ -25,15 +25,15 @@ function M.open_images()
 end
 
 function M.send_visual()
-    if core.session then send.send_visual(session.chan) end
+    if core.session then send.send_visual(core.session.chan) end
 end
 
 function M.send_buffer()
-    if core.session then send.send_buffer(session.chan) end
+    if core.session then send.send_buffer(core.session.chan) end
 end
 
 function M.send_block()
-    if core.session then send.send_block(session.chan) end
+    if core.session then send.send_block(core.session.chan) end
 end
 
 ---@param opts pyrepl.ConfigOpts|nil

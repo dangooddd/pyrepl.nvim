@@ -9,8 +9,6 @@ from jupyter_client.blocking.client import BlockingKernelClient
 from jupyter_client.kernelspec import KernelSpecManager, NoSuchKernel
 from jupyter_client.manager import KernelManager
 
-sys.dont_write_bytecode = True
-
 
 @pynvim.plugin
 class PyreplPlugin:
@@ -194,14 +192,9 @@ class PyreplPlugin:
         if manager is not None:
             try:
                 manager.shutdown_kernel(now=True)
-                return {
-                    "ok": True,
-                }
+                return {"ok": True}
             except Exception as exc:
-                return {
-                    "ok": False,
-                    "message": f"Kernel shutdown failed: {exc}",
-                }
+                return {"ok": False, "message": f"Kernel shutdown failed: {exc}"}
 
         try:
             with self._connected_client(connection_file) as client:

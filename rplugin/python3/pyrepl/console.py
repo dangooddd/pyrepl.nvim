@@ -6,8 +6,6 @@ from typing import Any, Callable
 from jupyter_console.app import ZMQTerminalIPythonApp
 from traitlets.config import Config
 
-sys.dont_write_bytecode = True
-
 
 def _ensure_package_root() -> None:
     """Add the pyrepl package root to sys.path."""

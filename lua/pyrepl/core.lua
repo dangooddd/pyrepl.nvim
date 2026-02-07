@@ -6,7 +6,7 @@ local M = {}
 M.session = nil
 
 ---@return integer
-local function open_split()
+local function open_scratch_win()
     local config = require("pyrepl").config
 
     if config.split_horizontal then
@@ -20,30 +20,22 @@ local function open_split()
     return vim.api.nvim_get_current_win()
 end
 
---- Keep session state in sync with terminal lifecycle events.
 ---@param buf integer
----@param win integer
-local function attach_autocmds(buf, win)
-    local group = vim.api.nvim_create_augroup(
-        "PyreplTerm" .. buf,
-        { clear = true }
-    )
-
+local function setup_buf_autocmd(buf)
     vim.api.nvim_create_autocmd({ "BufWipeout", "TermClose" }, {
         group = group,
         buffer = buf,
-        callback = function()
-            M.close_repl()
-        end,
+        callback = function() M.close_repl() end,
         once = true,
     })
+end
 
+---@param win integer
+local function setup_win_autocmd(win)
     vim.api.nvim_create_autocmd("WinClosed", {
         group = group,
         pattern = tostring(win),
-        callback = function()
-            M.hide_repl()
-        end,
+        callback = function() M.hide_repl() end,
         once = true,
     })
 end
@@ -52,15 +44,14 @@ local function open_hidden_repl()
     if not M.session then return end
     if M.session.win then return end
 
-    local buf_name = string.format("pyrepl: %s", M.session.kernel_name)
-    M.session.win = open_split()
-    attach_autocmds(M.session.buf, M.session.win)
+    local win = vim.api.nvim_get_current_win()
+    M.session.win = open_scratch_win()
     vim.api.nvim_win_set_buf(M.session.win, M.session.buf)
-    vim.api.nvim_buf_set_name(M.session.buf, buf_name)
-    vim.api.nvim_set_current_win(M.session.win)
+    vim.api.nvim_set_current_win(win)
+    setup_win_autocmd(M.session.win)
 end
 
-local function init_repl(kernel_name)
+local function open_new_repl(kernel_name)
     if M.session then return end
 
     local connection_file = kernel.init_kernel(kernel_name)
@@ -94,7 +85,15 @@ local function init_repl(kernel_name)
     end
 
     local buf = vim.api.nvim_create_buf(false, true)
+    local buf_name = string.format("pyrepl: %s", kernel_name)
     vim.bo[buf].bufhidden = "hide"
+    vim.api.nvim_buf_set_name(buf, buf_name)
+    setup_buf_autocmd(buf)
+
+    local current_win = vim.api.nvim_get_current_win()
+    local win = open_scratch_win()
+    vim.api.nvim_win_set_buf(win, buf)
+    setup_win_autocmd(win)
 
     local cmd = {
         python_path,
@@ -114,10 +113,13 @@ local function init_repl(kernel_name)
 
     M.session = {
         buf = buf,
+        win = win,
         chan = chan,
         connection_file = connection_file,
         kernel_name = kernel_name,
     }
+
+    vim.api.nvim_set_current_win(current_win)
 end
 
 --- Open hidden REPL or initialize new session
@@ -128,8 +130,7 @@ function M.open_repl()
     end
 
     local on_choice = function(kernel_name)
-        init_repl(kernel_name)
-        open_hidden_repl()
+        open_new_repl(kernel_name)
     end
 
     kernel.prompt_kernel(on_choice)
@@ -139,6 +140,7 @@ end
 function M.hide_repl()
     if M.session and M.session.win then
         pcall(vim.api.nvim_win_close, M.session.win, true)
+        M.session.win = nil
     end
 end
 
@@ -147,8 +149,10 @@ function M.close_repl()
     if not M.session then return end
 
     M.hide_repl()
-    pcall(vim.api.nvim_buf_delete, M.session.buf, { force = true })
-    vim.schedule(function() kernel.shutdown_kernel(M.session.connection_file) end)
+    local connection_file = M.session.connection_file
+    pcall(vim.fn.jobstop, M.session.chan)
+    pcall(vim.cmd.bdelete, { M.session.buf, bang = true })
+    vim.schedule(function() kernel.shutdown_kernel(connection_file) end)
     M.session = nil
 end
 
