@@ -30,16 +30,23 @@ function M.open_repl(buf)
     buf = buf or vim.api.nvim_get_current_buf()
 
     if not vim.b[buf].pyrepl_connection_file then
-        kernel.prompt_kernel()
+        kernel.prompt_kernel(buf)
     end
 
     if vim.b[buf].pyrepl_connection_file and vim.b[buf].pyrepl_kernel_name then
-        core.open_repl_term()
+        core.open_repl_term(buf)
     end
 end
 
-M.hide_repl = core.hide_repl
-M.close_repl = core.close_repl
+---@param buf integer|nil
+function M.hide_repl(buf)
+    core.hide_repl(buf)
+end
+
+---@param buf integer|nil
+function M.close_repl(buf)
+    core.close_repl(buf)
+end
 
 ---@param buf integer|nil
 function M.send_visual(buf)

@@ -86,8 +86,11 @@ end
 --- Start a Jupyter console job.
 --- Opens existing terminal buffer if it exists
 --- Otherwise opens new terminal
-function M.open_repl_term()
-    local buf = vim.api.nvim_get_current_buf()
+---@param buf integer?
+function M.open_repl_term(buf)
+    buf = buf or vim.api.nvim_get_current_buf()
+    if not vim.api.nvim_buf_is_valid(buf) then return end
+
     local win = vim.api.nvim_get_current_win()
     local term_buf = vim.b[buf].pyrepl_term_buf
     local term_win = vim.b[buf].pyrepl_term_win
@@ -161,6 +164,7 @@ function M.open_repl_term()
         end,
     })
 
+    -- create pyrepl session
     vim.b[buf].pyrepl_term_buf = term_buf
     vim.b[buf].pyrepl_term_win = term_win
     vim.b[buf].pyrepl_term_chan = term_chan
@@ -175,11 +179,10 @@ function M.hide_repl(buf)
     buf = buf or vim.api.nvim_get_current_buf()
     local term_win = vim.b[buf].pyrepl_term_win
 
+    vim.b[buf].pyrepl_term_win = nil
     if term_win and vim.api.nvim_win_is_valid(term_win) then
         pcall(vim.api.nvim_win_close, term_win, true)
     end
-
-    vim.b[buf].pyrepl_term_win = nil
 end
 
 ---@param buf integer?

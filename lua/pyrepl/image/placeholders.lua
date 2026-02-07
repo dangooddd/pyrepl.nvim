@@ -1,7 +1,7 @@
 local M = {}
 
 local ns = vim.api.nvim_create_namespace("PyreplImagePlaceholders")
-local augroup = vim.api.nvim_create_augroup("PyreplImagePlaceholders", { clear = true })
+local group = vim.api.nvim_create_augroup("PyreplImagePlaceholders", { clear = true })
 local tmux_detected = nil
 
 local placeholder_char = "\u{10EEEE}"
@@ -280,7 +280,7 @@ local function create_placeholder_buffer(data)
     state.used_ids[img_id] = true
 
     vim.api.nvim_create_autocmd("BufWipeout", {
-        group = augroup,
+        group = group,
         buffer = buf,
         once = true,
         callback = function()
