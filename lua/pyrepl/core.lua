@@ -1,150 +1,102 @@
 local kernel = require("pyrepl.kernel")
 
 local M = {}
-M.console_path = nil
 
---- Find the console.py script in runtimepath (cached).
----@return string|nil
-local function get_console_path()
-    if M.console_path then return M.console_path end
-
-    local candidates = vim.api.nvim_get_runtime_file("rplugin/python3/pyrepl/console.py", false)
-    if candidates and #candidates > 0 then
-        M.console_path = candidates[1]
-        return M.console_path
-    end
-
-    return nil
-end
-
----@param win integer
----@param kernel_name string
-local function set_window_opts(win, kernel_name)
-    if require("pyrepl").get_config().split_horizontal then
-        vim.wo[win].winfixheight = true
-        vim.wo[win].winfixwidth = false
-    else
-        vim.wo[win].winfixwidth = true
-        vim.wo[win].winfixheight = false
-    end
-
-    local statusline_format = string.format("Kernel: %s  |  Line : %%l ", kernel_name)
-    vim.wo[win].statusline = statusline_format
-end
+---@type pyrepl.Session|nil
+M.session = nil
 
 ---@return integer
 local function open_split()
-    local cfg = require("pyrepl").get_config()
-    if cfg.split_horizontal then
-        local height = math.floor(vim.o.lines * cfg.split_ratio)
+    local config = require("pyrepl").config
+
+    if config.split_horizontal then
+        local height = math.floor(vim.o.lines * config.split_ratio)
         vim.cmd("botright " .. height .. "split")
     else
-        local width = math.floor(vim.o.columns * cfg.split_ratio)
+        local width = math.floor(vim.o.columns * config.split_ratio)
         vim.cmd("botright " .. width .. "vsplit")
     end
+
     return vim.api.nvim_get_current_win()
 end
 
 --- Keep session state in sync with terminal lifecycle events.
 ---@param buf integer
----@param term_buf integer
----@param term_win integer
-local function attach_autocmds(buf, term_buf, term_win)
+---@param win integer
+local function attach_autocmds(buf, win)
     local group = vim.api.nvim_create_augroup(
         "PyreplTerm" .. buf,
         { clear = true }
     )
 
-    vim.api.nvim_create_autocmd({ "BufWipeout" }, {
+    vim.api.nvim_create_autocmd({ "BufWipeout", "TermClose" }, {
         group = group,
-        buffer = term_buf,
+        buffer = buf,
         callback = function()
-            M.close_repl(buf)
-        end,
-        once = true,
-    })
-
-    vim.api.nvim_create_autocmd({ "TermClose" }, {
-        group = group,
-        buffer = term_buf,
-        callback = function()
-            M.close_repl(buf)
+            M.close_repl()
         end,
         once = true,
     })
 
     vim.api.nvim_create_autocmd("WinClosed", {
         group = group,
-        pattern = tostring(term_win),
+        pattern = tostring(win),
         callback = function()
-            M.hide_repl(buf)
+            M.hide_repl()
         end,
         once = true,
     })
 end
 
---- Start a Jupyter console job.
---- Opens existing terminal buffer if it exists
---- Otherwise opens new terminal
----@param buf integer?
-function M.open_repl_term(buf)
-    buf = buf or vim.api.nvim_get_current_buf()
-    if not vim.api.nvim_buf_is_valid(buf) then return end
+local function open_hidden_repl()
+    if not M.session then return end
+    if M.session.win then return end
 
-    local win = vim.api.nvim_get_current_win()
-    local term_buf = vim.b[buf].pyrepl_term_buf
-    local term_win = vim.b[buf].pyrepl_term_win
-    local kernel_name = vim.b[buf].pyrepl_kernel_name
+    local buf_name = string.format("pyrepl: %s", M.session.kernel_name)
+    M.session.win = open_split()
+    attach_autocmds(M.session.buf, M.session.win)
+    vim.api.nvim_win_set_buf(M.session.win, M.session.buf)
+    vim.api.nvim_buf_set_name(M.session.buf, buf_name)
+    vim.api.nvim_set_current_win(win)
+end
 
-    -- use existing buffer
-    if term_buf and vim.api.nvim_buf_is_valid(term_buf) then
-        if not term_win or not vim.api.nvim_win_is_valid(term_win) then
-            term_win = open_split()
-            vim.api.nvim_win_set_buf(term_win, term_buf)
-            set_window_opts(term_win, kernel_name or "")
-            attach_autocmds(buf, term_buf, term_win)
-            vim.api.nvim_set_current_win(win)
-        end
-        return
-    end
+local function init_repl(kernel_name)
+    if M.session then return end
 
+    local connection_file = kernel.init_kernel(kernel_name)
     local python_path = kernel.get_python_path()
-    local console_path = get_console_path()
-    local connection_file = vim.b[buf].pyrepl_connection_file
+    local console_path = kernel.get_console_path()
     local style = require("pyrepl").get_config().style or "default"
     local nvim_socket = vim.v.servername
 
-    if not console_path then
+    if not connection_file then
         vim.notify(
-            "Pyrepl: Console script not found. Run :UpdateRemotePlugins and restart Neovim.",
+            "Pyrepl: Failed to init kernel.",
             vim.log.levels.ERROR
         )
         return
-    end
-
-    if not connection_file then
-        vim.notify(
-            "Pyrepl: Connection file not found, bug.",
-            vim.log.levels.ERROR
-        )
     end
 
     if not python_path then
         vim.notify(
-            "Pyrepl: Python file not found, bug.",
+            "Pyrepl: Python executable not found.",
             vim.log.levels.ERROR
         )
         return
     end
 
-    -- setup new terminal
-    term_win = open_split()
-    term_buf = vim.api.nvim_create_buf(false, true)
-    vim.bo[term_buf].bufhidden = "hide"
-    vim.api.nvim_win_set_buf(term_win, term_buf)
-    set_window_opts(term_win, kernel_name or "")
+    if not console_path then
+        vim.notify(
+            "Pyrepl: Console not found. Run :UpdateRemotePlugins and restart.",
+            vim.log.levels.ERROR
+        )
+        return
+    end
 
-    local term_cmd = {
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].bufhidden = "hide"
+
+    local cmd = {
         python_path,
         console_path,
         "--existing",
@@ -153,55 +105,51 @@ function M.open_repl_term(buf)
         tostring(style),
     }
 
-    local term_chan = vim.fn.jobstart(term_cmd, {
+    local chan = vim.fn.jobstart(cmd, {
         term = true,
         pty = true,
-        env = { NVIM = nvim_socket },
-        on_exit = function()
-            vim.schedule(function()
-                M.close_repl(buf)
-            end)
-        end,
+        env = { NVIM = nvim_socket, PYTHONDONTWRITEBYTECODE = "1" },
+        on_exit = function() M.close_repl() end,
     })
 
-    -- create pyrepl session
-    vim.b[buf].pyrepl_term_buf = term_buf
-    vim.b[buf].pyrepl_term_win = term_win
-    vim.b[buf].pyrepl_term_chan = term_chan
-    vim.b[term_buf].pyrepl_owner = buf
-
-    attach_autocmds(buf, term_buf, term_win)
-    vim.api.nvim_set_current_win(win)
+    M.session = {
+        buf = buf,
+        chan = chan,
+        connection_file = connection_file,
+        kernel_name = kernel_name,
+    }
 end
 
----@param buf integer?
-function M.hide_repl(buf)
-    buf = buf or vim.api.nvim_get_current_buf()
-    local term_win = vim.b[buf].pyrepl_term_win
+--- Open hidden REPL or initialize new session
+function M.open_repl()
+    if M.session then
+        open_hidden_repl()
+        return
+    end
 
-    vim.b[buf].pyrepl_term_win = nil
-    if term_win and vim.api.nvim_win_is_valid(term_win) then
-        pcall(vim.api.nvim_win_close, term_win, true)
+    local on_choice = function(kernel_name)
+        init_repl(kernel_name)
+        open_hidden_repl()
+    end
+
+    kernel.prompt_kernel(on_choice)
+end
+
+--- Hide window with REPL terminal
+function M.hide_repl()
+    if M.session and M.session.win then
+        pcall(vim.api.nvim_win_close, M.session.win, true)
     end
 end
 
----@param buf integer?
-function M.close_repl(buf)
-    buf = buf or vim.api.nvim_get_current_buf()
-    local term_buf = vim.b[buf].pyrepl_term_buf
-    local connection_file = vim.b[buf].pyrepl_connection_file
+--- Close session entirely
+function M.close_repl()
+    if not M.session then return end
 
-    vim.b[buf].pyrepl_term_buf = nil
-    vim.b[buf].pyrepl_term_win = nil
-    vim.b[buf].pyrepl_term_chan = nil
-    vim.b[buf].pyrepl_connection_file = nil
-    vim.b[buf].pyrepl_kernel_name = nil
-
-    if term_buf and vim.api.nvim_buf_is_valid(term_buf) then
-        pcall(vim.api.nvim_buf_delete, term_buf, { force = true })
-    end
-
-    kernel.shutdown_kernel(connection_file)
+    M.hide_repl()
+    pcall(vim.api.nvim_buf_delete, M.session.buf, { force = true })
+    vim.schedule(function() kernel.shutdown_kernel(M.session.connection_file) end)
+    M.session = nil
 end
 
 return M

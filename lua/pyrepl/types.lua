@@ -23,6 +23,20 @@ error("Cannot require a meta file")
 ---@field name string
 ---@field path string|nil
 
+---@class pyrepl.Session
+---@field buf integer
+---@field chan integer
+---@field win? integer
+---@field connection_file string
+---@field kernel_name string
+
+---@class pyrepl.ImageState
+---@field history pyrepl.ImageEntry[]
+---@field history_index integer
+---@field current_buf integer|nil
+---@field current_winid integer|nil
+---@field manager_active boolean
+
 ---@class pyrepl.ImageConfig
 ---@field image_width_ratio number
 ---@field image_height_ratio number

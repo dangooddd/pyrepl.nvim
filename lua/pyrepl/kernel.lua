@@ -1,6 +1,7 @@
 local M = {}
 
 local python_path = nil
+local console_path = nil
 
 ---@return string|nil
 function M.get_python_path()
@@ -22,6 +23,24 @@ function M.get_python_path()
 
     python_path = python_host
     return python_path
+end
+
+--- Find the console.py script in runtimepath (cached).
+---@return string|nil
+function M.get_console_path()
+    if console_path then return console_path end
+
+    local candidates = vim.api.nvim_get_runtime_file(
+        "rplugin/python3/pyrepl/console.py",
+        false
+    )
+
+    if candidates and #candidates > 0 then
+        console_path = candidates[1]
+        return console_path
+    end
+
+    return nil
 end
 
 --- List available Jupyter kernels via the remote plugin.
@@ -109,8 +128,39 @@ local function preferred_kernel_index(kernels)
     return 1
 end
 
+
+---@param kernel_name? string
+---@return string?
+function M.init_kernel(kernel_name)
+    if not kernel_name or kernel_name == "" then
+        vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
+        return
+    end
+
+    local result = vim.fn.InitKernel(kernel_name)
+    if not result.ok then
+        vim.notify("Pyrepl: " .. result.message, vim.log.levels.ERROR)
+        return
+    end
+
+    return result.connection_file
+end
+
+---@param connection_file? string
+function M.shutdown_kernel(connection_file)
+    if not connection_file then return end
+
+    local result = vim.fn.ShutdownKernel(connection_file)
+    if not result.ok then
+        local message = result.message or "Kernel shutdown failed."
+        vim.notify("Pyrepl: " .. message, vim.log.levels.ERROR)
+    end
+
+    pcall(os.remove, connection_file)
+end
+
 ---@param on_choice fun(name: string)
-local function prompt_kernel_choice(on_choice)
+function M.prompt_kernel(on_choice)
     local kernels = list_kernels()
     if not kernels then
         return
@@ -135,47 +185,10 @@ local function prompt_kernel_choice(on_choice)
             end,
         },
         function(choice)
-            if not choice then
-                vim.notify("Pyrepl: Kernel selection cancelled.", vim.log.levels.WARN)
-                return
-            end
+            if not choice then return end
             on_choice(choice.name)
         end
     )
-end
-
----@param connection_file? string
-function M.shutdown_kernel(connection_file)
-    if not connection_file then return end
-
-    local result = vim.fn.ShutdownKernel(connection_file)
-    if not result.ok then
-        local message = result.message or "Kernel shutdown failed."
-        vim.notify("Pyrepl: " .. message, vim.log.levels.ERROR)
-    end
-
-    pcall(os.remove, connection_file)
-end
-
---- Get connection_file and kernel_name.
-function M.prompt_kernel(buf)
-    buf = buf or vim.api.nvim_get_current_buf()
-
-    prompt_kernel_choice(function(kernel_name)
-        if not kernel_name or kernel_name == "" then
-            vim.notify("Pyrepl: Kernel name is missing.", vim.log.levels.ERROR)
-            return
-        end
-
-        local result = vim.fn.InitKernel(kernel_name)
-        if not result.ok then
-            vim.notify("Pyrepl: " .. result.message, vim.log.levels.ERROR)
-            return
-        end
-
-        vim.b[buf].pyrepl_kernel_name = kernel_name
-        vim.b[buf].pyrepl_connection_file = result.connection_file
-    end)
 end
 
 return M

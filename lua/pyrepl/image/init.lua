@@ -2,13 +2,6 @@ local M = {}
 
 local IMAGE_PADDING = 0
 
----@class pyrepl.ImageState
----@field history pyrepl.ImageEntry[]
----@field history_index integer
----@field current_buf integer|nil
----@field current_winid integer|nil
----@field manager_active boolean
-
 ---@type pyrepl.ImageState
 local state = {
     history = {},
@@ -21,9 +14,9 @@ local state = {
 ---@return integer
 ---@return integer
 local function compute_window_cells()
-    local cfg = require("pyrepl").get_config()
-    local max_width_ratio = tonumber(cfg.image_width_ratio) or 0.4
-    local max_height_ratio = tonumber(cfg.image_height_ratio) or 0.5
+    local config = require("pyrepl").config
+    local max_width_ratio = tonumber(config.image_width_ratio) or 0.3
+    local max_height_ratio = tonumber(config.image_height_ratio) or 0.4
     local max_width_cells = math.max(1, math.floor(vim.o.columns * max_width_ratio))
     local max_height_cells = math.max(1, math.floor(vim.o.lines * max_height_ratio))
     return max_width_cells, max_height_cells
@@ -155,14 +148,14 @@ end
 
 --- Redraw image placeholders on editor resize/focus changes.
 ---@param buf integer
----@param winid integer
-local function setup_resize_autocmd(buf, winid)
+---@param win integer
+local function setup_resize_autocmd(buf, win)
     local group = vim.api.nvim_create_augroup("PyreplImageResize", { clear = true })
     vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
         group = group,
         callback = function()
             vim.schedule(function()
-                require("pyrepl.image.placeholders").redraw(buf, winid)
+                require("pyrepl.image.placeholders").redraw(buf, win)
             end)
         end,
     })
@@ -170,7 +163,7 @@ local function setup_resize_autocmd(buf, winid)
         group = group,
         callback = function()
             vim.schedule(function()
-                require("pyrepl.image.placeholders").redraw(buf, winid)
+                require("pyrepl.image.placeholders").redraw(buf, win)
             end)
         end,
     })
@@ -179,15 +172,19 @@ end
 ---@param bufnr integer
 local function set_manager_keymaps(bufnr)
     local opts = { noremap = true, silent = true, nowait = true, buffer = bufnr }
+
     vim.keymap.set("n", "h", function()
         M.show_previous_image(true)
     end, opts)
+
     vim.keymap.set("n", "l", function()
         M.show_next_image(true)
     end, opts)
+
     vim.keymap.set("n", "q", function()
         clear_current()
     end, opts)
+
     vim.keymap.set("n", "<Esc>", function()
         clear_current()
     end, opts)
