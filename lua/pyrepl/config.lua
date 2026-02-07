@@ -34,7 +34,7 @@ function M.apply(opts)
     }
 
     for _, key in ipairs(ratios) do
-        config[key] = validate_ratio(config[key], M.default[key])
+        config[key] = validate_ratio(config[key], M.defaults[key])
     end
 
     return config

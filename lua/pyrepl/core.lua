@@ -57,7 +57,7 @@ local function open_hidden_repl()
     attach_autocmds(M.session.buf, M.session.win)
     vim.api.nvim_win_set_buf(M.session.win, M.session.buf)
     vim.api.nvim_buf_set_name(M.session.buf, buf_name)
-    vim.api.nvim_set_current_win(win)
+    vim.api.nvim_set_current_win(M.session.win)
 end
 
 local function init_repl(kernel_name)
@@ -66,7 +66,7 @@ local function init_repl(kernel_name)
     local connection_file = kernel.init_kernel(kernel_name)
     local python_path = kernel.get_python_path()
     local console_path = kernel.get_console_path()
-    local style = require("pyrepl").get_config().style or "default"
+    local style = require("pyrepl").config.style or "default"
     local nvim_socket = vim.v.servername
 
     if not connection_file then
