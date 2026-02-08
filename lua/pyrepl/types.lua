@@ -21,14 +21,13 @@ error("Cannot require a meta file")
 
 ---@class pyrepl.KernelSpec
 ---@field name string
----@field path string|nil
+---@field resource_dir string
 
 ---@class pyrepl.Session
 ---@field buf integer
 ---@field chan integer
 ---@field win? integer
----@field connection_file string
----@field kernel_name string
+---@field kernel string
 
 ---@class pyrepl.ImageState
 ---@field history pyrepl.ImageEntry[]

@@ -39,7 +39,7 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
 
 
 def main() -> None:
-    """Run the Jupyter console attached to an existing kernel."""
+    """Run the Jupyter console with pyrepl integration."""
     args, extra = _parse_args()
     _ensure_package_root()
 

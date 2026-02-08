@@ -6,19 +6,13 @@ local M = {}
 local function normalize_python_message(msg)
     -- insert blank lines after top-level compound statements so pasted code executes as separate blocks in a repl
     local lines = vim.split(msg, "\n", { plain = true, trimempty = false })
-    if #lines <= 1 then
-        return msg
-    end
+    if #lines <= 1 then return msg end
 
     local ok_parser, parser = pcall(vim.treesitter.get_string_parser, msg, "python")
-    if not ok_parser or not parser then
-        return msg
-    end
+    if not ok_parser or not parser then return msg end
 
     local tree = parser:parse()[1]
-    if not tree then
-        return msg
-    end
+    if not tree then return msg end
 
     local root = tree:root()
     local top_nodes = {}
@@ -103,9 +97,7 @@ local function normalize_python_message(msg)
         insert_after[#lines] = true
     end
 
-    if next(insert_after) == nil then
-        return msg
-    end
+    if next(insert_after) == nil then return msg end
 
     local out = {}
     for i, line in ipairs(lines) do
@@ -115,12 +107,10 @@ local function normalize_python_message(msg)
         end
     end
 
-    -- strip up
     while #out > 0 and out[1]:match("^%s*$") do
         table.remove(out, 1)
     end
 
-    -- strip down
     while #out > 0 and out[#out]:match("^%s*$") do
         table.remove(out, #out)
     end
@@ -161,19 +151,6 @@ local function get_visual_selection()
 
     local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
     return table.concat(lines, "\n")
-end
-
----@param buf integer?
----@return boolean
-function M.ready_to_send(buf)
-    buf = buf or vim.api.nvim_get_current_buf()
-
-    return vim.b[buf].pyrepl_connection_file ~= nil
-        and vim.b[buf].pyrepl_term_buf ~= nil
-        and vim.b[buf].pyrepl_term_chan ~= nil
-        and vim.b[buf].pyrepl_term_win ~= nil
-        and vim.api.nvim_buf_is_valid(vim.b[buf].pyrepl_term_buf)
-        and vim.api.nvim_win_is_valid(vim.b[buf].pyrepl_term_win)
 end
 
 ---@param chan? integer
