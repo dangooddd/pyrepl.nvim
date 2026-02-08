@@ -1,7 +1,7 @@
 local M = {}
 
----@type pyrepl.Session|nil
-M.session = nil
+---@type pyrepl.ReplState|nil
+M.state = nil
 local python_path_cache = nil
 local console_path_cache = nil
 
@@ -102,18 +102,18 @@ local function setup_win_autocmd(win)
 end
 
 local function open_hidden_repl()
-    if not M.session then return end
-    if M.session.win then return end
+    if not M.state then return end
+    if M.state.win then return end
 
     local win = vim.api.nvim_get_current_win()
-    M.session.win = open_scratch_win()
-    vim.api.nvim_win_set_buf(M.session.win, M.session.buf)
+    M.state.win = open_scratch_win()
+    vim.api.nvim_win_set_buf(M.state.win, M.state.buf)
     vim.api.nvim_set_current_win(win)
-    setup_win_autocmd(M.session.win)
+    setup_win_autocmd(M.state.win)
 end
 
 local function open_new_repl(kernel)
-    if M.session then return end
+    if M.state then return end
 
     local python_path = get_python_path()
     local console_path = get_console_path()
@@ -154,7 +154,7 @@ local function open_new_repl(kernel)
         on_exit = function() M.close_repl() end,
     })
 
-    M.session = {
+    M.state = {
         buf = buf,
         win = win,
         chan = chan,
@@ -166,7 +166,7 @@ end
 
 --- Open hidden REPL or initialize new session
 function M.open_repl()
-    if M.session then
+    if M.state then
         open_hidden_repl()
         return
     end
@@ -180,20 +180,20 @@ end
 
 --- Hide window with REPL terminal
 function M.hide_repl()
-    if M.session and M.session.win then
-        pcall(vim.api.nvim_win_close, M.session.win, true)
-        M.session.win = nil
+    if M.state and M.state.win then
+        pcall(vim.api.nvim_win_close, M.state.win, true)
+        M.state.win = nil
     end
 end
 
 --- Close session entirely
 function M.close_repl()
-    if not M.session then return end
+    if not M.state then return end
 
     M.hide_repl()
-    pcall(vim.fn.jobstop, M.session.chan)
-    pcall(vim.cmd.bdelete, { M.session.buf, bang = true })
-    M.session = nil
+    pcall(vim.fn.jobstop, M.state.chan)
+    pcall(vim.cmd.bdelete, { M.state.buf, bang = true })
+    M.state = nil
 end
 
 return M

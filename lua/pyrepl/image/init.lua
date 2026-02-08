@@ -7,7 +7,7 @@ local state = {
     history = {},
     history_index = 0,
     current_buf = nil,
-    current_winid = nil,
+    current_win = nil,
     manager_active = false,
 }
 
@@ -97,8 +97,8 @@ local function create_image_float(width_cells, height_cells, focus, bufnr)
 end
 
 local function clear_current()
-    if state.current_winid and vim.api.nvim_win_is_valid(state.current_winid) then
-        vim.api.nvim_win_close(state.current_winid, true)
+    if state.current_win and vim.api.nvim_win_is_valid(state.current_win) then
+        vim.api.nvim_win_close(state.current_win, true)
     end
     if state.current_buf then
         local placeholders = require("pyrepl.image.placeholders")
@@ -108,7 +108,7 @@ local function clear_current()
     end
     pcall(vim.api.nvim_del_augroup_by_name, "PyreplImageResize")
     state.current_buf = nil
-    state.current_winid = nil
+    state.current_win = nil
     state.manager_active = false
 end
 
@@ -209,7 +209,7 @@ local function render_image(entry, focus, auto_clear)
     local winid, bufnr = create_image_float(width_cells, height_cells, focus, buf)
     placeholders.attach(buf, winid)
     state.current_buf = buf
-    state.current_winid = winid
+    state.current_win = winid
     setup_resize_autocmd(buf, winid)
 
     if focus then
