@@ -4,7 +4,7 @@ import os
 from enum import StrEnum
 from queue import Queue
 from threading import Thread
-from typing import Any, Iterable, Optional, cast
+from typing import Any, Optional
 
 import pynvim
 
@@ -15,85 +15,54 @@ class ImageMimeTypes(StrEnum):
     SVG = "image/svg+xml"
 
 
-_nvim_queue: Queue[Optional[str]] = Queue()
-_nvim_thread: Optional[Thread] = None
+nvim_queue: Queue[Optional[str]] = Queue()
+nvim_thread: Optional[Thread] = None
 
 
-def _flatten_sequence(value: Iterable[Any]) -> list[Any]:
-    """Flatten nested lists and tuples into one list."""
-    out: list[Any] = []
-    for item in value:
-        if isinstance(item, (list, tuple)):
-            out.extend(_flatten_sequence(item))
-        else:
-            out.append(item)
+def normalize_payload(payload: Any) -> Optional[str]:
+    """Normalize image payload to a single string."""
+    if isinstance(payload, str) and payload:
+        return payload
 
-    return out
+    if (
+        isinstance(payload, list)
+        and payload
+        and all(isinstance(item, str) for item in payload)
+    ):
+        combined = "".join(payload)
+        if combined:
+            return combined
 
-
-def _to_text(value: Any) -> str:
-    """Convert text-like values to a UTF-8 string."""
-    if isinstance(value, str):
-        return value
-
-    if isinstance(value, (bytes, bytearray)):
-        try:
-            return bytes(value).decode("utf-8")
-        except Exception:
-            return ""
-
-    return ""
+    return None
 
 
-def _extract_image_data(value: Any) -> str:
-    """Extract image payload data as a single string."""
-    if isinstance(value, (list, tuple)):
-        flattened = _flatten_sequence(value)
+def pick_image_payload(data: dict[str, Any]) -> Optional[tuple[ImageMimeTypes, str]]:
+    """Pick first supported image payload in preferred order."""
+    for image_mime in (ImageMimeTypes.PNG, ImageMimeTypes.JPG, ImageMimeTypes.SVG):
+        payload = normalize_payload(data.get(image_mime))
+        if payload:
+            return image_mime, payload
 
-        if not flattened:
-            return ""
-
-        if all(isinstance(item, str) for item in flattened):
-            return "".join(cast(list[str], flattened))
-
-        if all(isinstance(item, (bytes, bytearray)) for item in flattened):
-            try:
-                return b"".join(bytes(item) for item in flattened).decode("utf-8")
-            except Exception:
-                return ""
-
-        return _extract_image_data(flattened[0])
-
-    return _to_text(value)
+    return None
 
 
-def _prepare_image_data(image_mime: str, image_data: Any) -> Optional[str]:
+def convert_image_to_png_base64(
+    image_mime: ImageMimeTypes,
+    image_data: str,
+) -> Optional[str]:
     """Convert supported image payloads to base64-encoded PNG."""
     if image_mime == ImageMimeTypes.PNG:
-        try:
-            if isinstance(image_data, str):
-                return image_data
-            elif isinstance(image_data, bytes | bytearray):
-                raw = bytes(image_data)
-                return base64.b64encode(raw).decode("utf-8")
-            else:
-                return None
-        except Exception:
-            return None
+        return image_data
 
     if image_mime == ImageMimeTypes.SVG:
         try:
             import cairosvg
 
-            if isinstance(image_data, str):
-                raw = image_data.encode("utf-8")
-            elif isinstance(image_data, bytes | bytearray):
-                raw = bytes(image_data)
-            else:
-                return None
-
+            raw = image_data.encode("utf-8")
             png_bytes = cairosvg.svg2png(bytestring=raw)
-            return base64.b64encode(cast(bytes, png_bytes)).decode("utf-8")
+            if not isinstance(png_bytes, (bytes, bytearray)):
+                return None
+            return base64.b64encode(png_bytes).decode("utf-8")
         except Exception:
             return None
 
@@ -101,13 +70,7 @@ def _prepare_image_data(image_mime: str, image_data: Any) -> Optional[str]:
         try:
             from PIL import Image
 
-            if isinstance(image_data, str):
-                raw = base64.b64decode(image_data)
-            elif isinstance(image_data, bytes | bytearray):
-                raw = bytes(image_data)
-            else:
-                return None
-
+            raw = base64.b64decode(image_data)
             img = Image.open(io.BytesIO(raw))
             output = io.BytesIO()
             img.save(output, format="PNG")
@@ -115,8 +78,10 @@ def _prepare_image_data(image_mime: str, image_data: Any) -> Optional[str]:
         except Exception:
             return None
 
+    return None
 
-def _get_nvim(
+
+def get_nvim(
     address: Optional[str], current: Optional[pynvim.Nvim]
 ) -> Optional[pynvim.Nvim]:
     """Attach to Neovim via NVIM if needed."""
@@ -132,17 +97,17 @@ def _get_nvim(
         return None
 
 
-def _nvim_worker() -> None:
+def nvim_worker() -> None:
     """Worker thread that forwards image data to Neovim."""
     nvim: Optional[pynvim.Nvim] = None
     while True:
-        data = _nvim_queue.get()
+        data = nvim_queue.get()
         try:
             if data is None:
                 break
 
             address = os.environ.get("NVIM")
-            nvim = _get_nvim(address, nvim)
+            nvim = get_nvim(address, nvim)
             if nvim is None:
                 continue
 
@@ -154,18 +119,18 @@ def _nvim_worker() -> None:
             except Exception:
                 nvim = None
         finally:
-            _nvim_queue.task_done()
+            nvim_queue.task_done()
 
 
-def _send_image_to_nvim(data: str) -> None:
+def send_image_to_nvim(data: str) -> None:
     """Queue an image payload to be sent to Neovim."""
-    global _nvim_thread
+    global nvim_thread
 
-    if not _nvim_thread or not _nvim_thread.is_alive():
-        _nvim_thread = Thread(target=_nvim_worker, daemon=True)
-        _nvim_thread.start()
+    if not nvim_thread or not nvim_thread.is_alive():
+        nvim_thread = Thread(target=nvim_worker, daemon=True)
+        nvim_thread.start()
 
-    _nvim_queue.put(data)
+    nvim_queue.put(data)
 
 
 def handle_image(data: Any) -> bool:
@@ -173,22 +138,14 @@ def handle_image(data: Any) -> bool:
     if not isinstance(data, dict):
         return False
 
-    image_mime = None
-    for candidate in ImageMimeTypes:
-        if candidate in data:
-            image_mime = candidate
-            break
-
-    if image_mime is None:
+    selected = pick_image_payload(data)
+    if not selected:
         return False
+    image_mime, image_data = selected
 
-    image_data = _extract_image_data(data.get(image_mime))
-    if not image_data:
-        return False
-
-    prepared = _prepare_image_data(image_mime, image_data)
+    prepared = convert_image_to_png_base64(image_mime, image_data)
     if not prepared:
         return False
 
-    _send_image_to_nvim(prepared)
+    send_image_to_nvim(prepared)
     return True

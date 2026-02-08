@@ -139,14 +139,18 @@ local function open_new_repl(kernel)
         console_path,
         "--kernel",
         kernel,
-        "--pygments-style",
-        tostring(style),
+        "--ZMQTerminalInteractiveShell.highlighting_style",
+        style,
     }
 
     local chan = vim.fn.jobstart(cmd, {
         term = true,
         pty = true,
-        env = { NVIM = nvim_socket, PYTHONDONTWRITEBYTECODE = "1" },
+        env = vim.tbl_extend(
+            "force",
+            vim.env,
+            { NVIM = nvim_socket, PYTHONDONTWRITEBYTECODE = "1" }
+        ),
         on_exit = function() M.close_repl() end,
     })
 
