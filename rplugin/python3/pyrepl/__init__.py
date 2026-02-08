@@ -21,7 +21,7 @@ def kernelspec_manager() -> KernelSpecManager:
 @lru_cache()
 def get_venv():
     for venv in VENV_ENV_VARS:
-        if os.environ[venv] != "":
+        if os.environ.get(venv) is not None:
             return str(Path(os.environ[venv]) / "bin" / "python")
 
     return None

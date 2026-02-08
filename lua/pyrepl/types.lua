@@ -23,7 +23,7 @@ error("Cannot require a meta file")
 ---@field name string
 ---@field resource_dir string
 
----@class pyrepl.Session
+---@class pyrepl.ReplState
 ---@field buf integer
 ---@field chan integer
 ---@field win? integer
