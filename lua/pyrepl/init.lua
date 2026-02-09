@@ -31,16 +31,23 @@ function M.install_packages(tool)
 end
 
 function M.send_visual()
-    if core.state then send.send_visual(core.state.chan) end
+    if core.state then
+        send.send_visual(core.state.chan)
+        core.scroll_repl()
+    end
 end
 
 function M.send_buffer()
-    if core.state then send.send_buffer(core.state.chan) end
+    if core.state then
+        send.send_buffer(core.state.chan)
+        core.scroll_repl()
+    end
 end
 
 function M.send_block()
     if core.state then
         send.send_block(core.state.chan, M.config.block_pattern)
+        core.scroll_repl()
     end
 end
 

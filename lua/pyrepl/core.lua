@@ -41,6 +41,15 @@ local function setup_win_autocmd(win)
     })
 end
 
+function M.scroll_repl()
+    if not M.state or not M.state.win then return end
+    pcall(
+        vim.api.nvim_win_set_cursor,
+        M.state.win,
+        { vim.api.nvim_buf_line_count(M.state.buf), 0 }
+    )
+end
+
 local function open_hidden_repl()
     if not M.state then return end
     if M.state.win then return end
@@ -50,6 +59,7 @@ local function open_hidden_repl()
     vim.api.nvim_win_set_buf(M.state.win, M.state.buf)
     vim.api.nvim_set_current_win(win)
     setup_win_autocmd(M.state.win)
+    M.scroll_repl()
 end
 
 ---@param kernel string
@@ -103,6 +113,7 @@ local function open_new_repl(kernel)
     }
 
     vim.api.nvim_set_current_win(current_win)
+    M.scroll_repl()
 end
 
 --- Open hidden REPL or initialize new from prompted kernel.
