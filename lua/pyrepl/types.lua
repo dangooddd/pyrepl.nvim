@@ -7,7 +7,6 @@ error("Cannot require a meta file")
 ---@field style string
 ---@field image_width_ratio number
 ---@field image_height_ratio number
----@field filetypes table<string>|nil
 ---@field block_pattern string|nil
 ---@field python_path string|nil
 ---@field preferred_kernel string|nil
@@ -18,7 +17,6 @@ error("Cannot require a meta file")
 ---@field style? string
 ---@field image_width_ratio? number
 ---@field image_height_ratio? number
----@field filetypes? table<string>
 ---@field block_pattern? string
 ---@field python_path? string
 ---@field preferred_kernel? string
@@ -36,8 +34,8 @@ error("Cannot require a meta file")
 ---@class pyrepl.ImageState
 ---@field history pyrepl.ImageEntry[]
 ---@field history_index integer
----@field current_buf integer|nil
----@field current_winid integer|nil
+---@field buf integer|nil
+---@field win integer|nil
 ---@field manager_active boolean
 
 ---@class pyrepl.ImageConfig

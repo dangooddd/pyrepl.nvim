@@ -18,7 +18,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       split_horizontal = false,
       split_ratio = 0.5,
       style = "default",
-      image_width_ratio = 0.4,
+      image_width_ratio = 0.5,
       image_height_ratio = 0.5,
       block_pattern = "^# %%%%.*$",
       python_path = "python",
