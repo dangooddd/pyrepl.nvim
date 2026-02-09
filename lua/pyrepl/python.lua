@@ -3,7 +3,7 @@ local M = {}
 local python_path_cache = nil
 local console_path_cache = nil
 
-local packages = { "jupyter-console", "pynvim" }
+local packages = { "jupyter-console", "pynvim", "cairosvg", "pillow" }
 local tools = {
     uv = "uv pip install -p %s",
     pip = "%s -m pip install",
