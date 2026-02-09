@@ -6,8 +6,8 @@ local IMAGE_PADDING = 0
 local state = {
     history = {},
     history_index = 0,
-    current_buf = nil,
-    current_win = nil,
+    buf = nil,
+    win = nil,
     manager_active = false,
 }
 
@@ -15,28 +15,29 @@ local state = {
 ---@return integer
 local function compute_window_cells()
     local config = require("pyrepl").config
-    local max_width_ratio = tonumber(config.image_width_ratio) or 0.3
-    local max_height_ratio = tonumber(config.image_height_ratio) or 0.4
-    local max_width_cells = math.max(1, math.floor(vim.o.columns * max_width_ratio))
-    local max_height_cells = math.max(1, math.floor(vim.o.lines * max_height_ratio))
+    local max_width_cells = math.max(1, math.floor(vim.o.columns * config.image_width_ratio))
+    local max_height_cells = math.max(1, math.floor(vim.o.lines * config.image_height_ratio))
     return max_width_cells, max_height_cells
 end
 
 ---@param width_cells integer
 ---@param height_cells integer
 ---@param focus boolean
----@param bufnr integer|nil
+---@param buf integer|nil
 ---@return integer
 ---@return integer
-local function create_image_float(width_cells, height_cells, focus, bufnr)
+local function create_image_float(width_cells, height_cells, focus, buf)
     local win_width = vim.o.columns
     local win_height = vim.o.lines
 
-    local float_width = width_cells + (IMAGE_PADDING * 2)
-    local float_height = height_cells + (IMAGE_PADDING * 2)
+    -- subtract 2 to take command line into account
+    local col = math.max(0, win_width - width_cells)
+    local row = math.max(0, win_height - height_cells - 2)
 
-    local row = math.max(0, math.floor((win_height - float_height) / 2))
-    local col = math.max(0, math.floor((win_width - float_width) / 2))
+    -- effective window size (without borders)
+    -- subtract 2 to take borders into account
+    local float_width = width_cells - 2
+    local float_height = height_cells - 2
 
     local opts = {
         relative = "editor",
@@ -51,17 +52,17 @@ local function create_image_float(width_cells, height_cells, focus, bufnr)
     }
 
     local own_buf = false
-    if not bufnr then
-        bufnr = vim.api.nvim_create_buf(false, true)
+    if not buf then
+        buf = vim.api.nvim_create_buf(false, true)
         own_buf = true
     end
 
     if own_buf then
-        vim.bo[bufnr].modifiable = false
-        vim.bo[bufnr].buftype = "nofile"
+        vim.bo[buf].modifiable = false
+        vim.bo[buf].buftype = "nofile"
     end
 
-    local winid = vim.api.nvim_open_win(bufnr, focus or false, opts)
+    local win = vim.api.nvim_open_win(buf, focus or false, opts)
 
     local border_hl = "PyreplImageBorder"
     local title_hl = "PyreplImageTitle"
@@ -91,24 +92,24 @@ local function create_image_float(width_cells, height_cells, focus, bufnr)
             normal_hl
         )
     end
-    vim.wo[winid].winhl = winhl
+    vim.wo[win].winhl = winhl
 
-    return winid, bufnr
+    return win, buf
 end
 
 local function clear_current()
-    if state.current_win and vim.api.nvim_win_is_valid(state.current_win) then
-        vim.api.nvim_win_close(state.current_win, true)
+    if state.win and vim.api.nvim_win_is_valid(state.win) then
+        vim.api.nvim_win_close(state.win, true)
     end
-    if state.current_buf then
+    if state.buf then
         local placeholders = require("pyrepl.image.placeholders")
         pcall(function()
-            placeholders.wipe(state.current_buf)
+            placeholders.wipe(state.buf)
         end)
     end
     pcall(vim.api.nvim_del_augroup_by_name, "PyreplImageResize")
-    state.current_buf = nil
-    state.current_win = nil
+    state.buf = nil
+    state.win = nil
     state.manager_active = false
 end
 
@@ -124,13 +125,13 @@ local function setup_cursor_autocmd()
     })
 end
 
----@param bufnr integer
----@param winid integer
-local function setup_manager_autocmd(bufnr, winid)
+---@param buf integer
+---@param win integer
+local function setup_manager_autocmd(buf, win)
     local group = vim.api.nvim_create_augroup("PyreplImageManagerClose", { clear = false })
     vim.api.nvim_create_autocmd("BufWipeout", {
         group = group,
-        buffer = bufnr,
+        buffer = buf,
         callback = function()
             clear_current()
         end,
@@ -138,7 +139,7 @@ local function setup_manager_autocmd(bufnr, winid)
     })
     vim.api.nvim_create_autocmd("WinClosed", {
         group = group,
-        pattern = tostring(winid),
+        pattern = tostring(win),
         callback = function()
             clear_current()
         end,
@@ -169,9 +170,9 @@ local function setup_resize_autocmd(buf, win)
     })
 end
 
----@param bufnr integer
-local function set_manager_keymaps(bufnr)
-    local opts = { noremap = true, silent = true, nowait = true, buffer = bufnr }
+---@param buf integer
+local function set_manager_keymaps(buf)
+    local opts = { noremap = true, silent = true, nowait = true, buffer = buf }
 
     vim.keymap.set("n", "h", function()
         M.show_previous_image(true)
@@ -208,8 +209,8 @@ local function render_image(entry, focus, auto_clear)
     local width_cells, height_cells = compute_window_cells()
     local winid, bufnr = create_image_float(width_cells, height_cells, focus, buf)
     placeholders.attach(buf, winid)
-    state.current_buf = buf
-    state.current_win = winid
+    state.buf = buf
+    state.win = winid
     setup_resize_autocmd(buf, winid)
 
     if focus then
@@ -316,7 +317,6 @@ function M.show_previous_image(focus)
     end
     if state.history_index <= 1 then
         state.history_index = 1
-        vim.notify("Pyrepl: Already at oldest image.", vim.log.levels.INFO)
         return
     end
     show_history_at(
@@ -334,7 +334,6 @@ function M.show_next_image(focus)
     end
     if state.history_index >= #state.history then
         state.history_index = #state.history
-        vim.notify("Pyrepl: Already at newest image.", vim.log.levels.INFO)
         return
     end
     show_history_at(
