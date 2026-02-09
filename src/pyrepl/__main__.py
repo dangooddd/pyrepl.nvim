@@ -36,7 +36,7 @@ def worker():
             while True:
                 try:
                     data = queue.get()
-                    nvim.exec_lua(lua_command, data, async_=True)
+                    nvim.exec_lua(lua_command, data, async_=False)
                 finally:
                     queue.task_done()
     except Exception:
