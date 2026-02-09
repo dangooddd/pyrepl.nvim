@@ -1,12 +1,19 @@
 import base64
 import io
 import os
+import sys
 from enum import StrEnum
-from queue import Queue
-from threading import Thread
+from functools import partial
+from queue import Empty, Queue
+from threading import Event, Lock, Thread
 from typing import Any, Optional
 
 import pynvim
+from jupyter_console.app import ZMQTerminalIPythonApp
+from traitlets.config import Config
+
+queue = Queue()
+dead = Event()
 
 
 class ImageMimeTypes(StrEnum):
@@ -15,8 +22,24 @@ class ImageMimeTypes(StrEnum):
     SVG = "image/svg+xml"
 
 
-nvim_queue: Queue[Optional[str]] = Queue()
-nvim_thread: Optional[Thread] = None
+def worker():
+    addr = os.environ.get("NVIM")
+    lua_command = "require('pyrepl.image').show_image_data(...)"
+
+    if addr is None:
+        dead.set()
+        return
+
+    try:
+        with pynvim.attach("socket", path=os.environ.get("NVIM", "")) as nvim:
+            while True:
+                try:
+                    data = queue.get()
+                    nvim.exec_lua(lua_command, data, async_=True)
+                finally:
+                    queue.task_done()
+    except Exception:
+        dead.set()
 
 
 def normalize_payload(payload: Any) -> Optional[str]:
@@ -71,7 +94,7 @@ def convert_image_to_png_base64(
             from PIL import Image
 
             raw = base64.b64decode(image_data)
-            img = Image.open(io.BytesIO(raw))
+            img = Image.open(io.BytesIO(raw)).convert("RGBA")
             output = io.BytesIO()
             img.save(output, format="PNG")
             return base64.b64encode(output.getvalue()).decode("utf-8")
@@ -81,71 +104,39 @@ def convert_image_to_png_base64(
     return None
 
 
-def get_nvim(
-    address: Optional[str], current: Optional[pynvim.Nvim]
-) -> Optional[pynvim.Nvim]:
-    """Attach to Neovim via NVIM if needed."""
-    if not address:
-        return None
-
-    if current is not None:
-        return current
-
-    try:
-        return pynvim.attach("socket", path=address)
-    except Exception:
-        return None
-
-
-def nvim_worker() -> None:
-    """Worker thread that forwards image data to Neovim."""
-    nvim: Optional[pynvim.Nvim] = None
-    while True:
-        data = nvim_queue.get()
-        try:
-            if data is None:
-                break
-
-            address = os.environ.get("NVIM")
-            nvim = get_nvim(address, nvim)
-            if nvim is None:
-                continue
-
-            try:
-                nvim.exec_lua(
-                    'require("pyrepl.image").show_image_data(...)',
-                    data,
-                )
-            except Exception:
-                nvim = None
-        finally:
-            nvim_queue.task_done()
-
-
-def send_image_to_nvim(data: str) -> None:
-    """Queue an image payload to be sent to Neovim."""
-    global nvim_thread
-
-    if not nvim_thread or not nvim_thread.is_alive():
-        nvim_thread = Thread(target=nvim_worker, daemon=True)
-        nvim_thread.start()
-
-    nvim_queue.put(data)
-
-
-def handle_image(data: Any) -> bool:
+def image_handler(data: Any):
     """Handle Jupyter image output and forward it to Neovim."""
+    if dead.is_set():
+        return
+
     if not isinstance(data, dict):
-        return False
+        return
 
     selected = pick_image_payload(data)
     if not selected:
-        return False
+        return
     image_mime, image_data = selected
 
     prepared = convert_image_to_png_base64(image_mime, image_data)
     if not prepared:
-        return False
+        return
 
-    send_image_to_nvim(prepared)
-    return True
+    queue.put(prepared)
+
+
+def main() -> None:
+    """Run the Jupyter console with pyrepl integration."""
+    config = Config()
+    config.ZMQTerminalInteractiveShell.image_handler = "callable"
+    config.ZMQTerminalInteractiveShell.callable_image_handler = image_handler
+
+    app = ZMQTerminalIPythonApp.instance(config=config)
+    app.initialize(sys.argv[1:])
+
+    thread = Thread(target=worker, name="nvim-pipe", daemon=True)
+    thread.start()
+    app.start()  # type: ignore
+
+
+if __name__ == "__main__":
+    main()

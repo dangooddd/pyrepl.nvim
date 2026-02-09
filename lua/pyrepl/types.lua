@@ -9,6 +9,8 @@ error("Cannot require a meta file")
 ---@field image_height_ratio number
 ---@field filetypes table<string>|nil
 ---@field block_pattern string|nil
+---@field python_path string|nil
+---@field preferred_kernel string|nil
 
 ---@class pyrepl.ConfigOpts
 ---@field split_horizontal? boolean
@@ -18,6 +20,8 @@ error("Cannot require a meta file")
 ---@field image_height_ratio? number
 ---@field filetypes? table<string>
 ---@field block_pattern? string
+---@field python_path? string
+---@field preferred_kernel? string
 
 ---@class pyrepl.KernelSpec
 ---@field name string

@@ -4,6 +4,7 @@ local config = require("pyrepl.config")
 local send = require("pyrepl.send")
 local image = require("pyrepl.image")
 local core = require("pyrepl.core")
+local python = require("pyrepl.python")
 
 ---@type pyrepl.Config
 M.config = config.apply(nil)
@@ -22,6 +23,11 @@ end
 
 function M.open_images()
     image.open_images()
+end
+
+---@param tool string
+function M.install_packages(tool)
+    python.install_packages(tool)
 end
 
 function M.send_visual()
@@ -54,6 +60,12 @@ function M.setup(opts)
     for name, callback in pairs(commands) do
         vim.api.nvim_create_user_command(name, callback, { force = true })
     end
+
+    vim.api.nvim_create_user_command(
+        "PyreplInstall",
+        function(o) M.install_packages(o.args) end,
+        { nargs = 1, complete = python.get_tools }
+    )
 
     return M
 end

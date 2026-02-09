@@ -9,6 +9,8 @@ M.defaults = {
     image_height_ratio = 0.5,
     filetypes = nil,
     block_pattern = "^# %%%%.*$",
+    python_path = "python",
+    preferred_kernel = "python3",
 }
 
 ---@param value any
