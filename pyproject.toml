@@ -1,0 +1,28 @@
+[project]
+name = "pyrepl"
+version = "0.2.1"
+description = "REPL experience for Python in Neovim."
+readme = "README.md"
+authors = [
+    { name = "dangooddd", email = "dangoodds@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "cairosvg>=2.8.2",
+    "jupyter-console>=6.6.3",
+    "pillow>=12.1.0",
+    "pynvim>=0.6.0",
+]
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["uv_build>=0.10.0,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.0",
+    "ty>=0.0.15",
+]

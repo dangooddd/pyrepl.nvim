@@ -3,9 +3,8 @@ import io
 import os
 import sys
 from enum import StrEnum
-from functools import partial
-from queue import Empty, Queue
-from threading import Event, Lock, Thread
+from queue import Queue
+from threading import Event, Thread
 from typing import Any, Optional
 
 import pynvim

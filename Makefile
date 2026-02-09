@@ -3,7 +3,7 @@
 lint: lint-ruff lint-ty
 
 lint-ruff:
-	python3 -m ruff check .
+	ruff check
 
 lint-ty:
-	python3 -m ty check
+	ty check
