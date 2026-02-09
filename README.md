@@ -91,6 +91,7 @@ Main differences from pyrola:
 - Supports Pygments styles via the `style` config option for REPL highlighting.
 - Kernel is initialized via a prompt rather than fixed values. You can tune default ordering with `preferred_kernel`.
 - On supported terminals, images render correctly via kitty unicode placeholders.
+- Utility functions to make life easier: Close, Hide and Install commands.
 
 And a quick note about images: I'm really proud of this part, because the plugin worked even in a local -> ssh -> tmux -> docker setup (and images still rendered!).
 
