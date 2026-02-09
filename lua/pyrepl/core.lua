@@ -5,6 +5,7 @@ M.state = nil
 
 local python = require("pyrepl.python")
 
+--- Create window according to current config.
 ---@return integer
 local function open_scratch_win()
     local config = require("pyrepl").config
@@ -51,6 +52,7 @@ local function open_hidden_repl()
     setup_win_autocmd(M.state.win)
 end
 
+---@param kernel string
 local function open_new_repl(kernel)
     if M.state then return end
 
@@ -103,7 +105,7 @@ local function open_new_repl(kernel)
     vim.api.nvim_set_current_win(current_win)
 end
 
---- Open hidden REPL or initialize new session
+--- Open hidden REPL or initialize new from prompted kernel.
 function M.open_repl()
     if M.state then
         open_hidden_repl()
@@ -117,7 +119,6 @@ function M.open_repl()
     python.prompt_kernel(on_choice)
 end
 
---- Hide window with REPL terminal
 function M.hide_repl()
     if M.state and M.state.win then
         pcall(vim.api.nvim_win_close, M.state.win, true)
@@ -125,7 +126,7 @@ function M.hide_repl()
     end
 end
 
---- Close session entirely
+--- Close session completely.
 function M.close_repl()
     if not M.state then return end
 

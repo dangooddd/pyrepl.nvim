@@ -12,12 +12,14 @@ Project: https://github.com/dangooddd/pyrepl.nvim
 ==============================================================================
 REQUIREMENTS                                                   *pyrepl-reqs*
 
-- Neovim Python provider is configured (see |provider-python|).
-- The Python interpreter set in `g:python3_host_prog` must have these packages:
+- A working Python executable. By default pyrepl.nvim uses `python` from PATH.
+  You can override it with `python_path` (see |pyrepl-config|).
+- pyrepl.nvim is a regular Lua plugin. No `:UpdateRemotePlugins` step is
+  needed.
+- The selected Python interpreter must have these packages:
   - pynvim
-  - jupyter-client
   - jupyter-console
-  - ipykernel
+  - ipykernel (for registering kernels)
 - Optional for images:
   - pillow (JPEG -> PNG conversion)
   - cairosvg (SVG -> PNG conversion)
@@ -26,8 +28,6 @@ REQUIREMENTS                                                   *pyrepl-reqs*
   python3 -m pip install ipykernel
   python3 -m ipykernel install --user --name python3
 <
-- This is a remote plugin: after installation run `:UpdateRemotePlugins` and
-  restart Neovim.
 - Image rendering requires kitty graphics protocol (unicode placeholders).
 
 Tree-sitter note: the plugin can use Tree-sitter to normalize pasted Python
@@ -37,22 +37,19 @@ more reliably (when the parser is available), but it is not a hard requirement.
 COMMANDS                                                        *pyrepl-commands*
 
 :PyreplOpen                                                     *PyreplOpen*
-    Open (or show) the REPL for the current buffer. On first run you'll get a
-    prompt to select a Jupyter kernel. The REPL opens in a terminal split.
-    Each buffer gets its own kernel session.
+    Open (or show) the REPL. On first run you'll get a prompt to select a
+    Jupyter kernel. The REPL opens in a terminal split.
 
     Notes:
-    - Buffer-local command (availability is controlled by the `filetypes` option).
-    - Requires `:UpdateRemotePlugins` after installation.
+    - pyrepl.nvim keeps one active REPL session.
     - Closing the REPL via |PyreplClose| shuts down the kernel.
     - Closing the REPL terminal window hides the window; the kernel stays alive.
 
 :PyreplHide                                                     *PyreplHide*
-    Hide the REPL window for the current buffer. Keeps the REPL buffer and
-    kernel alive.
+    Hide the REPL window. Keeps the REPL buffer and kernel alive.
 
 :PyreplClose                                                    *PyreplClose*
-    Close the REPL for the current buffer and shut down the kernel.
+    Close the REPL and shut down the kernel.
 
 :PyreplSendVisual                                               *PyreplSendVisual*
     Send the last visual selection to the REPL.
@@ -67,38 +64,44 @@ COMMANDS                                                        *pyrepl-commands
 :PyreplOpenImages                                               *PyreplOpenImages*
     Open the image manager (history of recent images).
 
+:PyreplInstall {tool}                                           *PyreplInstall*
+    Install pyrepl runtime packages into the configured Python interpreter.
+    Supported tools:
+      - pip: `<python_path> -m pip install jupyter-console pynvim`
+      - uv:  `uv pip install -p <python_path> jupyter-console pynvim`
+
 
 ==============================================================================
 LUA API                                                         *pyrepl-api*
 
 require("pyrepl").setup({opts})                                 *pyrepl.setup*
-    Configure pyrepl.nvim. Commands are registered buffer-locally on FileType.
+    Configure pyrepl.nvim and create user commands.
     Returns the module table.
 
-require("pyrepl").open_repl([{buf}])                             *pyrepl.open_repl*
-    Same as |PyreplOpen|. Opens the REPL for a buffer (current by default).
+require("pyrepl").open_repl()                                   *pyrepl.open_repl*
+    Same as |PyreplOpen|. Opens (or shows) the REPL.
 
-require("pyrepl").hide_repl([{buf}])                             *pyrepl.hide_repl*
+require("pyrepl").hide_repl()                                   *pyrepl.hide_repl*
     Same as |PyreplHide|. Hides the REPL window.
 
-require("pyrepl").close_repl([{buf}])                            *pyrepl.close_repl*
+require("pyrepl").close_repl()                                  *pyrepl.close_repl*
     Same as |PyreplClose|. Closes the REPL and shuts down the kernel.
 
-require("pyrepl").send_block([{buf}])                            *pyrepl.send_block*
+require("pyrepl").send_block()                                  *pyrepl.send_block*
     Same as |PyreplSendBlock|. Sends the block around the cursor.
 
-require("pyrepl").send_visual([{buf}])                           *pyrepl.send_visual*
+require("pyrepl").send_visual()                                 *pyrepl.send_visual*
     Same as |PyreplSendVisual|. Uses the '< and '> marks, so it maps nicely as
     `:<C-u>PyreplSendVisual<CR>gv`.
 
-require("pyrepl").send_buffer([{buf}])                           *pyrepl.send_buffer*
+require("pyrepl").send_buffer()                                 *pyrepl.send_buffer*
     Same as |PyreplSendBuffer|. Sends the entire buffer.
 
 require("pyrepl").open_images()                                 *pyrepl.open_images*
     Same as |PyreplOpenImages|. Opens the image manager.
 
-require("pyrepl").get_config()                                  *pyrepl.get_config*
-    Return the current configuration table (read-only).
+require("pyrepl").install_packages({tool})                      *pyrepl.install_packages*
+    Same as |PyreplInstall|. {tool} is "pip" or "uv".
 
 
 ==============================================================================
@@ -112,8 +115,9 @@ Default configuration:
     style = "default",
     image_width_ratio = 0.4,
     image_height_ratio = 0.5,
-    filetypes = nil,
     block_pattern = "^# %%%%.*$",
+    python_path = "python",
+    preferred_kernel = "python3",
   })
 <
 
@@ -130,12 +134,26 @@ Options:
   image_height_ratio (number)
       Target image height as a fraction of editor lines. Default: 0.5.
       Used for sizing the render box and can upscale images.
-  filetypes (table|nil)
-      List of filetypes on which pyrepl.nvim commands are available.
-      Default: nil (enabled for all).
   block_pattern (string)
       Lua pattern used as block separators for |PyreplSendBlock|.
       Default: "^# %%%%.*$".
+  python_path (string)
+      Python interpreter used by pyrepl.nvim. Default: "python".
+      Resolution order is: `python_path`, then `g:python3_host_prog`, then
+      `python` from PATH.
+  preferred_kernel (string)
+      Kernel name moved to the first position in the kernel picker.
+      Default: "python3".
+
+Python interpreter notes:
+- Default behavior (`python_path = "python"`): if Neovim runs inside a venv,
+  pyrepl.nvim usually uses that venv's Python.
+- For one global interpreter, the old `~/.venv_nvim` setup still works:
+>
+  require("pyrepl").setup({
+    python_path = "~/.venv_nvim/bin/python",
+  })
+<
 
 Example with keymaps:
 >
@@ -144,12 +162,13 @@ Example with keymaps:
       dependencies = {
           "nvim-treesitter/nvim-treesitter",
         },
-      build = ":UpdateRemotePlugins",
       config = function()
           local pyrepl = require("pyrepl")
 
           pyrepl.setup({
               style = "gruvbox-dark",
+              python_path = "python",
+              preferred_kernel = "python3",
           })
 
           vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
@@ -202,12 +221,15 @@ Override example:
 ==============================================================================
 TROUBLESHOOTING                                                *pyrepl-troubleshooting*
 
- - Ensure your Python provider is configured. If needed, set:
+ - Ensure pyrepl.nvim can resolve a Python executable.
+   If needed, set:
 >
-  let g:python3_host_prog = "/path/to/python3"
+  require("pyrepl").setup({
+    python_path = "/path/to/python3",
+  })
 <
  - Install required Python packages into that interpreter (see |pyrepl-reqs|).
- - After installing, run `:UpdateRemotePlugins` and restart Neovim.
+   You can use |PyreplInstall| with `pip` or `uv`.
  - If kernels are not found, install ipykernel and register a kernel:
 >
   python3 -m pip install ipykernel

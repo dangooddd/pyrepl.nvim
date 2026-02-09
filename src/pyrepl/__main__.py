@@ -23,6 +23,7 @@ class ImageMimeTypes(StrEnum):
 
 
 def worker():
+    """Main thread worker to handle image display in nvim."""
     addr = os.environ.get("NVIM")
     lua_command = "require('pyrepl.image').show_image_data(...)"
 

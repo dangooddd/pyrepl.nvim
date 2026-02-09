@@ -36,7 +36,6 @@ function M.get_python_path()
     return python_path_cache
 end
 
---- Find the console.py script in runtimepath (cached).
 ---@return string|nil
 function M.get_console_path()
     if console_path_cache then return console_path_cache end
@@ -53,6 +52,7 @@ function M.get_console_path()
     )
 end
 
+--- List of available kernels
 local function list_kernels()
     local python_path = M.get_python_path()
     if not python_path then return {} end
@@ -137,7 +137,7 @@ function M.install_packages(tool)
     vim.api.nvim_feedkeys(":!" .. cmd, "n", true)
 end
 
---- Get available tool list (completion function for install_packages)
+--- Get available tool list (completion function for install_packages).
 function M.get_tools()
     local tool_list = {}
 

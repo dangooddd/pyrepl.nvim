@@ -39,7 +39,9 @@ function M.send_buffer()
 end
 
 function M.send_block()
-    if core.state then send.send_block(core.state.chan) end
+    if core.state then
+        send.send_block(core.state.chan, M.config.block_pattern)
+    end
 end
 
 ---@param opts pyrepl.ConfigOpts|nil

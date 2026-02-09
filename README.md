@@ -6,37 +6,12 @@ https://github.com/user-attachments/assets/111a7866-a66e-4fa9-94a1-5acd1b28aea5
 
 ## Quickstart
 
-Important: this is a Python remote plugin. After installation you must run `:UpdateRemotePlugins` (for example via `build = ":UpdateRemotePlugins"` in lazy.nvim) and restart Neovim.
-
-Recommended workflow for a quick start:
-
-```bash
-uv venv ~/.venv_nvim
-source ~/.venv_nvim/bin/activate
-uv pip install pynvim jupyter-client jupyter-console
-uv pip install pillow cairosvg # for jpg and svg support
-```
-
-Then, in `init.lua`:
-
-```lua
-vim.g.python3_host_prog = "~/.venv_nvim/bin/python"
-```
-
-Next, install the plugin and register a kernelspec (once per user/system):
-
-```bash
-~/.venv_nvim/bin/python -m pip install ipykernel
-~/.venv_nvim/bin/python -m ipykernel install --user --name python3
-```
-
 Minimal lazy.nvim setup with the default config and example keymaps:
 
 ```lua
 {
   "dangooddd/pyrepl.nvim",
   dependencies = { "nvim-treesitter/nvim-treesitter" },
-  build = ":UpdateRemotePlugins",
   config = function()
     require("pyrepl").setup({
       -- defaults (you can omit these):
@@ -45,8 +20,9 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       style = "default",
       image_width_ratio = 0.4,
       image_height_ratio = 0.5,
-      filetypes = nil,
       block_pattern = "^# %%%%.*$",
+      python_path = "python",
+      preferred_kernel = "python3",
     })
 
     vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
@@ -56,8 +32,52 @@ Minimal lazy.nvim setup with the default config and example keymaps:
     vim.keymap.set("n", "<leader>jf", ":PyreplSendBuffer<CR>", { silent = true })
     vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv<Esc>", { silent = true })
     vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>js", ":PyreplInstall")
   end,
 }
+```
+
+> [!NOTE]
+> pyrepl.nvim is no longer a Python remote plugin. You do not need `:UpdateRemotePlugins`.
+
+Minimal environment:
+
+```bash
+python -m pip install pynvim jupyter-console
+python -m pip install pillow cairosvg # optional, for jpg and svg support
+python -m ipykernel install --user --name python3
+```
+
+You can also install pyrepl runtime packages in the configured Python directly from Neovim:
+
+```vim
+:PyreplInstall pip
+:PyreplInstall uv
+```
+
+> [!NOTE]
+> `uv` and `pip` is a backend used to install packages
+
+Notes:
+
+- By default pyrepl.nvim uses `python` (`python_path = "python"`). If Neovim is started inside a venv, that venv will be used.
+- If you prefer one dedicated global interpreter, you can set `python_path = "~/.venv_nvim/bin/python"` or `python_path = nil` - `vim.g.python3_host_prog` will be used instead.
+
+Example dedicated interpreter workflow:
+
+```bash
+uv venv ~/.venv_nvim
+source ~/.venv_nvim/bin/activate
+uv pip install pynvim jupyter-console ipykernel
+uv pip install pillow cairosvg # optional, for jpg and svg support
+```
+
+Then, in `init.lua`:
+
+```lua
+require("pyrepl").setup({
+  python_path = "~/.venv_nvim/bin/python", -- optional; default is "python"
+})
 ```
 
 ## Preface
@@ -66,10 +86,10 @@ pyrepl.nvim is a heavily rewritten fork of [pyrola.nvim](https://github.com/robi
 
 Main differences from pyrola:
 
+- No Neovim remote plugin dependency (`:UpdateRemotePlugins` is not needed).
 - Uses `jupyter-console` as the UI instead of a custom console. Less code, and usually better maintained.
 - Supports Pygments styles via the `style` config option for REPL highlighting.
-- Kernel is initialized via a prompt rather than fixed values. The kernel from the current venv is always offered first for better UX (thanks molten.nvim for the idea).
-- Supports multiple kernels at the same time for different buffers (unlike pyrola).
+- Kernel is initialized via a prompt rather than fixed values. You can tune default ordering with `preferred_kernel`.
 - On supported terminals, images render correctly via kitty unicode placeholders.
 
 And a quick note about images: I'm really proud of this part, because the plugin worked even in a local -> ssh -> tmux -> docker setup (and images still rendered!).
@@ -83,13 +103,13 @@ And a quick note about images: I'm really proud of this part, because the plugin
 
 ## How It Works
 
-In short: pyrepl.nvim starts a Jupyter kernel (via `jupyter_client`) and opens `jupyter-console` as the UI in a terminal buffer. Neovim commands send code into that terminal using bracketed paste (so pasted code behaves predictably), and you see the output right in `jupyter-console`.
+In short: pyrepl.nvim starts a Jupyter kernel and opens `jupyter-console` as the UI in a terminal buffer. Neovim commands send code into that terminal using bracketed paste (so pasted code behaves predictably), and you see the output right in `jupyter-console`.
 
-Each source buffer has its own kernel session. This is convenient when you keep multiple files/projects open and don't want namespaces to mix.
+pyrepl.nvim keeps one active REPL session. You can hide/show that REPL from any buffer, and `:PyreplClose` shuts the kernel down.
 
 ## Commands and API
 
-Commands are created buffer-locally (for selected filetypes, see `filetypes` in config).
+Commands are regular user commands created by `require("pyrepl").setup(...)`.
 
 Commands:
 
@@ -100,19 +120,20 @@ Commands:
 - `:PyreplSendBuffer` - send the entire buffer.
 - `:PyreplSendBlock` - send the "block" around the cursor (by default blocks are separated by lines matching `# %% ...`; configure via `block_pattern`).
 - `:PyreplOpenImages` - open the image manager (history of recent images).
+- `:PyreplInstall {tool}` - install pyrepl runtime packages into the configured Python (`tool`: `pip` or `uv`).
 
 Lua API:
 
 ```lua
 require("pyrepl").setup(opts)
-require("pyrepl").open_repl([buf])
-require("pyrepl").hide_repl([buf])
-require("pyrepl").close_repl([buf])
-require("pyrepl").send_visual([buf])
-require("pyrepl").send_buffer([buf])
-require("pyrepl").send_block([buf])
+require("pyrepl").open_repl()
+require("pyrepl").hide_repl()
+require("pyrepl").close_repl()
+require("pyrepl").send_visual()
+require("pyrepl").send_buffer()
+require("pyrepl").send_block()
 require("pyrepl").open_images()
-require("pyrepl").get_config()
+require("pyrepl").install_packages(tool)
 ```
 
 ## Thanks
