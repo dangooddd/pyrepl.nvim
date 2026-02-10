@@ -249,6 +249,7 @@ function M.close_image()
     end
 
     if state.buf then
+        provider.clear(buf)
         vim.api.nvim_buf_delete(state.buf, { force = true })
     end
 

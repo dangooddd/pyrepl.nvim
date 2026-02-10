@@ -243,6 +243,7 @@ function M.render(img_data, buf, win)
 end
 
 function M.clear(buf)
+    if not (buf and vim.api.nvim_buf_is_valid(buf)) then return end
     delete_image(vim.b[buf].placeholders_img_id)
 end
 
