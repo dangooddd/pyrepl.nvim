@@ -244,7 +244,16 @@ end
 
 function M.clear(buf)
     if not (buf and vim.api.nvim_buf_is_valid(buf)) then return end
-    delete_image(vim.b[buf].placeholders_img_id)
+    local img_id = vim.b[buf].placeholders_img_id
+
+    if img_id then
+        delete_image(vim.b[buf].placeholders_img_id)
+        vim.b[buf].placeholders_img_id = nil
+        local hl = string.format("PyreplImagePlaceholder_%d", img_id)
+        pcall(vim.api.nvim_set_hl, 0, hl, {})
+    end
+
+    vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 end
 
 return M
