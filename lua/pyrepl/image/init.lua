@@ -147,11 +147,16 @@ end
 local function set_keymaps(buf)
     local opts = { noremap = true, silent = true, nowait = true, buffer = buf }
 
-    vim.keymap.set("n", "j", function() end, opts)
-    vim.keymap.set("n", "l", function() end, opts)
+    vim.keymap.set("n", "j", function()
+        M.show_previous_image(true, false)
+    end, opts)
 
     vim.keymap.set("n", "h", function()
         M.show_previous_image(true, false)
+    end, opts)
+
+    vim.keymap.set("n", "k", function()
+        M.show_next_image(true, false)
     end, opts)
 
     vim.keymap.set("n", "l", function()

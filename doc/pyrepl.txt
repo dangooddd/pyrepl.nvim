@@ -113,6 +113,7 @@ Default configuration:
     split_horizontal = false,
     split_ratio = 0.5,
     style = "default",
+    image_max_history = 10,
     image_width_ratio = 0.5,
     image_height_ratio = 0.5,
     block_pattern = "^# %%%%.*$",
@@ -128,8 +129,10 @@ Options:
       Fraction of screen used by the REPL split. Default: 0.5.
   style (string)
       Pygments style name for REPL syntax highlighting. Default: "default".
+  image_max_history (integer)
+      Maximum number of images kept in history. Default: 10. Minimum: 2.
   image_width_ratio (number)
-      Target image width as a fraction of editor columns. Default: 0.4.
+      Target image width as a fraction of editor columns. Default: 0.5.
       Used for sizing the render box and can upscale images.
   image_height_ratio (number)
       Target image height as a fraction of editor lines. Default: 0.5.
@@ -196,12 +199,15 @@ You can open the image manager with:
 >
   require("pyrepl").open_images()
 <
+The image manager shows up to `image_max_history` recent images (default: 10).
+The window displays a title showing current image position (e.g., "History 3/10").
 
 While focused in the image window:
-  h     previous image
-  l     next image
-  q     close window
-  <Esc> close window
+  j, h     previous image (both keys work)
+  k, l     next image (both keys work)
+  dd       delete current image from history
+  q        close window
+  <Esc>    close window
 
 ==============================================================================
 HIGHLIGHTS                                                     *pyrepl-highlights*

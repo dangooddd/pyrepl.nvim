@@ -18,6 +18,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       split_horizontal = false,
       split_ratio = 0.5,
       style = "default",
+      image_max_history = 10,
       image_width_ratio = 0.5,
       image_height_ratio = 0.5,
       block_pattern = "^# %%%%.*$",
@@ -120,7 +121,7 @@ Commands:
 - `:PyreplSendVisual` - send the last visual selection.
 - `:PyreplSendBuffer` - send the entire buffer.
 - `:PyreplSendBlock` - send the "block" around the cursor (by default blocks are separated by lines matching `# %% ...`; configure via `block_pattern`).
-- `:PyreplOpenImages` - open the image manager (history of recent images).
+- `:PyreplOpenImages` - open the image manager (history of recent images). Use `j`/`h` for previous, `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close.
 - `:PyreplInstall {tool}` - install pyrepl runtime packages into the configured Python (`tool`: `pip` or `uv`).
 
 Lua API:
