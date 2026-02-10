@@ -138,10 +138,9 @@ local function push_history(img_data)
 end
 
 --- Pop image entry from history.
----@param index integer
-local function pop_history(index)
-    table.remove(state.history, index)
-    state.history_index = math.min(0, state.history_index - 1)
+local function pop_history()
+    table.remove(state.history, state.history_index)
+    state.history_index = math.min(#state.history, state.history_index + 1)
 end
 
 ---@param buf integer
@@ -160,11 +159,11 @@ local function set_keymaps(buf)
     end, opts)
 
     vim.keymap.set("n", "dd", function()
-        pop_history(state.history_index)
+        pop_history()
         if #state.history == 0 then
             M.close_image()
         else
-            M.show_next_image(true, false)
+            M.open_images(state.history_index)
         end
     end, opts)
 
@@ -215,13 +214,17 @@ end
 
 --- Show a specific image from history.
 ---@param index integer
----@param focus boolean
----@param auto_clear boolean
-local function show_history_at(index, focus, auto_clear)
+---@param focus? boolean true by default
+---@param auto_clear? boolean false by default
+function M.open_images(index, focus, auto_clear)
     if #state.history == 0 then
         vim.notify("Pyrepl: No image history available.", vim.log.levels.WARN)
         return
     end
+
+    index = index or #state.history
+    if focus == nil then focus = true end
+    if auto_clear == nil then auto_clear = false end
 
     if index < 1 or index > #state.history then
         return
@@ -240,7 +243,7 @@ function M.endpoint(img_data)
         return
     end
     push_history(img_data)
-    show_history_at(#state.history, false, true)
+    M.open_images(#state.history, false, true)
 end
 
 function M.close_image()
@@ -257,11 +260,6 @@ function M.close_image()
     state.win = nil
 end
 
---- Open the image manager focused on the latest image.
-function M.open_images()
-    show_history_at(#state.history, true, false)
-end
-
 ---@param focus boolean|nil
 function M.show_previous_image(focus, auto_clear)
     focus = focus or false
@@ -271,7 +269,7 @@ function M.show_previous_image(focus, auto_clear)
         state.history_index = 1
         return
     end
-    show_history_at(state.history_index - 1, focus, auto_clear)
+    M.open_images(state.history_index - 1, focus, auto_clear)
 end
 
 ---@param focus boolean
@@ -283,7 +281,7 @@ function M.show_next_image(focus, auto_clear)
         state.history_index = #state.history
         return
     end
-    show_history_at(state.history_index + 1, focus, auto_clear)
+    M.open_images(state.history_index + 1, focus, auto_clear)
 end
 
 return M
