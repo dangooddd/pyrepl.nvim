@@ -88,8 +88,9 @@ local function list_kernels()
 
     for name, spec in pairs(specs["kernelspecs"]) do
         local index = #kernels + 1
+        local item = { name = name, resource_dir = spec.resource_dir }
         if name == require("pyrepl").config.preferred_kernel then index = 1 end
-        kernels[index] = { name = name, resource_dir = spec.resource_dir }
+        table.insert(kernels, index, item)
     end
 
     return kernels
