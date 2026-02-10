@@ -83,7 +83,7 @@ require("pyrepl").setup({
 
 ## Demo
 
-https://github.com/user-attachments/assets/96cfd16b-4049-44e6-ae24-14739b6fbfcb
+https://github.com/user-attachments/assets/7f6796fc-ed75-4771-9f39-3245470460c1
 
 ## Preface
 
