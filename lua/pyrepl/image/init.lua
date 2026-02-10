@@ -37,7 +37,6 @@ local function open_image_win(buf)
         row = row,
         col = col,
         style = "minimal",
-        border = "rounded",
     }
 
     local win = vim.api.nvim_open_win(buf, false, opts)
