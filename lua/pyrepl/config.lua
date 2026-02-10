@@ -5,6 +5,7 @@ M.defaults = {
     split_horizontal = false,
     split_ratio = 0.5,
     style = "default",
+    image_max_history = 10,
     image_width_ratio = 0.5,
     image_height_ratio = 0.5,
     block_pattern = "^# %%%%.*$",
@@ -36,6 +37,10 @@ function M.apply(opts)
 
     for _, key in ipairs(ratios) do
         config[key] = validate_ratio(config[key], M.defaults[key])
+    end
+
+    if not config.image_max_history or config.image_max_history < 2 then
+        config.image_max_history = 2
     end
 
     return config

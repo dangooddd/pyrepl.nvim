@@ -1,12 +1,14 @@
 local M = {}
 
 local ns = vim.api.nvim_create_namespace("PyreplImagePlaceholders")
-local group = vim.api.nvim_create_augroup("PyreplImagePlaceholders", { clear = true })
 local tmux_detected = nil
+local used_ids = {}
+local next_id = 0
+local max_ids = 256
 
-local placeholder_char = "\u{10EEEE}"
+local placeholder = "\u{10EEEE}"
 
-local diacritics = {
+local diac = {
     "\u{0305}", "\u{030D}", "\u{030E}", "\u{0310}", "\u{0312}", "\u{033D}", "\u{033E}", "\u{033F}",
     "\u{0346}", "\u{034A}", "\u{034B}", "\u{034C}", "\u{0350}", "\u{0351}", "\u{0352}", "\u{0357}",
     "\u{035B}", "\u{0363}", "\u{0364}", "\u{0365}", "\u{0366}", "\u{0367}", "\u{0368}", "\u{0369}",
@@ -47,11 +49,11 @@ local diacritics = {
     "\u{1DFC}", "\u{1DFD}", "\u{1DFE}", "\u{1DFF}", "\u{20D0}", "\u{20D1}", "\u{20D4}", "\u{20D5}",
 }
 
----@param n integer
----@return string
-local function diac(n)
-    return diacritics[n + 1]
-end
+---@class placeholders.Geometry
+---@field x? integer
+---@field y? integer
+---@field rows? integer
+---@field cols? integer
 
 --- Wrap an escape sequence so tmux passes it through to the terminal.
 ---@param sequence string
@@ -125,215 +127,123 @@ local function send_apc(body)
     vim.api.nvim_chan_send(vim.v.stderr, sequence)
 end
 
----@class pyrepl.PlaceholderBufState
----@field img_id integer
----@field last_cols integer|nil
----@field last_rows integer|nil
-
----@class pyrepl.PlaceholderState
----@field buffers table<integer, pyrepl.PlaceholderBufState>
----@field used_ids table<integer, boolean>
----@field next_id integer
-
----@type pyrepl.PlaceholderState
-local state = {
-    buffers = {},
-    used_ids = {},
-    next_id = 0,
-}
-
----@param win integer
-local function configure_placeholder_window(win)
-    if not vim.api.nvim_win_is_valid(win) then
-        return
-    end
-    vim.api.nvim_set_option_value("wrap", false, { win = win })
-    vim.api.nvim_set_option_value("number", false, { win = win })
-    vim.api.nvim_set_option_value("relativenumber", false, { win = win })
-    vim.api.nvim_set_option_value("cursorline", false, { win = win })
-    vim.api.nvim_set_option_value("signcolumn", "no", { win = win })
-    vim.api.nvim_set_option_value("foldcolumn", "0", { win = win })
-    vim.api.nvim_set_option_value("spell", false, { win = win })
-end
-
----@param img_id integer
----@return string
-local function ensure_placeholder_hl(img_id)
-    local hl = ("PyreplImagePlaceholder_%d"):format(img_id)
-    if vim.fn.hlexists(hl) == 0 then
-        vim.api.nvim_set_hl(0, hl, { fg = img_id, ctermfg = img_id })
-    end
-    return hl
-end
-
 --- Upload base64 PNG data to the terminal image store.
 ---@param img_id integer
----@param data string
-local function upload_image_data(img_id, data)
-    send_apc(("f=100,t=d,i=%d,q=2;%s"):format(img_id, data))
+---@param img_data string
+local function upload_image(img_id, img_data)
+    if not img_data then return end
+    send_apc(("f=100,t=d,i=%d,q=2;%s"):format(img_id, img_data))
+    used_ids[img_id] = true
+end
+
+---@param img_id integer
+local function delete_image(img_id)
+    if not img_id then return end
+    pcall(send_apc, ("a=d,d=I,i=%d,q=2"):format(img_id))
+    used_ids[img_id] = false
 end
 
 --- Place an uploaded image into a cell region.
 ---@param img_id integer
 ---@param cols integer
 ---@param rows integer
-local function create_virtual_placement(img_id, cols, rows)
+local function create_placement(img_id, cols, rows)
+    if not (img_id and cols and rows) then return end
     send_apc(("a=p,U=1,i=%d,c=%d,r=%d,C=1,q=2"):format(img_id, cols, rows))
 end
 
+---@return integer
+local function get_image_id()
+    for _ = 1, max_ids do
+        next_id = (next_id % max_ids) + 1
+        if not used_ids[next_id] then
+            return next_id
+        end
+    end
+    next_id = (next_id % max_ids) + 1
+    return next_id
+end
+
+---@param buf integer
 ---@param img_id integer
-local function delete_image(img_id)
-    pcall(send_apc, ("a=d,d=I,i=%d,q=2"):format(img_id))
+---@param geometry placeholders.Geometry
+local function draw(buf, img_id, geometry)
+    if not img_id then return end
+    if not (buf and vim.api.nvim_buf_is_valid(buf)) then return end
+
+    local x = geometry.x or 0
+    local y = geometry.y or 0
+    local rows = geometry.rows or 0
+    local cols = geometry.cols or 0
+    vim.bo[buf].modifiable = true
+
+    vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+
+    local buf_lines = vim.api.nvim_buf_line_count(buf)
+    local extra = {}
+    for _ = 1, (y + rows - buf_lines) do extra[#extra + 1] = "" end
+    vim.api.nvim_buf_set_lines(buf, buf_lines, buf_lines, false, extra)
+
+    -- highlight placeholders
+    local hl = string.format("PyreplImagePlaceholder_%d", img_id)
+    if vim.fn.hlexists(hl) == 0 then
+        -- unique for each image
+        vim.api.nvim_set_hl(0, hl, { fg = img_id, ctermfg = img_id })
+    end
+
+    for r = 1, rows do
+        local line = placeholder .. diac[r] .. string.rep(placeholder, cols - 1)
+        vim.api.nvim_buf_set_extmark(
+            buf, ns,
+            y + r - 1, 0,
+            {
+                virt_text = { { line, hl } },
+                virt_text_win_col = x,
+                hl_mode = "combine",
+            }
+        )
+    end
+
+    vim.bo[buf].modifiable = false
+    vim.defer_fn(function() create_placement(img_id, cols, rows) end, 25)
+end
+
+---@param buf integer
+---@param win integer
+function M.redraw(buf, win)
+    if not (buf and vim.api.nvim_buf_is_valid(buf)) then return end
+    if not (win and vim.api.nvim_win_is_valid(win)) then return end
+
+    local rows = vim.api.nvim_win_get_height(win)
+    local cols = vim.api.nvim_win_get_width(win)
+    local img_id = vim.b[buf].placeholders_img_id
+
+    draw(buf, img_id, {
+        x = 0,
+        y = 0,
+        rows = rows,
+        cols = cols,
+    })
 end
 
 --- Render a placeholder grid that the terminal replaces with the image.
+---@param img_data string
 ---@param buf integer
 ---@param win integer
-local function render_placeholders(buf, win)
-    if not (vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win)) then
-        return
-    end
-    local st = state.buffers[buf]
-    if not st then
-        return
-    end
+function M.render(img_data, buf, win)
+    if not img_data then return end
+    if not (buf and vim.api.nvim_buf_is_valid(buf)) then return end
+    if not (win and vim.api.nvim_win_is_valid(win)) then return end
 
-    local cols = vim.api.nvim_win_get_width(win)
-    local rows = vim.api.nvim_win_get_height(win)
-    if cols < 1 or rows < 1 then
-        return
-    end
+    local img_id = vim.b[buf].placeholders_img_id or get_image_id()
+    vim.b[buf].placeholders_img_id = img_id
 
-    local rows_with_img = math.min(rows, 256)
-    if st.last_cols == cols and st.last_rows == rows then
-        return
-    end
-    st.last_cols, st.last_rows = cols, rows
-
-    create_virtual_placement(st.img_id, cols, rows_with_img)
-
-    vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
-
-    -- write unicode placeholders
-    local lines = {}
-    for r = 0, rows - 1 do
-        if r < rows_with_img then
-            if cols == 1 then
-                lines[r + 1] = placeholder_char .. diac(r)
-            else
-                lines[r + 1] = (placeholder_char .. diac(r)) .. string.rep(placeholder_char, cols - 1)
-            end
-        else
-            lines[r + 1] = string.rep(" ", cols)
-        end
-    end
-
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-    vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
-
-    local hl = ensure_placeholder_hl(st.img_id)
-    for r = 0, rows_with_img - 1 do
-        local line = lines[r + 1] or ""
-        vim.hl.range(buf, ns, hl, { r, 0 }, { r, #line }, { inclusive = false })
-    end
-
-    vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+    upload_image(img_id, img_data)
+    M.redraw(buf, win)
 end
 
----@param maxn integer
----@return integer
-local function next_image_id(maxn)
-    for _ = 1, maxn do
-        state.next_id = (state.next_id % maxn) + 1
-        if not state.used_ids[state.next_id] then
-            return state.next_id
-        end
-    end
-    state.next_id = (state.next_id % maxn) + 1
-    return state.next_id
-end
-
---- Create a scratch buffer that owns a terminal image id.
----@param data string
----@return integer
-local function create_placeholder_buffer(data)
-    if type(data) ~= "string" or data == "" then
-        error("image data missing")
-    end
-
-    local img_id = next_image_id(255)
-
-    upload_image_data(img_id, data)
-
-    local buf = vim.api.nvim_create_buf(false, true)
-    vim.bo[buf].buftype = "nofile"
-    vim.bo[buf].bufhidden = "wipe"
-    vim.bo[buf].swapfile = false
-    vim.bo[buf].modifiable = false
-    vim.b[buf].pyrepl_image_placeholders = true
-
-    state.buffers[buf] = {
-        img_id = img_id,
-        last_cols = nil,
-        last_rows = nil,
-    }
-    state.used_ids[img_id] = true
-
-    vim.api.nvim_create_autocmd("BufWipeout", {
-        group = group,
-        buffer = buf,
-        once = true,
-        callback = function()
-            local st = state.buffers[buf]
-            state.buffers[buf] = nil
-            if st then
-                delete_image(st.img_id)
-                state.used_ids[st.img_id] = nil
-            end
-        end,
-    })
-
-    return buf
-end
-
----@param data string
----@return integer
-function M.create_buffer(data)
-    return create_placeholder_buffer(data)
-end
-
----@param buf integer
----@param winid integer
-function M.attach(buf, winid)
-    if not vim.api.nvim_win_is_valid(winid) then
-        error("invalid win id: " .. tostring(winid))
-    end
-    if not vim.api.nvim_buf_is_valid(buf) then
-        error("invalid buffer: " .. tostring(buf))
-    end
-    vim.api.nvim_win_set_buf(winid, buf)
-    configure_placeholder_window(winid)
-    render_placeholders(buf, winid)
-end
-
----@param buf integer
----@param winid integer
-function M.redraw(buf, winid)
-    if not vim.api.nvim_win_is_valid(winid) then
-        return
-    end
-    if not vim.api.nvim_buf_is_valid(buf) then
-        return
-    end
-    configure_placeholder_window(winid)
-    render_placeholders(buf, winid)
-end
-
----@param buf integer
-function M.wipe(buf)
-    if vim.api.nvim_buf_is_valid(buf) then
-        vim.api.nvim_buf_delete(buf, { force = true })
-    end
+function M.clear(buf)
+    delete_image(vim.b[buf].placeholders_img_id)
 end
 
 return M

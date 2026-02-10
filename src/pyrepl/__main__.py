@@ -24,21 +24,27 @@ class ImageMimeTypes(StrEnum):
 def worker():
     """Main thread worker to handle image display in nvim."""
     addr = os.environ.get("NVIM")
-    lua_command = "require('pyrepl.image').show_image_data(...)"
+    lua_command = "require('pyrepl.image').endpoint(...)"
+    nvim = None
 
     if addr is None:
         dead.set()
         return
 
     try:
-        with pynvim.attach("socket", path=os.environ.get("NVIM", "")) as nvim:
-            while True:
-                try:
-                    data = queue.get()
-                    nvim.exec_lua(lua_command, data, async_=False)
-                finally:
-                    queue.task_done()
-    except Exception:
+        while True:
+            data = queue.get()
+            nvim = pynvim.attach("socket", path=addr) if nvim is None else nvim
+
+            try:
+                nvim.exec_lua(lua_command, data, async_=False)
+            except Exception as e:
+                print(f"Pyrepl: Failed to display image: {e}.")
+            finally:
+                queue.task_done()
+
+    except Exception as e:
+        print(f"Pyrepl: Image worker is dead {e}.")
         dead.set()
 
 
@@ -83,9 +89,8 @@ def convert_image_to_png_base64(
 
             raw = image_data.encode("utf-8")
             png_bytes = cairosvg.svg2png(bytestring=raw)
-            if not isinstance(png_bytes, (bytes, bytearray)):
-                return None
             return base64.b64encode(png_bytes).decode("utf-8")
+
         except Exception:
             return None
 
@@ -98,6 +103,7 @@ def convert_image_to_png_base64(
             output = io.BytesIO()
             img.save(output, format="PNG")
             return base64.b64encode(output.getvalue()).decode("utf-8")
+
         except Exception:
             return None
 
