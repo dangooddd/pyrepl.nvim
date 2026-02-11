@@ -110,7 +110,7 @@ local function open_new_repl(kernel)
         env = vim.tbl_extend(
             "force",
             vim.env,
-            { NVIM = nvim_socket, PYTHONDONTWRITEBYTECODE = "1" }
+            { NVIM = nvim_socket }
         ),
         on_exit = function() M.close_repl() end,
     })

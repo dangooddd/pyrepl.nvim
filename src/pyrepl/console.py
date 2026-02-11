@@ -136,7 +136,6 @@ def main() -> None:
     thread = Thread(
         target=image_worker,
         args=(queue, dead),
-        name="nvim-pipe",
         daemon=True,
     )
 

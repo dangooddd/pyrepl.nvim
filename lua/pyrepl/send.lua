@@ -109,14 +109,6 @@ local function normalize_python_message(msg)
         end
     end
 
-    while #out > 0 and is_blank_line(out[1]) do
-        table.remove(out, 1)
-    end
-
-    while #out > 0 and is_blank_line(out[#out]) do
-        table.remove(out, #out)
-    end
-
     return table.concat(out, "\n")
 end
 
