@@ -99,7 +99,7 @@ local function is_tmux()
         return tmux_detected
     end
 
-    tmux_detected = detect_tmux(100)
+    tmux_detected = detect_tmux(150)
     return tmux_detected
 end
 
