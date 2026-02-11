@@ -5,14 +5,11 @@ import sys
 from enum import StrEnum
 from queue import Queue
 from threading import Event, Thread
-from typing import Any, Optional
+from typing import Any
 
 import pynvim
 from jupyter_console.app import ZMQTerminalIPythonApp
 from traitlets.config import Config
-
-queue = Queue()
-dead = Event()
 
 
 class ImageMimeTypes(StrEnum):
@@ -21,34 +18,11 @@ class ImageMimeTypes(StrEnum):
     SVG = "image/svg+xml"
 
 
-def worker():
-    """Main thread worker to handle image display in nvim."""
-    addr = os.environ.get("NVIM")
-    lua_command = "require('pyrepl.image').endpoint(...)"
-    nvim = None
-
-    if addr is None:
-        dead.set()
-        return
-
-    try:
-        while True:
-            data = queue.get()
-            nvim = pynvim.attach("socket", path=addr) if nvim is None else nvim
-
-            try:
-                nvim.exec_lua(lua_command, data, async_=False)
-            except Exception as e:
-                print(f"Pyrepl: Failed to display image: {e}.")
-            finally:
-                queue.task_done()
-
-    except Exception as e:
-        print(f"Pyrepl: Image worker is dead {e}.")
-        dead.set()
+def log(msg: str):
+    print("(pyrepl) ", msg)
 
 
-def normalize_payload(payload: Any) -> Optional[str]:
+def normalize_payload(payload: Any) -> str | None:
     """Normalize image payload to a single string."""
     if isinstance(payload, str) and payload:
         return payload
@@ -65,7 +39,7 @@ def normalize_payload(payload: Any) -> Optional[str]:
     return None
 
 
-def pick_image_payload(data: dict[str, Any]) -> Optional[tuple[ImageMimeTypes, str]]:
+def pick_image_payload(data: dict[str, Any]) -> tuple[ImageMimeTypes, str] | None:
     """Pick first supported image payload in preferred order."""
     for image_mime in (ImageMimeTypes.PNG, ImageMimeTypes.JPG, ImageMimeTypes.SVG):
         payload = normalize_payload(data.get(image_mime))
@@ -78,7 +52,7 @@ def pick_image_payload(data: dict[str, Any]) -> Optional[tuple[ImageMimeTypes, s
 def convert_image_to_png_base64(
     image_mime: ImageMimeTypes,
     image_data: str,
-) -> Optional[str]:
+) -> str | None:
     """Convert supported image payloads to base64-encoded PNG."""
     if image_mime == ImageMimeTypes.PNG:
         return image_data
@@ -110,11 +84,8 @@ def convert_image_to_png_base64(
     return None
 
 
-def image_handler(data: Any):
+def image_pipeline(data: Any):
     """Handle Jupyter image output and forward it to Neovim."""
-    if dead.is_set():
-        return
-
     if not isinstance(data, dict):
         return
 
@@ -127,11 +98,59 @@ def image_handler(data: Any):
     if not prepared:
         return
 
-    queue.put(prepared)
+    return prepared
+
+
+def image_worker(queue: Queue, dead: Event):
+    """Main thread worker to handle image display in nvim."""
+    addr = os.environ.get("NVIM")
+    command = "require('pyrepl.image').endpoint(...)"
+    nvim = None
+
+    if addr is None:
+        dead.set()
+        log("image handling is not possible, socket unknown")
+        return
+
+    try:
+        while True:
+            data = queue.get()
+            nvim = pynvim.attach("socket", path=addr) if nvim is None else nvim
+
+            try:
+                nvim.exec_lua(command, data, async_=False)
+            except Exception as e:
+                log(f"failed to display image: {e}")
+            finally:
+                queue.task_done()
+
+    except Exception as e:
+        log(f"image worker is dead {e}")
+        dead.set()
 
 
 def main() -> None:
     """Run the Jupyter console with pyrepl integration."""
+    queue = Queue()
+    dead = Event()
+    thread = Thread(
+        target=image_worker,
+        args=(queue, dead),
+        name="nvim-pipe",
+        daemon=True,
+    )
+
+    def image_handler(data):
+        if dead.is_set():
+            return False
+
+        data = image_pipeline(data)
+        if data is None:
+            return False
+
+        queue.put(data)
+        return True
+
     config = Config()
     config.ZMQTerminalInteractiveShell.image_handler = "callable"
     config.ZMQTerminalInteractiveShell.callable_image_handler = image_handler
@@ -139,7 +158,6 @@ def main() -> None:
     app = ZMQTerminalIPythonApp.instance(config=config)
     app.initialize(sys.argv[1:])
 
-    thread = Thread(target=worker, name="nvim-pipe", daemon=True)
     thread.start()
     app.start()  # type: ignore
 

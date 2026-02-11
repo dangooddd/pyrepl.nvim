@@ -36,7 +36,7 @@ end
 function M.get_console_path()
     if console_path_cache then return console_path_cache end
 
-    local candidates = vim.api.nvim_get_runtime_file("src/pyrepl", false)
+    local candidates = vim.api.nvim_get_runtime_file("src/pyrepl/console.py", false)
     if candidates and #candidates > 0 then
         console_path_cache = candidates[1]
         return console_path_cache
