@@ -5,7 +5,7 @@ INTRODUCTION                                                     *pyrepl*
 
 pyrepl.nvim is a Python REPL inside Neovim powered by the Jupyter kernel stack.
 It opens jupyter-console in a terminal split, lets you send code from buffers,
-and (on supported terminals) displays image outputs.
+and displays image outputs.
 
 Project: https://github.com/dangooddd/pyrepl.nvim
 
@@ -14,20 +14,19 @@ REQUIREMENTS                                                   *pyrepl-reqs*
 
 - A working Python executable. By default pyrepl.nvim uses `python` from PATH.
   You can override it with `python_path` (see |pyrepl-config|).
-- pyrepl.nvim is a regular Lua plugin. No `:UpdateRemotePlugins` step is
-  needed.
 - The selected Python interpreter must have these packages:
   - pynvim
   - jupyter-console
-  - ipykernel (for registering kernels)
 - Optional for images:
   - pillow (JPEG -> PNG conversion)
   - cairosvg (SVG -> PNG conversion)
-- A Jupyter kernel is registered (example):
+- A Jupyter kernel is registered (optional, for global kernels):
+
 >
   python3 -m pip install ipykernel
   python3 -m ipykernel install --user --name python3
 <
+
 - Image rendering requires kitty graphics protocol (unicode placeholders).
 
 Tree-sitter note: the plugin can use Tree-sitter to normalize pasted Python
@@ -57,6 +56,14 @@ COMMANDS                                                        *pyrepl-commands
 :PyreplSendBlock                                                *PyreplSendBlock*
     Send the "block" around the cursor. Blocks are separated by lines matching
     `block_pattern` (default: `^# %%%%.*$`, i.e. `# %%` like in notebooks).
+
+:PyreplBlockForward                                             *PyreplBlockForward*
+    Move cursor to the start of the next block (using `block_pattern`
+    separators).
+
+:PyreplBlockBackward                                            *PyreplBlockBackward*
+    Move cursor to the start of the previous block (using `block_pattern`
+    separators).
 
 :PyreplSendBuffer                                               *PyreplSendBuffer*
     Send the entire buffer to the REPL.
@@ -89,6 +96,12 @@ require("pyrepl").close_repl()                                  *pyrepl.close_re
 
 require("pyrepl").send_block()                                  *pyrepl.send_block*
     Same as |PyreplSendBlock|. Sends the block around the cursor.
+
+require("pyrepl").block_forward()                               *pyrepl.block_forward*
+    Same as |PyreplBlockForward|. Jumps to the next block.
+
+require("pyrepl").block_backward()                              *pyrepl.block_backward*
+    Same as |PyreplBlockBackward|. Jumps to the previous block.
 
 require("pyrepl").send_visual()                                 *pyrepl.send_visual*
     Same as |PyreplSendVisual|. Uses the '< and '> marks, so it maps nicely as
@@ -138,7 +151,8 @@ Options:
       Target image height as a fraction of editor lines. Default: 0.5.
       Used for sizing the render box and can upscale images.
   block_pattern (string)
-      Lua pattern used as block separators for |PyreplSendBlock|.
+      Lua pattern used as block separators for |PyreplSendBlock|,
+      |PyreplBlockForward| and |PyreplBlockBackward|.
       Default: "^# %%%%.*$".
   python_path (string)
       Python interpreter used by pyrepl.nvim. Default: "python".
@@ -186,6 +200,31 @@ Example with keymaps:
 <
 
 ==============================================================================
+TIPS                                                           *pyrepl-tips*
+
+Send block and jump forward in one mapping:
+>
+  vim.keymap.set("n", "<leader>jb", function()
+      vim.cmd("PyreplSendBlock")
+      vim.cmd("PyreplBlockForward")
+  end)
+<
+
+Dedicated Python environment example:
+>
+  uv venv ~/.venv_nvim
+  source ~/.venv_nvim/bin/activate
+  uv pip install pynvim jupyter-console ipykernel
+  uv pip install pillow cairosvg
+
+  require("pyrepl").setup({
+    python_path = "~/.venv_nvim/bin/python",
+  })
+<
+
+See also |pyrepl-config| for interpreter resolution details.
+
+==============================================================================
 IMAGES                                                         *pyrepl-images*
 
 Image rendering uses kitty graphics protocol with unicode placeholders.
@@ -229,20 +268,16 @@ TROUBLESHOOTING                                                *pyrepl-troublesh
 
  - Ensure pyrepl.nvim can resolve a Python executable.
    If needed, set:
+
 >
-  require("pyrepl").setup({
-    python_path = "/path/to/python3",
-  })
+  require("pyrepl").setup({ python_path = "/path/to/python3" })
 <
+
  - Install required Python packages into that interpreter (see |pyrepl-reqs|).
    You can use |PyreplInstall| with `pip` or `uv`.
- - If kernels are not found, install ipykernel and register a kernel:
->
-  python3 -m pip install ipykernel
-  python3 -m ipykernel install --user --name python3
 <
  - If images do not render, verify kitty graphics protocol support in your
-   terminal and pass-through over SSH/tmux.
+   terminal and pass-through over tmux is enabled.
 
 ==============================================================================
 END
