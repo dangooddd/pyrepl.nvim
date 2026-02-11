@@ -85,7 +85,7 @@ end
 ---@param opts? pyrepl.ConfigOpts
 ---@return table
 function M.setup(opts)
-    M.config = vim.tbl_deep_extend("force", defaults, opts or {})
+    M.config = vim.tbl_deep_extend("force", M.config, opts or {})
 
     local to_clip = {
         { "split_ratio",        0.1, 0.9 },
