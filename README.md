@@ -163,8 +163,8 @@ end)
 
 ## TODO
 
-- [-] Jupyter kernel completions via small lsp server.
-- [-] Pygments color scheme based on neovim colorscheme.
+- Jupyter kernel completions via small lsp server.
+- Pygments color scheme based on neovim colorscheme.
 
 ## Thanks
 
