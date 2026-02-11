@@ -1,5 +1,7 @@
 local M = {}
 
+local util = require("pyrepl.util")
+
 local python_path_cache = nil
 local console_path_cache = nil
 
@@ -9,7 +11,7 @@ local tools = {
     pip = "%s -m pip install",
 }
 
----@return string|nil
+---@return string
 function M.get_python_path()
     if python_path_cache then return python_path_cache end
 
@@ -23,20 +25,14 @@ function M.get_python_path()
         candidate = vim.fn.expand(candidate)
         if vim.fn.executable(candidate) == 1 then
             python_path_cache = vim.fn.exepath(candidate)
+            return python_path_cache
         end
     end
 
-    if not python_path_cache then
-        vim.notify(
-            "Pyrepl: can't find correct python executable, see docs.",
-            vim.log.levels.ERROR
-        )
-    end
-
-    return python_path_cache
+    error(util.msg .. "can't find correct python executable, see docs", 0)
 end
 
----@return string|nil
+---@return string
 function M.get_console_path()
     if console_path_cache then return console_path_cache end
 
@@ -46,13 +42,11 @@ function M.get_console_path()
         return console_path_cache
     end
 
-    vim.notify(
-        "Pyrepl: Pyrepl main script not found.",
-        vim.log.levels.ERROR
-    )
+    error(util.msg .. "console script not found", 0)
 end
 
 --- List of available kernels
+---@return { name: string, resource_dir: string }[]
 local function list_kernels()
     local python_path = M.get_python_path()
     if not python_path then return {} end
@@ -69,19 +63,15 @@ local function list_kernels()
     local obj = vim.system(cmd, { text = true }):wait()
     if obj.code ~= 0 then
         vim.notify(
-            "Pyrepl: Failed to get kernelspec. Is required packages installed?",
-            vim.log.levels.ERROR
+            util.msg .. "install required packages first",
+            vim.log.levels.WARN
         )
         return {}
     end
 
     local ok, specs = pcall(vim.json.decode, obj.stdout)
     if not ok then
-        vim.notify(
-            "Pyrepl: Failed to decode kernelspec json.",
-            vim.log.levels.ERROR
-        )
-        return {}
+        error(util.msg .. "failed to decode kernelspecs json", 0)
     end
 
     local kernels = {}
@@ -96,8 +86,7 @@ local function list_kernels()
     return kernels
 end
 
---- Prompts user to choose from available kernels.
----@param callback fun(name: string)
+---@param callback fun(kernel: string)
 function M.prompt_kernel(callback)
     local kernels = list_kernels()
     if #kernels == 0 then return end
@@ -105,7 +94,7 @@ function M.prompt_kernel(callback)
     vim.ui.select(
         kernels,
         {
-            prompt = "Pyrepl: Select Jupyter kernel",
+            prompt = "Select Jupyter kernel",
             format_item = function(item)
                 return string.format("%s (%s)", item.name, item.resource_dir)
             end,
@@ -123,8 +112,8 @@ end
 function M.install_packages(tool)
     if not tools[tool] then
         vim.notify(
-            string.format("Pyrepl: Unknown tool to install: %s.", tool),
-            vim.log.levels.ERROR
+            util.msg .. "unknown tool to install packages",
+            vim.log.levels.WARN
         )
         return
     end
@@ -139,6 +128,7 @@ function M.install_packages(tool)
 end
 
 --- Get available tool list (completion function for install_packages).
+---@return string[]
 function M.get_tools()
     local tool_list = {}
 

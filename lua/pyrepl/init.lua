@@ -1,13 +1,26 @@
 local M = {}
 
-local config = require("pyrepl.config")
 local send = require("pyrepl.send")
 local image = require("pyrepl.image")
 local core = require("pyrepl.core")
 local python = require("pyrepl.python")
+local util = require("pyrepl.util")
 
 ---@type pyrepl.Config
-M.config = config.apply(nil)
+local defaults = {
+    split_horizontal = false,
+    split_ratio = 0.5,
+    style = "default",
+    image_max_history = 10,
+    image_width_ratio = 0.5,
+    image_height_ratio = 0.5,
+    block_pattern = "^# %%%%.*$",
+    python_path = "python",
+    preferred_kernel = "python3",
+}
+
+---@type pyrepl.Config
+M.config = vim.deepcopy(defaults)
 
 function M.open_repl()
     core.open_repl()
@@ -51,10 +64,22 @@ function M.send_block()
     end
 end
 
----@param opts pyrepl.ConfigOpts|nil
+---@param opts? pyrepl.ConfigOpts
 ---@return table
 function M.setup(opts)
-    M.config = config.apply(opts)
+    M.config = vim.tbl_deep_extend("force", defaults, opts or {})
+
+    local to_clip = {
+        { "split_ratio",        0.1, 0.9 },
+        { "image_width_ratio",  0.1, 0.9 },
+        { "image_height_ratio", 0.1, 0.9 },
+        { "image_max_history",  2,   100 }
+    }
+
+    for _, args in ipairs(to_clip) do
+        local key, min, max = args[1], args[2], args[3]
+        M.config[key] = util.clip(M.config[key], min, max, defaults[key])
+    end
 
     local commands = {
         PyreplOpen = M.open_repl,

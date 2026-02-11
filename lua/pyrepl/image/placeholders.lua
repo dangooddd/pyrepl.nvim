@@ -1,5 +1,7 @@
 local M = {}
 
+local util = require("pyrepl.util")
+
 local ns = vim.api.nvim_create_namespace("PyreplImagePlaceholders")
 local tmux_detected = nil
 local used_ids = {}
@@ -131,14 +133,12 @@ end
 ---@param img_id integer
 ---@param img_data string
 local function upload_image(img_id, img_data)
-    if not img_data then return end
     send_apc(("f=100,t=d,i=%d,q=2;%s"):format(img_id, img_data))
     used_ids[img_id] = true
 end
 
 ---@param img_id integer
 local function delete_image(img_id)
-    if not img_id then return end
     pcall(send_apc, ("a=d,d=I,i=%d,q=2"):format(img_id))
     used_ids[img_id] = false
 end
@@ -148,7 +148,6 @@ end
 ---@param cols integer
 ---@param rows integer
 local function create_placement(img_id, cols, rows)
-    if not (img_id and cols and rows) then return end
     send_apc(("a=p,U=1,i=%d,c=%d,r=%d,C=1,q=2"):format(img_id, cols, rows))
 end
 
@@ -168,8 +167,7 @@ end
 ---@param img_id integer
 ---@param geometry placeholders.Geometry
 local function draw(buf, img_id, geometry)
-    if not img_id then return end
-    if not (buf and vim.api.nvim_buf_is_valid(buf)) then return end
+    if not util.is_valid_buf(buf) then return end
 
     local x = geometry.x or 0
     local y = geometry.y or 0
@@ -211,8 +209,8 @@ end
 ---@param buf integer
 ---@param win integer
 function M.redraw(buf, win)
-    if not (buf and vim.api.nvim_buf_is_valid(buf)) then return end
-    if not (win and vim.api.nvim_win_is_valid(win)) then return end
+    if not util.is_valid_buf(buf) then return end
+    if not util.is_valid_win(win) then return end
 
     local rows = vim.api.nvim_win_get_height(win)
     local cols = vim.api.nvim_win_get_width(win)
@@ -231,9 +229,8 @@ end
 ---@param buf integer
 ---@param win integer
 function M.render(img_data, buf, win)
-    if not img_data then return end
-    if not (buf and vim.api.nvim_buf_is_valid(buf)) then return end
-    if not (win and vim.api.nvim_win_is_valid(win)) then return end
+    if not util.is_valid_buf(buf) then return end
+    if not util.is_valid_win(win) then return end
 
     local img_id = vim.b[buf].placeholders_img_id or get_image_id()
     vim.b[buf].placeholders_img_id = img_id
@@ -242,8 +239,9 @@ function M.render(img_data, buf, win)
     M.redraw(buf, win)
 end
 
+---@param buf integer
 function M.clear(buf)
-    if not (buf and vim.api.nvim_buf_is_valid(buf)) then return end
+    if not util.is_valid_buf(buf) then return end
     local img_id = vim.b[buf].placeholders_img_id
 
     if img_id then

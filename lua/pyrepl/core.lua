@@ -4,6 +4,7 @@ local M = {}
 M.state = nil
 
 local python = require("pyrepl.python")
+local util = require("pyrepl.util")
 
 --- Create window according to current config.
 ---@return integer
@@ -42,17 +43,15 @@ local function setup_win_autocmd(win)
 end
 
 function M.scroll_repl()
-    if not M.state or not M.state.win then return end
-    pcall(
-        vim.api.nvim_win_set_cursor,
-        M.state.win,
-        { vim.api.nvim_buf_line_count(M.state.buf), 0 }
-    )
+    if not (M.state and util.is_valid_win(M.state.win)) then return end
+
+    vim.api.nvim_win_call(M.state.win, function()
+        vim.cmd.normal({ "G", bang = true })
+    end)
 end
 
 local function open_hidden_repl()
-    if not M.state then return end
-    if M.state.win then return end
+    if not (M.state and util.is_valid_win(M.state.win)) then return end
 
     local win = vim.api.nvim_get_current_win()
     M.state.win = open_scratch_win()
@@ -70,9 +69,6 @@ local function open_new_repl(kernel)
     local console_path = python.get_console_path()
     local style = require("pyrepl").config.style or "default"
     local nvim_socket = vim.v.servername
-
-    if not python_path then return end
-    if not console_path then return end
 
     local buf = vim.api.nvim_create_buf(false, true)
     local buf_name = string.format("pyrepl: %s", kernel)
@@ -105,6 +101,10 @@ local function open_new_repl(kernel)
         on_exit = function() M.close_repl() end,
     })
 
+    if chan == 0 or chan == -1 then
+        error(util.msg .. "failed to start jupyter-console correctly", 0)
+    end
+
     M.state = {
         buf = buf,
         win = win,
@@ -131,7 +131,7 @@ function M.open_repl()
 end
 
 function M.hide_repl()
-    if M.state and M.state.win then
+    if M.state and util.is_valid_win(M.state.win) then
         pcall(vim.api.nvim_win_close, M.state.win, true)
         M.state.win = nil
     end

@@ -37,7 +37,6 @@ local function normalize_python_message(msg)
         with_statement = true,
     }
 
-    ---@param node TSNode
     ---@return integer
     local function node_last_row(node)
         local _, _, end_row, end_col = node:range()
@@ -74,7 +73,10 @@ local function normalize_python_message(msg)
             has_block = true
             local last_row0 = node_last_row(node)
             local next_start0 = select(1, top_nodes[idx + 1]:range())
-            if next_start0 > last_row0 and not has_blank_line_between(last_row0, next_start0) then
+
+            if next_start0 > last_row0 and
+                not has_blank_line_between(last_row0, next_start0)
+            then
                 insert_after[last_row0 + 1] = true
             end
         end
@@ -107,11 +109,11 @@ local function normalize_python_message(msg)
         end
     end
 
-    while #out > 0 and out[1]:match("^%s*$") do
+    while #out > 0 and is_blank_line(out[1]) do
         table.remove(out, 1)
     end
 
-    while #out > 0 and out[#out]:match("^%s*$") do
+    while #out > 0 and is_blank_line(out[#out]) do
         table.remove(out, #out)
     end
 
@@ -119,12 +121,9 @@ local function normalize_python_message(msg)
 end
 
 --- Send code to the REPL using bracketed paste mode.
----@param chan? integer
----@param message? string
+---@param chan integer
+---@param message string
 local function raw_send_message(chan, message)
-    if not chan then return end
-    if not message or message == "" then return end
-
     local prefix = vim.api.nvim_replace_termcodes("<esc>[200~", true, false, true)
     local suffix = vim.api.nvim_replace_termcodes("<esc>[201~", true, false, true)
 
@@ -171,10 +170,9 @@ function M.send_buffer(chan)
 end
 
 ---@param chan? integer
----@param block_pattern? string
+---@param block_pattern string
 function M.send_block(chan, block_pattern)
     if not chan then return end
-    block_pattern = block_pattern or "^# %%%%.*$"
 
     local buf = vim.api.nvim_get_current_buf()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
