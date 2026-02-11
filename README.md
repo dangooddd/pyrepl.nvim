@@ -148,7 +148,7 @@ Then, in `init.lua`:
 
 ```lua
 require("pyrepl").setup({
-  python_path = "~/.venv_nvim/bin/python", -- optional; default is "python"
+  python_path = "~/.venv_nvim/bin/python",
 })
 ```
 
@@ -160,6 +160,11 @@ vim.keymap.set("n", "<leader>jb", function()
   vim.cmd("PyreplBlockForward")
 end)
 ```
+
+## TODO
+
+- [-] Jupyter kernel completions via small lsp server.
+- [-] Pygments color scheme based on neovim colorscheme.
 
 ## Thanks
 
