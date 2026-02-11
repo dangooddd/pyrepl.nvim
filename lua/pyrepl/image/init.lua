@@ -16,14 +16,15 @@ local util = require("pyrepl.util")
 local function open_image_win(buf)
     local width = vim.o.columns
     local height = vim.o.lines
-
     local config = require("pyrepl").config
+
     local float_width = math.max(1, math.floor(width * config.image_width_ratio))
     local float_height = math.max(1, math.floor(height * config.image_height_ratio))
 
-    -- subtract 2 to take command line into account
     local col = math.max(0, width - float_width)
-    local row = math.max(0, height - float_height - 2)
+    -- bottom right angle for split_horizontal, top right angle otherwise
+    -- subtract 2 to take command line into account
+    local row = math.max(0, config.split_horizontal and height - float_height - 2 or 0)
 
     -- effective window size (without borders)
     -- subtract 2 to take borders into account
@@ -52,7 +53,10 @@ local function open_image_win(buf)
         vim.api.nvim_set_hl(0, normal_hl, { link = "NormalFloat" })
     end
 
-    local winhl = string.format("Normal:%s,FloatBorder:%s,FloatTitle:%s", normal_hl, border_hl, title_hl)
+    local winhl = string.format(
+        "Normal:%s,FloatBorder:%s,FloatTitle:%s",
+        normal_hl, border_hl, title_hl
+    )
     vim.wo[win].winhl = winhl
 
     return win
