@@ -24,6 +24,13 @@ end
 
 ---@param buf integer
 local function setup_buf_autocmd(buf)
+    if not util.is_valid_buf(buf) then return end
+
+    local group = vim.api.nvim_create_augroup(
+        "PyreplBuf",
+        { clear = false }
+    )
+
     vim.api.nvim_create_autocmd({ "BufWipeout", "TermClose" }, {
         group = group,
         buffer = buf,
@@ -34,6 +41,13 @@ end
 
 ---@param win integer
 local function setup_win_autocmd(win)
+    if not util.is_valid_win(win) then return end
+
+    local group = vim.api.nvim_create_augroup(
+        "PyreplWin",
+        { clear = false }
+    )
+
     vim.api.nvim_create_autocmd("WinClosed", {
         group = group,
         pattern = tostring(win),
