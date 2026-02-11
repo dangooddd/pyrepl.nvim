@@ -1,5 +1,4 @@
 ---@meta
-error("Cannot require a meta file")
 
 ---@class pyrepl.Config
 ---@field split_horizontal boolean
@@ -38,4 +37,3 @@ error("Cannot require a meta file")
 ---@field history_index integer
 ---@field buf integer|nil
 ---@field win integer|nil
----@field manager_active boolean

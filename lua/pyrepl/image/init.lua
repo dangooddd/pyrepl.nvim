@@ -227,7 +227,7 @@ end
 function M.open_images(index, focus, auto_clear)
     if #state.history == 0 then
         vim.notify(
-            util.msg .. "no image history available.",
+            util.msg .. "no image history available",
             vim.log.levels.WARN
         )
         return

@@ -1,10 +1,24 @@
 local M = {}
 
---- Normalize pasted Python so multi-block code executes correctly in a REPL.
+local compound_top_level_nodes = {
+    async_for_statement = true,
+    async_function_definition = true,
+    async_with_statement = true,
+    class_definition = true,
+    decorated_definition = true,
+    for_statement = true,
+    function_definition = true,
+    if_statement = true,
+    match_statement = true,
+    try_statement = true,
+    while_statement = true,
+    with_statement = true,
+}
+
+--- Normalize pasted Python so multi-block code executes correctly.
 ---@param msg string
 ---@return string
 local function normalize_python_message(msg)
-    -- insert blank lines after top-level compound statements so pasted code executes as separate blocks in a repl
     local lines = vim.split(msg, "\n", { plain = true, trimempty = false })
     if #lines <= 1 then return msg end
 
@@ -21,21 +35,7 @@ local function normalize_python_message(msg)
             table.insert(top_nodes, node)
         end
     end
-
-    local block_types = {
-        async_for_statement = true,
-        async_function_definition = true,
-        async_with_statement = true,
-        class_definition = true,
-        decorated_definition = true,
-        for_statement = true,
-        function_definition = true,
-        if_statement = true,
-        match_statement = true,
-        try_statement = true,
-        while_statement = true,
-        with_statement = true,
-    }
+    if #top_nodes == 0 then return msg end
 
     ---@return integer
     local function node_last_row(node)
@@ -66,13 +66,14 @@ local function normalize_python_message(msg)
     end
 
     local insert_after = {}
-    local has_block = false
-    for idx = 1, #top_nodes - 1 do
-        local node = top_nodes[idx]
-        if block_types[node:type()] then
-            has_block = true
+    local has_compound = false
+    for idx, node in ipairs(top_nodes) do
+        if compound_top_level_nodes[node:type()] then
+            has_compound = true
+
             local last_row0 = node_last_row(node)
-            local next_start0 = select(1, top_nodes[idx + 1]:range())
+            local next_node = top_nodes[idx + 1]
+            local next_start0 = next_node and select(1, next_node:range()) or #lines
 
             if next_start0 > last_row0 and
                 not has_blank_line_between(last_row0, next_start0)
@@ -82,20 +83,7 @@ local function normalize_python_message(msg)
         end
     end
 
-    local last_node = top_nodes[#top_nodes]
-    if last_node and block_types[last_node:type()] then
-        has_block = true
-        local last_row0 = node_last_row(last_node)
-        if last_row0 < #lines - 1 then
-            if not has_blank_line_between(last_row0, #lines) then
-                insert_after[last_row0 + 1] = true
-            end
-        else
-            insert_after[#lines] = true
-        end
-    end
-
-    if has_block and not is_blank_line(lines[#lines]) then
+    if has_compound and not is_blank_line(lines[#lines]) then
         insert_after[#lines] = true
     end
 
@@ -116,6 +104,7 @@ end
 ---@param chan integer
 ---@param message string
 local function raw_send_message(chan, message)
+    if message == "" then return end
     local prefix = vim.api.nvim_replace_termcodes("<esc>[200~", true, false, true)
     local suffix = vim.api.nvim_replace_termcodes("<esc>[201~", true, false, true)
 
@@ -123,16 +112,17 @@ local function raw_send_message(chan, message)
     vim.api.nvim_chan_send(chan, prefix .. normalized .. suffix .. "\n")
 end
 
+---@param chan? integer
+function M.send_visual(chan)
+    if not chan then return end
 
----@return string|nil
-local function get_visual_selection()
     local start_pos = vim.api.nvim_buf_get_mark(0, "<")
     local end_pos = vim.api.nvim_buf_get_mark(0, ">")
 
     if (start_pos[1] == 0 and start_pos[2] == 0)
         or (end_pos[1] == 0 and end_pos[2] == 0)
     then
-        return nil
+        return
     end
 
     local start_line, end_line = start_pos[1], end_pos[1]
@@ -141,23 +131,18 @@ local function get_visual_selection()
     end
 
     local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
-    return table.concat(lines, "\n")
-end
+    local msg = table.concat(lines, "\n")
 
----@param chan? integer
-function M.send_visual(chan)
-    if not chan then return end
-    local msg = get_visual_selection()
-    if not msg then return end
     raw_send_message(chan, msg)
 end
 
 ---@param chan? integer
 function M.send_buffer(chan)
     if not chan then return end
+
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    if #lines == 0 then return end
     local msg = table.concat(lines, "\n")
+
     raw_send_message(chan, msg)
 end
 
@@ -191,9 +176,10 @@ function M.send_block(chan, block_pattern)
     end
 
     if start_line > end_line then return end
-    local block_lines = vim.api.nvim_buf_get_lines(buf, start_line - 1, end_line, false)
-    if #block_lines == 0 then return end
-    raw_send_message(chan, table.concat(block_lines, "\n"))
+    local block = vim.api.nvim_buf_get_lines(buf, start_line - 1, end_line, false)
+    local msg = table.concat(block, "\n")
+
+    raw_send_message(chan, msg)
 end
 
 return M
