@@ -7,9 +7,8 @@ local tmux_detected = nil
 local used_ids = {}
 local next_id = 0
 local max_ids = 256
-
 local placeholder = "\u{10EEEE}"
-
+local esc = "\x1b"
 local diac = {
     "\u{0305}", "\u{030D}", "\u{030E}", "\u{0310}", "\u{0312}", "\u{033D}", "\u{033E}", "\u{033F}",
     "\u{0346}", "\u{034A}", "\u{034B}", "\u{034C}", "\u{0350}", "\u{0351}", "\u{0352}", "\u{0357}",
@@ -61,51 +60,34 @@ local diac = {
 ---@param sequence string
 ---@return string
 local function wrap_tmux(sequence)
-    local escaped = sequence:gsub("\x1b", "\x1b\x1b")
-    return "\x1bPtmux;" .. escaped .. "\x1b\\"
+    return esc .. "Ptmux;" .. sequence:gsub(esc, esc .. esc) .. esc .. "\\"
 end
 
---- Detect tmux by sending DSR and waiting briefly for a reply.
+--- Detect tmux by sending DA1.
 ---@param timeout_ms integer
 ---@return boolean
 local function detect_tmux(timeout_ms)
-    timeout_ms = timeout_ms or 100
+    if type(vim.api.nvim_ui_send) ~= "function" then return false end
 
-    -- send DSR
-    vim.api.nvim_chan_send(vim.v.stderr, wrap_tmux("\x1b[5n"))
+    local detected = false
+    local autocmd
 
-    -- reading
-    local stdin = vim.uv.new_tty(0, true)
-    if not stdin then return false end
+    autocmd = vim.api.nvim_create_autocmd("TermResponse", {
+        callback = function(args)
+            local sequence = args.data.sequence
+            if type(sequence) ~= "string" then return end
 
-    local got = false
-    local buf = ""
+            if sequence:find(esc .. "%[%?[%d;]*c") then
+                detected = true
+                pcall(vim.api.nvim_del_autocmd, autocmd)
+            end
+        end,
+    })
 
-    local closed = false
-    local function close_stdin()
-        if closed then return end
-        closed = true
-        stdin:read_stop()
-        stdin:close()
-    end
-
-    vim.defer_fn(function()
-        close_stdin()
-    end, timeout_ms)
-
-    stdin:read_start(function(err, chunk)
-        if err or not chunk then return end
-        buf = buf .. chunk
-        -- check for DSR result
-        if buf:find("\x1b%[[0-9]+n") then
-            got = true
-            close_stdin()
-        end
-    end)
-
-    -- result
-    vim.wait(timeout_ms + 10, function() return got end, 5)
-    return got
+    vim.api.nvim_ui_send(wrap_tmux(esc .. "[c"))
+    vim.wait(timeout_ms, function() return detected end, 5)
+    pcall(vim.api.nvim_del_autocmd, autocmd)
+    return detected
 end
 
 ---@return boolean

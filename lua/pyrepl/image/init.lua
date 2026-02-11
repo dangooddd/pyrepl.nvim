@@ -83,7 +83,7 @@ local function setup_manager_autocmd(buf, win)
 
     local group = vim.api.nvim_create_augroup(
         "PyreplImageClose",
-        { clear = false }
+        { clear = true }
     )
 
     vim.api.nvim_create_autocmd({ "BufWipeout", "BufDelete" }, {
