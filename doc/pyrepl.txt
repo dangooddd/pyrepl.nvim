@@ -29,8 +29,10 @@ REQUIREMENTS                                                   *pyrepl-reqs*
 
 - Image rendering requires kitty graphics protocol (unicode placeholders).
 
-Tree-sitter note: the plugin can use Tree-sitter to normalize pasted Python
-more reliably (when the parser is available), but it is not a hard requirement.
+Tree-sitter note: by default (`style_treesitter = true`) pyrepl.nvim derives
+Pygments color overrides from current Neovim/Tree-sitter highlights.
+It can also help with pasted Python normalization when the parser is available,
+but Tree-sitter is not a hard requirement.
 
 ==============================================================================
 COMMANDS                                                        *pyrepl-commands*
@@ -126,6 +128,7 @@ Default configuration:
     split_horizontal = false,
     split_ratio = 0.5,
     style = "default",
+    style_treesitter = true,
     image_max_history = 10,
     image_width_ratio = 0.5,
     image_height_ratio = 0.5,
@@ -141,7 +144,12 @@ Options:
   split_ratio (number)
       Fraction of screen used by the REPL split. Default: 0.5.
   style (string)
-      Pygments style name for REPL syntax highlighting. Default: "default".
+      Pygments style name used by jupyter-console. Default: "default".
+      Used directly when `style_treesitter` is false.
+  style_treesitter (boolean)
+      Derive Pygments style overrides from current Neovim/Tree-sitter
+      highlight groups for REPL output. Default: true.
+      Set to false to use built-in Pygments styles from `style`.
   image_max_history (integer)
       Maximum number of images kept in history. Default: 10. Minimum: 2.
   image_width_ratio (number)
@@ -183,6 +191,7 @@ Example with keymaps:
           local pyrepl = require("pyrepl")
 
           pyrepl.setup({
+              style_treesitter = false,
               style = "gruvbox-dark",
               python_path = "python",
               preferred_kernel = "python3",
@@ -201,6 +210,17 @@ Example with keymaps:
 
 ==============================================================================
 TIPS                                                           *pyrepl-tips*
+
+If Tree-sitter-based REPL colors do not match your preference, disable it and
+use a built-in Pygments style:
+>
+  require("pyrepl").setup({
+      style_treesitter = false,
+      style = "default",
+  })
+<
+
+Use any built-in Pygments style name in `style` (for example "gruvbox-dark").
 
 Send block and jump forward in one mapping:
 >

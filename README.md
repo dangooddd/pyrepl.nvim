@@ -17,7 +17,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       -- defaults (you can omit these):
       split_horizontal = false,
       split_ratio = 0.5,
-      style = "default",
+      style_treesitter = true, -- treesitter-based Pygments colorscheme
       image_max_history = 10,
       image_width_ratio = 0.5,
       image_height_ratio = 0.5,
@@ -70,7 +70,6 @@ Main differences from pyrola:
 
 - No Neovim remote plugin dependency (`:UpdateRemotePlugins` is not needed).
 - Uses `jupyter-console` as the UI instead of a custom console. Less code, and usually better maintained.
-- Supports Pygments styles via the `style` config option for REPL highlighting.
 - Kernel is initialized via a prompt rather than fixed values. You can tune default ordering with `preferred_kernel`.
 - On supported terminals, images render correctly via kitty unicode placeholders.
 - Block moves: SendBlock, BlockForward, BlockBackward.
@@ -152,6 +151,17 @@ require("pyrepl").setup({
 })
 ```
 
+### Use a built-in Pygments style instead
+
+If you do not like the treesitter-based REPL colors, disable it and pick a built-in Pygments theme:
+
+```lua
+require("pyrepl").setup({
+  style_treesitter = false,
+  style = "default", -- or another Pygments style, e.g. "gruvbox-dark"
+})
+```
+
 ### Send block and move to the next one
 
 ```lua
@@ -160,10 +170,6 @@ vim.keymap.set("n", "<leader>jb", function()
   vim.cmd("PyreplBlockForward")
 end)
 ```
-
-## TODO
-
-- Pygments color scheme based on neovim colorscheme.
 
 ## Thanks
 
