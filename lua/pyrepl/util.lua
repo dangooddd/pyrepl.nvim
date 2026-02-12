@@ -138,7 +138,7 @@ end
 ---@return integer
 function M.get_block_range(block_pattern)
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    if #lines == 0 then return 0, 0 end
+    if #lines == 0 then return -1, -1 end
 
     local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
 
@@ -160,7 +160,7 @@ function M.get_block_range(block_pattern)
         end
     end
 
-    if start_line > end_line then return 0, 0 end
+    if start_line > end_line then return -1, -1 end
     return start_line, end_line
 end
 

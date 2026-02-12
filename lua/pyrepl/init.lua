@@ -68,6 +68,7 @@ end
 
 function M.block_forward()
     local _, end_line = util.get_block_range(M.config.block_pattern)
+    if end_line <= 0 then return end
     vim.cmd.normal({ tostring(end_line + 1) .. "gg^", bang = true })
 end
 
@@ -75,7 +76,7 @@ function M.block_backward()
     local pos = vim.api.nvim_win_get_cursor(0)
     local line = vim.api.nvim_buf_get_lines(0, pos[1] - 1, pos[1], false)[1]
 
-    if line:match(M.config.block_pattern) then
+    if line:match(M.config.block_pattern) and pos[1] > 1 then
         vim.api.nvim_win_set_cursor(0, { pos[1] - 1, pos[2] })
     end
 
