@@ -79,9 +79,10 @@ end
 local function open_new_repl(kernel)
     if M.state then return end
 
+    local config = require("pyrepl").config
     local python_path = python.get_python_path()
     local console_path = python.get_console_path()
-    local style = require("pyrepl").config.style or "default"
+    local style = config.style or "default"
     local nvim_socket = vim.v.servername
 
     local buf = vim.api.nvim_create_buf(false, true)
@@ -102,7 +103,17 @@ local function open_new_repl(kernel)
         kernel,
         "--ZMQTerminalInteractiveShell.highlighting_style",
         style,
+        "--ZMQTerminalInteractiveShell.true_color",
+        vim.o.termguicolors and "True" or "False",
     }
+
+    if config.style_treesitter then
+        local overrides = util.build_pygments_theme()
+        if overrides then
+            cmd[#cmd + 1] = "--ZMQTerminalInteractiveShell.highlighting_style_overrides"
+            cmd[#cmd + 1] = overrides
+        end
+    end
 
     local chan = vim.fn.jobstart(cmd, {
         term = true,

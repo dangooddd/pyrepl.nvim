@@ -11,6 +11,7 @@ local defaults = {
     split_horizontal = false,
     split_ratio = 0.5,
     style = "default",
+    style_treesitter = true,
     image_max_history = 10,
     image_width_ratio = 0.5,
     image_height_ratio = 0.5,
