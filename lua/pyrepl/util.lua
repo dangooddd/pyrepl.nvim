@@ -2,45 +2,61 @@ local M = {}
 
 M.msg = "(pyrepl) "
 
+-- We need to pass python tuples in jupyter console overrides CLI arguments
 local pygments_hl_map = {
-    { pygments = "('Keyword',)",                  hl = "@keyword" },
-    { pygments = "('Keyword','Namespace')",       hl = "@keyword.import" },
-    { pygments = "('Keyword','Type')",            hl = "@type" },
+    ["('Text',)"]                       = { "Normal" },
+    ["('Whitespace',)"]                 = { "Normal" },
+    ["('Error',)"]                      = { "@error", "Error" },
 
-    { pygments = "('Name',)",                     hl = "Normal" },
-    { pygments = "('Name','Namespace')",          hl = "@type" },
-    { pygments = "('Name','Builtin')",            hl = "@function" },
-    { pygments = "('Name','Attribute')",          hl = "@variable" },
-    { pygments = "('Name','Function')",           hl = "@function" },
-    { pygments = "('Name','Class')",              hl = "@type" },
-    { pygments = "('Name','Exception')",          hl = "@type" },
-    { pygments = "('Name','Decorator')",          hl = "@function" },
-    { pygments = "('Name','Constant')",           hl = "@constant" },
-    { pygments = "('Name','Variable')",           hl = "@variable" },
-    { pygments = "('Name','Variable','Magic')",   hl = "@variable" },
+    ["('Comment',)"]                    = { "@comment", "Comment" },
+    ["('Comment','Preproc')"]           = { "@keyword.directive", "PreProc" },
+    ["('Comment','PreprocFile')"]       = { "@keyword.import", "Include" },
+    ["('Comment','Special')"]           = { "@comment.documentation", "SpecialComment" },
 
-    { pygments = "('Literal','String')",          hl = "@string" },
-    { pygments = "('Literal','String','Doc')",    hl = "@string" },
-    { pygments = "('Literal','String','Escape')", hl = "@string" },
-    { pygments = "('Literal','Number')",          hl = "@number" },
+    ["('Keyword',)"]                    = { "@keyword", "Keyword" },
+    ["('Keyword','Constant')"]          = { "@constant", "Constant" },
+    ["('Keyword','Namespace')"]         = { "@keyword.import", "Include" },
+    ["('Keyword','Type')"]              = { "@type", "Type" },
 
-    { pygments = "('Comment',)",                  hl = "@comment" },
-    { pygments = "('Operator',)",                 hl = "@operator" },
-    { pygments = "('Punctuation',)",              hl = "@punctuation" },
+    ["('Operator',)"]                   = { "@operator", "Operator" },
+    ["('Operator','Word')"]             = { "@keyword.operator", "Operator" },
+    ["('Punctuation',)"]                = { "@punctuation", "Delimiter" },
 
-    { pygments = "('Prompt',)",                   hl = "Special" },
-    { pygments = "('PromptNum',)",                hl = "Number" },
-    { pygments = "('OutPrompt',)",                hl = "Special" },
-    { pygments = "('OutPromptNum',)",             hl = "Number" },
-    { pygments = "('RemotePrompt',)",             hl = "Comment" },
+    ["('Name',)"]                       = { "Normal" },
+    ["('Name','Attribute')"]            = { "@property", "Identifier" },
+    ["('Name','Builtin')"]              = { "@variable.builtin", "Special" },
+    ["('Name','Builtin','Pseudo')"]     = { "@variable.builtin", "Special" },
+    ["('Name','Class')"]                = { "@type", "Type" },
+    ["('Name','Constant')"]             = { "@constant", "Constant" },
+    ["('Name','Decorator')"]            = { "@attribute", "PreProc" },
+    ["('Name','Exception')"]            = { "@type", "Type" },
+    ["('Name','Function')"]             = { "@function", "Function" },
+    ["('Name','Label')"]                = { "@label", "Label" },
+    ["('Name','Namespace')"]            = { "@module", "Include" },
+    ["('Name','Tag')"]                  = { "@tag", "Tag" },
+    ["('Name','Variable')"]             = { "@variable", "Identifier" },
+    ["('Name','Variable','Magic')"]     = { "@variable.builtin", "Special" },
+
+    ["('Literal','String')"]            = { "@string", "String" },
+    ["('Literal','String','Char')"]     = { "@character", "Character" },
+    ["('Literal','String','Doc')"]      = { "@string.documentation", "String" },
+    ["('Literal','String','Escape')"]   = { "@string.escape", "SpecialChar" },
+    ["('Literal','String','Interpol')"] = { "@string.special", "SpecialChar" },
+    ["('Literal','String','Regex')"]    = { "@string.regex", "String" },
+
+    ["('Literal','Number')"]            = { "@number", "Number" },
+    ["('Literal','Number','Float')"]    = { "@number.float", "Float" },
+
+    ["('Generic','Deleted')"]           = { "@diff.minus", "DiffDelete" },
+    ["('Generic','Inserted')"]          = { "@diff.plus", "DiffAdd" },
+    ["('Generic','Error')"]             = { "@error", "Error" },
+    ["('Generic','Output')"]            = { "@comment", "Comment" },
+
+    ["('Prompt',)"]                     = { "@comment", "Comment" },
+    ["('PromptNum',)"]                  = { "@number", "Number" },
+    ["('OutPrompt',)"]                  = { "@comment", "Comment" },
+    ["('OutPromptNum',)"]               = { "@number", "Number" },
 }
-
----@param value string
----@return string
-local function python_quote(value)
-    local escaped = value:gsub("\\", "\\\\"):gsub("'", "\\'")
-    return "'" .. escaped .. "'"
-end
 
 ---@param hl_name string
 ---@return string|nil
@@ -49,12 +65,29 @@ local function style_from_hl(hl_name)
         name = hl_name,
         link = false,
     })
-    if not ok or type(hl) ~= "table" or next(hl) == nil then
-        return nil
+
+    if not ok then return end
+    if type(hl.fg) ~= "number" then return end
+
+    return string.format("'#%06x'", hl.fg)
+end
+
+---@return string|nil
+function M.build_pygments_theme()
+    local theme = {}
+
+    for pygments, hls in pairs(pygments_hl_map) do
+        for _, hl in ipairs(hls) do
+            local color = style_from_hl(hl)
+            if color then
+                theme[#theme + 1] = string.format("%s: %s", pygments, color)
+                break
+            end
+        end
     end
 
-    if type(hl.fg) ~= "number" then return nil end
-    return string.format("#%06x", hl.fg)
+    if #theme == 0 then return nil end
+    return "{" .. table.concat(theme, ", ") .. "}"
 end
 
 ---@param buf any
@@ -129,32 +162,6 @@ function M.get_block_range(block_pattern)
 
     if start_line > end_line then return 0, 0 end
     return start_line, end_line
-end
-
----@param hl_group string
----@param pygments string
----@return string|nil
-function M.pygments_field_from_hl(hl_group, pygments)
-    local style = style_from_hl(hl_group)
-    if not style then return nil end
-
-    return string.format("%s: %s", pygments, python_quote(style))
-end
-
----@param style_treesitter boolean
----@return string|nil
-function M.build_pygments_overrides_literal(style_treesitter)
-    if not style_treesitter then return nil end
-
-    local fields = {}
-
-    for _, item in ipairs(pygments_hl_map) do
-        local field = M.pygments_field_from_hl(item.hl, item.pygments)
-        if field then fields[#fields + 1] = field end
-    end
-
-    if #fields == 0 then return nil end
-    return "{" .. table.concat(fields, ", ") .. "}"
 end
 
 return M

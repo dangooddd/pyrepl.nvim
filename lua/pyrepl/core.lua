@@ -107,12 +107,12 @@ local function open_new_repl(kernel)
         vim.o.termguicolors and "True" or "False",
     }
 
-    local style_overrides = util.build_pygments_overrides_literal(config.style_treesitter)
-    if style_overrides then
-        vim.list_extend(cmd, {
-            "--ZMQTerminalInteractiveShell.highlighting_style_overrides",
-            style_overrides,
-        })
+    if config.style_treesitter then
+        local overrides = util.build_pygments_theme()
+        if overrides then
+            cmd[#cmd + 1] = "--ZMQTerminalInteractiveShell.highlighting_style_overrides"
+            cmd[#cmd + 1] = overrides
+        end
     end
 
     local chan = vim.fn.jobstart(cmd, {
