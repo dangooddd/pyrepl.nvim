@@ -65,7 +65,7 @@ function M.scroll_repl()
 end
 
 local function open_hidden_repl()
-    if not (M.state and util.is_valid_win(M.state.win)) then return end
+    if not M.state or util.is_valid_win(M.state.win) then return end
 
     local win = vim.api.nvim_get_current_win()
     M.state.win = open_scratch_win()
