@@ -2,7 +2,7 @@
 
 pyrepl.nvim is a Python REPL inside Neovim powered by Jupyter kernels. It opens `jupyter-console` in a terminal split and provides commands to send code from your buffer to the selected kernel.
 
-<img width="1624" height="971" alt="preview" src="https://github.com/user-attachments/assets/206bf790-adb7-454b-96ba-1048bb18d6b5" />
+<img width="1624" height="971" alt="preview" src="https://github.com/user-attachments/assets/f126b07a-20ac-4fa4-9b58-815ac8fb6230" />
 
 ## Quickstart
 
@@ -56,7 +56,7 @@ Then install pyrepl runtime packages with `uv` or `pip` directly from Neovim:
 
 ## Demo
 
-https://github.com/user-attachments/assets/1bfacaec-0b79-4aad-928c-96eea91c0b92
+https://github.com/user-attachments/assets/19822d92-5173-4441-8cec-6a59f9eb41b9
 
 ## Preface
 
