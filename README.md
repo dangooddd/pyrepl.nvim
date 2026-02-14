@@ -56,7 +56,7 @@ Then install pyrepl runtime packages with `uv` or `pip` directly from Neovim:
 
 ## Demo
 
-https://github.com/user-attachments/assets/7f6796fc-ed75-4771-9f39-3245470460c1
+https://github.com/user-attachments/assets/1bfacaec-0b79-4aad-928c-96eea91c0b92
 
 ## Preface
 
