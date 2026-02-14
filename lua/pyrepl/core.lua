@@ -86,9 +86,7 @@ local function open_new_repl(kernel)
     local nvim_socket = vim.v.servername
 
     local buf = vim.api.nvim_create_buf(false, true)
-    local buf_name = string.format("pyrepl: %s", kernel)
     vim.bo[buf].bufhidden = "hide"
-    vim.api.nvim_buf_set_name(buf, buf_name)
     setup_buf_autocmd(buf)
 
     local current_win = vim.api.nvim_get_current_win()
@@ -137,6 +135,7 @@ local function open_new_repl(kernel)
         kernel = kernel,
     }
 
+    vim.api.nvim_buf_set_name(buf, string.format("kernel: %s", kernel))
     vim.api.nvim_set_current_win(current_win)
     M.scroll_repl()
 end
