@@ -54,6 +54,13 @@ Then install pyrepl runtime packages with `uv` or `pip` directly from Neovim:
 :PyreplInstall uv
 ```
 
+To activate jupytext integration, install jupytext globally:
+
+```bash
+# or any other method which adds jupytext in your PATH in neovim runtime.
+uv tool install jupytext
+```
+
 ## Demo
 
 https://github.com/user-attachments/assets/19822d92-5173-4441-8cec-6a59f9eb41b9

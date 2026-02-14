@@ -31,7 +31,7 @@ local function convert(text, name, notebook)
     end
 
     if vim.fn.executable("jupytext") ~= 1 then
-        error("install jupytext tool first", 0)
+        error("jupytext executable not found", 0)
     end
 
     name = vim.fn.fnamemodify(name, ":r")
@@ -100,6 +100,9 @@ function M.export_to_notebook(name, buf)
 end
 
 function M.setup()
+    -- skip setup when jupytext not installed
+    if vim.fn.executable("jupytext") ~= 1 then return end
+
     -- prompt user to open notebook in python buffer when opening *.ipynb files
     vim.api.nvim_create_autocmd("BufReadPost", {
         group = group,
