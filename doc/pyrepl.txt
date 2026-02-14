@@ -3,11 +3,78 @@
 ==============================================================================
 INTRODUCTION                                                     *pyrepl*
 
-pyrepl.nvim is a Python REPL inside Neovim powered by the Jupyter kernel stack.
-It opens jupyter-console in a terminal split, lets you send code from buffers,
-and displays image outputs.
+pyrepl.nvim is a Python REPL inside Neovim powered by Jupyter kernels. It opens
+`jupyter-console` UI in a terminal split and provides commands to send
+code from your buffer to the selected kernel.
 
-Project: https://github.com/dangooddd/pyrepl.nvim
+pyrepl.nvim aims to provide a sensible workflow for Python REPL. It started as
+a fork of pyrola.nvim (https://github.com/robitx/pyrola.nvim).
+
+Main goals:
+- Ability to send code from buffer to REPL
+- Ability to display images in Neovim directly
+- Balance code complication with sensible features for REPL workflow
+
+Features:
+- Convert notebook files from and to python with `jupytext`
+- Install all runtime deps required with command (no need to install kernel
+globally with default settings)
+- Use `jupyter-console` TUI for REPL
+- Prompt user to choose jupyter kernel on REPL start
+- Send code to the REPL from current buffer
+- Automatically display output images and save them to image history.
+  On supported terminals image display works over tmux and docker (tested in
+  ssh + tmux + docker at one time)
+- Neovim theme integration for `jupyter-console`
+
+------------------------------------------------------------------------------
+QUICKSTART                                                  *pyrepl-quickstart*
+
+Minimal lazy.nvim setup with the default config and example keymaps:
+>
+  {
+    "dangooddd/pyrepl.nvim",
+    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    config = function()
+      require("pyrepl").setup({
+        -- defaults (you can omit these):
+        split_horizontal = false,
+        split_ratio = 0.5,
+        style_treesitter = true,
+        image_max_history = 10,
+        image_width_ratio = 0.5,
+        image_height_ratio = 0.5,
+        block_pattern = "^# %%%%.*$",
+        python_path = "python",
+        preferred_kernel = "python3",
+        jupytext_integration = true,
+      })
+
+      -- main commands
+      vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
+      vim.keymap.set("n", "<leader>jh", ":PyreplHide<CR>", { silent = true })
+      vim.keymap.set("n", "<leader>jc", ":PyreplClose<CR>", { silent = true })
+      vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
+
+      -- send commands
+      vim.keymap.set("n", "<leader>jb", ":PyreplSendBlock<CR>", { silent = true })
+      vim.keymap.set("n", "<leader>jf", ":PyreplSendBuffer<CR>", { silent = true })
+      vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv<Esc>", { silent = true })
+
+      -- utility commands
+      vim.keymap.set("n", "<leader>jp", ":PyreplBlockBackward<CR>", { silent = true })
+      vim.keymap.set("n", "<leader>jn", ":PyreplBlockForward<CR>", { silent = true })
+      vim.keymap.set("n", "<leader>je", ":PyreplExport")
+      vim.keymap.set("n", "<leader>js", ":PyreplInstall")
+    end,
+  }
+<
+
+Then install pyrepl runtime packages with `uv` or `pip` directly from Neovim:
+>
+  :PyreplInstall pip
+  :PyreplInstall uv
+<
 
 ==============================================================================
 REQUIREMENTS                                                   *pyrepl-reqs*
@@ -29,10 +96,17 @@ REQUIREMENTS                                                   *pyrepl-reqs*
 
 - Image rendering requires kitty graphics protocol (unicode placeholders).
 
-Tree-sitter note: by default (`style_treesitter = true`) pyrepl.nvim derives
-Pygments color overrides from current Neovim/Tree-sitter highlights.
-It can also help with pasted Python normalization when the parser is available,
-but Tree-sitter is not a hard requirement.
+==============================================================================
+KNOWN LIMITATIONS                                          *pyrepl-limitations*
+
+- Only Python is officially supported and will be prioritized. For R, see
+  https://github.com/R-nvim/R.nvim
+- Persistence in kernel outputs is not possible right now. Implementing cell
+  logic like `molten.nvim` will complicate current approach
+- Currently image display supported only on terminals that support kitty
+  unicode placeholders protocol (https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders).
+  That allows correct image display in docker - other protocols are limited in
+  this case, see https://github.com/3rd/image.nvim/issues/331
 
 ==============================================================================
 COMMANDS                                                        *pyrepl-commands*
@@ -56,22 +130,25 @@ COMMANDS                                                        *pyrepl-commands
     Send the last visual selection to the REPL.
 
 :PyreplSendBlock                                                *PyreplSendBlock*
-    Send the "block" around the cursor. Blocks are separated by lines matching
-    `block_pattern` (default: `^# %%%%.*$`, i.e. `# %%` like in notebooks).
+    Send the "block" around the cursor (by default blocks are separated by lines
+    matching `# %% ...`; configure via `block_pattern`).
 
 :PyreplBlockForward                                             *PyreplBlockForward*
-    Move cursor to the start of the next block (using `block_pattern`
-    separators).
+    Move cursor to the start of the next block separated by `block_pattern`.
 
 :PyreplBlockBackward                                            *PyreplBlockBackward*
-    Move cursor to the start of the previous block (using `block_pattern`
-    separators).
+    Move cursor to the start of the previous block separated by `block_pattern`.
 
 :PyreplSendBuffer                                               *PyreplSendBuffer*
     Send the entire buffer to the REPL.
 
 :PyreplOpenImages                                               *PyreplOpenImages*
-    Open the image manager (history of recent images).
+    Open the image manager (history of recent images). Use `j`/`h` for previous,
+    `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close.
+
+:PyreplExport {path?}                                           *PyreplExport*
+    (python buffers only) Export current buffer using `jupytext` (should be
+    installed). Optionally provide path to export.
 
 :PyreplInstall {tool}                                           *PyreplInstall*
     Install pyrepl runtime packages into the configured Python interpreter.
@@ -115,6 +192,9 @@ require("pyrepl").send_buffer()                                 *pyrepl.send_buf
 require("pyrepl").open_images()                                 *pyrepl.open_images*
     Same as |PyreplOpenImages|. Opens the image manager.
 
+require("pyrepl").export_to_notebook([name], [buf])             *pyrepl.export_to_notebook*
+    Same as |PyreplExport|. Optionally provide name and buffer number.
+
 require("pyrepl").install_packages({tool})                      *pyrepl.install_packages*
     Same as |PyreplInstall|. {tool} is "pip" or "uv".
 
@@ -127,7 +207,6 @@ Default configuration:
   require("pyrepl").setup({
     split_horizontal = false,
     split_ratio = 0.5,
-    style = "default",
     style_treesitter = true,
     image_max_history = 10,
     image_width_ratio = 0.5,
@@ -135,6 +214,7 @@ Default configuration:
     block_pattern = "^# %%%%.*$",
     python_path = "python",
     preferred_kernel = "python3",
+    jupytext_integration = true,
   })
 <
 
@@ -169,77 +249,57 @@ Options:
   preferred_kernel (string)
       Kernel name moved to the first position in the kernel picker.
       Default: "python3".
-
-Python interpreter notes:
-- Default behavior (`python_path = "python"`): if Neovim runs inside a venv,
-  pyrepl.nvim usually uses that venv's Python.
-- For one global interpreter, the old `~/.venv_nvim` setup still works:
->
-  require("pyrepl").setup({
-    python_path = "~/.venv_nvim/bin/python",
-  })
-<
-
-Example with keymaps:
->
-  {
-      "dangooddd/pyrepl.nvim",
-      dependencies = {
-          "nvim-treesitter/nvim-treesitter",
-        },
-      config = function()
-          local pyrepl = require("pyrepl")
-
-          pyrepl.setup({
-              style_treesitter = false,
-              style = "gruvbox-dark",
-              python_path = "python",
-              preferred_kernel = "python3",
-          })
-
-          vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
-          vim.keymap.set("n", "<leader>jh", ":PyreplHide<CR>", { silent = true })
-          vim.keymap.set("n", "<leader>jc", ":PyreplClose<CR>", { silent = true })
-          vim.keymap.set("n", "<leader>js", ":PyreplSendBlock<CR>", { silent = true })
-          vim.keymap.set("n", "<leader>jb", ":PyreplSendBuffer<CR>", { silent = true })
-          vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv", { silent = true })
-          vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
-      end,
-  }
-<
+  jupytext_integration (boolean)
+      Enable jupytext integration for converting notebook buffers from and to
+      `py:percent` format. Default: true.
 
 ==============================================================================
-TIPS                                                           *pyrepl-tips*
+TIPS & TRICKS                                                  *pyrepl-tips*
 
-If Tree-sitter-based REPL colors do not match your preference, disable it and
-use a built-in Pygments style:
->
-  require("pyrepl").setup({
-      style_treesitter = false,
-      style = "default",
-  })
-<
+Use a dedicated Python environment ~
 
-Use any built-in Pygments style name in `style` (for example "gruvbox-dark").
+- By default pyrepl.nvim uses `python` (`python_path = "python"`). If Neovim is
+  started inside a venv, that venv is usually used.
+- For one dedicated interpreter, set `python_path` directly (or set
+  `python_path = nil` to use `vim.g.python3_host_prog`).
 
-Send block and jump forward in one mapping:
->
-  vim.keymap.set("n", "<leader>jb", function()
-      vim.cmd("PyreplSendBlock")
-      vim.cmd("PyreplBlockForward")
-  end)
-<
-
-Dedicated Python environment example:
+Example dedicated interpreter workflow:
 >
   uv venv ~/.venv_nvim
   source ~/.venv_nvim/bin/activate
   uv pip install pynvim jupyter-console ipykernel
-  uv pip install pillow cairosvg
+  uv pip install pillow cairosvg # optional, for jpg and svg support
 
   require("pyrepl").setup({
     python_path = "~/.venv_nvim/bin/python",
   })
+<
+
+If to use this workflow you need to install kernels globally:
+>
+  # from kernel virtual environment
+  python -m ipykernel install --user --name {kernel_name}
+<
+
+Use a built-in Pygments style instead ~
+
+If you do not like the treesitter-based REPL colors, disable it and pick a
+built-in Pygments theme:
+>
+  require("pyrepl").setup({
+    style_treesitter = false,
+    style = "default", -- or another Pygments style, e.g. "gruvbox-dark"
+  })
+<
+
+Send block and move to the next one ~
+
+Combine "send" and "block" commands:
+>
+  vim.keymap.set("n", "<leader>jb", function()
+    vim.cmd("PyreplSendBlock")
+    vim.cmd("PyreplBlockForward")
+  end)
 <
 
 See also |pyrepl-config| for interpreter resolution details.
@@ -271,12 +331,12 @@ While focused in the image window:
 ==============================================================================
 HIGHLIGHTS                                                     *pyrepl-highlights*
 
-pyrepl.nvim defines these highlight groups (linked by default):
+pyrepl.nvim defines these highlight groups:
   PyreplImageBorder
   PyreplImageTitle
   PyreplImageNormal
 
-Override example:
+Default links:
 >
   vim.api.nvim_set_hl(0, "PyreplImageBorder", { link = "FloatBorder" })
   vim.api.nvim_set_hl(0, "PyreplImageTitle", { link = "FloatTitle" })

@@ -17,41 +17,37 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       -- defaults (you can omit these):
       split_horizontal = false,
       split_ratio = 0.5,
-      style_treesitter = true, -- treesitter-based Pygments colorscheme
+      style_treesitter = true,
       image_max_history = 10,
       image_width_ratio = 0.5,
       image_height_ratio = 0.5,
       block_pattern = "^# %%%%.*$",
       python_path = "python",
       preferred_kernel = "python3",
+      jupytext_integration = true,
     })
 
+    -- main commands
     vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
     vim.keymap.set("n", "<leader>jh", ":PyreplHide<CR>", { silent = true })
     vim.keymap.set("n", "<leader>jc", ":PyreplClose<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
+
+    -- send commands
     vim.keymap.set("n", "<leader>jb", ":PyreplSendBlock<CR>", { silent = true })
     vim.keymap.set("n", "<leader>jf", ":PyreplSendBuffer<CR>", { silent = true })
+    vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv<Esc>", { silent = true })
+
+    -- utility commands
     vim.keymap.set("n", "<leader>jp", ":PyreplBlockBackward<CR>", { silent = true })
     vim.keymap.set("n", "<leader>jn", ":PyreplBlockForward<CR>", { silent = true })
-    vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv<Esc>", { silent = true })
-    vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>je", ":PyreplExport")
     vim.keymap.set("n", "<leader>js", ":PyreplInstall")
   end,
 }
 ```
 
-> [!NOTE]
-> pyrepl.nvim is no longer a Python remote plugin. You do not need `:UpdateRemotePlugins`.
-
-Minimal environment:
-
-```bash
-python -m pip install pynvim jupyter-console
-python -m pip install pillow cairosvg # optional, for jpg and svg support
-python -m ipykernel install --user --name python3
-```
-
-You can also install pyrepl runtime packages in the configured Python with `uv` or `pip` directly from Neovim:
+Then install pyrepl runtime packages with `uv` or `pip` directly from Neovim:
 
 ```vim
 :PyreplInstall pip
@@ -64,39 +60,40 @@ https://github.com/user-attachments/assets/7f6796fc-ed75-4771-9f39-3245470460c1
 
 ## Preface
 
-pyrepl.nvim is a heavily rewritten fork of [pyrola.nvim](https://github.com/robitx/pyrola.nvim). The goal was to make the workflow nicer for Python and to keep the codebase cleaner (subjective).
+This plugin aims to provide sensible workflow to work with python REPL.
+It was started as a fork of [pyrola.nvim](https://github.com/robitx/pyrola.nvim).
 
-Main differences from pyrola:
+Main goals of this project:
+- Ability to send code from buffer to REPL;
+- Ability to display images in Neovim directly;
+- Balance code complication with sinsible features for REPL workflow.
 
-- No Neovim remote plugin dependency (`:UpdateRemotePlugins` is not needed).
-- Uses `jupyter-console` as the UI instead of a custom console. Less code, and usually better maintained.
-- Kernel is initialized via a prompt rather than fixed values. You can tune default ordering with `preferred_kernel`.
-- On supported terminals, images render correctly via kitty unicode placeholders.
-- Block moves: SendBlock, BlockForward, BlockBackward.
-- Utility functions to make life easier: Close, Hide and Install commands.
+What features `pyrepl.nvim` currently provides:
+- Convert notebook files from and to python with `jupytext`;
+- Install all runtime deps required with command (no need to install kernel globally with default settings);
+- Use `jupyter-console` TUI for REPL;
+- Prompt user to choose jupyter kernel on REPL start;
+- Send code to the REPL from current buffer;
+- Automatically display output images and save them to image history.
+  On supported terminals image display works over tmux and docker (tested in ssh + tmux + docker at one time);
+- Neovim theme integration for `jupyter-console`
 
-And a quick note about images: I'm really proud of this part, because the plugin worked even in a local -> ssh -> tmux -> docker setup (and images still rendered!).
+## Known Limitations
 
-## Known Limitations / Regressions
-
-- Inspector is not supported for now (to keep maintenance simpler). Contributions appreciated.
-- Image rendering currently requires terminals that support kitty graphics protocol (unicode placeholders). Why: inside Docker containers `TIOCGWINSZ` can return pixel size as `0`, and backends that depend on pixel dimensions fail to compute scaling correctly (see https://github.com/3rd/image.nvim/issues/331). Supporting other backends is possible with contributions.
-- According to kitty's documentation, the protocol is implemented not only in kitty, but also in other terminals: Ghostty, Konsole, st (with a patch), Warp, wayst, WezTerm, iTerm2: https://sw.kovidgoyal.net/kitty/graphics-protocol/
-- Only Python is officially supported and will be prioritized. For R, see https://github.com/R-nvim/R.nvim. In theory, an R kernel should work, but it's not a project goal.
+- Only Python is officially supported and will be prioritized. For R, see https://github.com/R-nvim/R.nvim;
+- Persistance in kernel outputs is not possible right now. Implementing cell logic like `molten.nvim` will complicate current approach;
+- Currently image display supported only on terminals, that support [kitty unicode placeholders protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders).
+  That allows correct image display in docker - other protocols are limited in this case, see [this image.nvim issue](https://github.com/3rd/image.nvim/issues/331).
 
 ## How It Works
 
-In short: pyrepl.nvim starts a Jupyter kernel and opens `jupyter-console` in a terminal buffer.
-Neovim commands send code into that terminal using bracketed paste, and you see the output right in `jupyter-console`.
-
-pyrepl.nvim keeps one active REPL session.
-You can hide/show that REPL from any buffer, and `:PyreplClose` shuts the kernel down.
+This plugin opens `jupyter-console` in a terminal buffer. Then you can send commands in this console using provided commands.
 
 Images handled from `jupyter-console`: pyrepl defines custom `image_handler` function in python, so images are forwarded to neovim.
 
-## Commands and API
+Jupytext integration converts notebook buffers from and to `py:percent` format.
 
-Commands are regular user commands created by `require("pyrepl").setup(...)`.
+## Commands and API
 
 Commands:
 
@@ -109,6 +106,7 @@ Commands:
 - `:PyreplBlockForward` - move cursor to the start of the next block separated by `block_pattern`.
 - `:PyreplBlockBackward` - move cursor to the start of the previous block separated by `block_pattern`.
 - `:PyreplOpenImages` - open the image manager (history of recent images). Use `j`/`h` for previous, `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close.
+- `:PyreplExport {path?}` - (python buffers only) export current buffer using `jupytext` (should be installed). Optionally provide path to export.
 - `:PyreplInstall {tool}` - install pyrepl runtime packages into the configured Python (`tool`: `pip` or `uv`).
 
 Lua API:
@@ -124,6 +122,7 @@ require("pyrepl").send_block()
 require("pyrepl").block_forward()
 require("pyrepl").block_backward()
 require("pyrepl").open_images()
+require("pyrepl").export_to_notebook([name], [buf])
 require("pyrepl").install_packages(tool)
 ```
 
@@ -151,6 +150,13 @@ require("pyrepl").setup({
 })
 ```
 
+If to use this workflow you need to install kernels globally:
+
+```bash
+# from kernel virtual environment
+python -m ipykernel install --user --name {kernel_name}
+```
+
 ### Use a built-in Pygments style instead
 
 If you do not like the treesitter-based REPL colors, disable it and pick a built-in Pygments theme:
@@ -164,6 +170,8 @@ require("pyrepl").setup({
 
 ### Send block and move to the next one
 
+Combine "send" and "block" commands:
+
 ```lua
 vim.keymap.set("n", "<leader>jb", function()
   vim.cmd("PyreplSendBlock")
@@ -176,9 +184,3 @@ end)
 - [molten.nvim](https://github.com/benlubas/molten-nvim)
 - [pyrola.nvim](https://github.com/robitx/pyrola.nvim)
 - [iron.nvim](https://github.com/Vigemus/iron.nvim)
-
-## Documentation
-
-```
-:help pyrepl
-```
