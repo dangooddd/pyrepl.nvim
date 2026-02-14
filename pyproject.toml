@@ -1,6 +1,6 @@
 [project]
 name = "pyrepl"
-version = "0.2.1"
+version = "0.4.0"
 description = "REPL experience for Python in Neovim."
 readme = "README.md"
 authors = [
