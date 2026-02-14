@@ -25,13 +25,29 @@ local defaults = {
 ---@type pyrepl.Config
 M.config = vim.deepcopy(defaults)
 
-M.open_repl = core.open_repl
-M.hide_repl = core.hide_repl
-M.close_repl = core.close_repl
-M.open_images = image.open_images
-M.install_packages = python.install_packages
-M.export_to_notebook = jupytext.export_to_notebook
-M.open_in_notebook = jupytext.open_in_notebook
+function M.open_repl() core.open_repl() end
+
+function M.hide_repl() core.hide_repl() end
+
+function M.close_repl() core.close_repl() end
+
+function M.open_images() image.open_images() end
+
+---@param tool string
+function M.install_packages(tool)
+    python.install_packages(tool)
+end
+
+---@param name? string
+---@param buf? integer
+function M.export_to_notebook(name, buf)
+    jupytext.export_to_notebook(name, buf)
+end
+
+---@param buf? integer
+function M.open_in_notebook(buf)
+    jupytext.open_in_notebook(buf)
+end
 
 function M.send_visual()
     if core.state then
@@ -103,7 +119,11 @@ function M.setup(opts)
     }
 
     for name, callback in pairs(commands) do
-        vim.api.nvim_create_user_command(name, callback, { force = true })
+        vim.api.nvim_create_user_command(
+            name,
+            function() callback() end,
+            { force = true, nargs = 0 }
+        )
     end
 
     vim.api.nvim_create_user_command(

@@ -1,6 +1,6 @@
 local M = {}
 
-M.msg = "(pyrepl) "
+M.msg = "[pyrepl] "
 
 -- We need to pass python tuples in jupyter console overrides CLI arguments
 local pygments_hl_map = {

@@ -93,6 +93,8 @@ function M.export_to_notebook(name, buf)
                 util.msg .. "failed to sync: " .. out,
                 vim.log.levels.ERROR
             )
+        else
+            print(util.msg .. string.format('script exported to "%s"', out))
         end
     end)
 end
