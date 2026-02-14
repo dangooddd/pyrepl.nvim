@@ -5,6 +5,7 @@ local image = require("pyrepl.image")
 local core = require("pyrepl.core")
 local python = require("pyrepl.python")
 local util = require("pyrepl.util")
+local jupytext = require("pyrepl.jupytext")
 
 ---@type pyrepl.Config
 local defaults = {
@@ -18,32 +19,19 @@ local defaults = {
     block_pattern = "^# %%%%.*$",
     python_path = "python",
     preferred_kernel = "python3",
+    jupytext_integration = true,
 }
 
 ---@type pyrepl.Config
 M.config = vim.deepcopy(defaults)
 
-function M.open_repl()
-    core.open_repl()
-end
-
-function M.hide_repl()
-    core.hide_repl()
-end
-
-function M.close_repl()
-    core.close_repl()
-end
-
-function M.open_images()
-    image.open_images()
-end
-
---- Feeds keys for the package installation command from command line
----@param tool string
-function M.install_packages(tool)
-    python.install_packages(tool)
-end
+M.open_repl = core.open_repl
+M.hide_repl = core.hide_repl
+M.close_repl = core.close_repl
+M.open_images = image.open_images
+M.install_packages = python.install_packages
+M.export_to_notebook = jupytext.export_to_notebook
+M.open_in_notebook = jupytext.open_in_notebook
 
 function M.send_visual()
     if core.state then
@@ -98,6 +86,7 @@ function M.setup(opts)
 
     for _, args in ipairs(to_clip) do
         local key, min, max = args[1], args[2], args[3]
+        ---@diagnostic disable-next-line
         M.config[key] = util.clip(M.config[key], min, max, defaults[key])
     end
 
@@ -122,6 +111,22 @@ function M.setup(opts)
         function(o) M.install_packages(o.args) end,
         { nargs = 1, complete = python.get_tools }
     )
+
+    vim.api.nvim_create_autocmd("FileType", {
+        group = group,
+        pattern = "python",
+        callback = function(args)
+            vim.api.nvim_buf_create_user_command(
+                args.buf, "PyreplExport",
+                function(o) M.export_to_notebook(o.args) end,
+                { nargs = "?", complete = "file" }
+            )
+        end
+    })
+
+    if M.config.jupytext_integration then
+        jupytext.setup()
+    end
 
     return M
 end
