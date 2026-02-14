@@ -41,7 +41,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
     -- utility commands
     vim.keymap.set("n", "<leader>jp", ":PyreplBlockBackward<CR>", { silent = true })
     vim.keymap.set("n", "<leader>jn", ":PyreplBlockForward<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>je", ":PyreplExport")
+    vim.keymap.set("n", "<leader>je", ":PyreplExport<CR>", { silent = true })
     vim.keymap.set("n", "<leader>js", ":PyreplInstall")
   end,
 }
@@ -60,36 +60,36 @@ https://github.com/user-attachments/assets/1bfacaec-0b79-4aad-928c-96eea91c0b92
 
 ## Preface
 
-This plugin aims to provide sensible workflow to work with python REPL.
+This plugin aims to provide a sensible workflow to work with Python REPL.
 It was started as a fork of [pyrola.nvim](https://github.com/robitx/pyrola.nvim).
 
 Main goals of this project:
 - Ability to send code from buffer to REPL;
 - Ability to display images in Neovim directly;
-- Balance code complication with sinsible features for REPL workflow.
+- Balance code complexity with sensible features for a REPL workflow.
 
 What features `pyrepl.nvim` currently provides:
 - Convert notebook files from and to python with `jupytext`;
-- Install all runtime deps required with command (no need to install kernel globally with default settings);
-- Use `jupyter-console` TUI for REPL;
-- Prompt user to choose jupyter kernel on REPL start;
+- Install all runtime deps required with a command (no need to install kernel globally with default settings);
+- Use `jupyter-console` TUI for the REPL;
+- Prompt the user to choose jupyter kernel on REPL start;
 - Send code to the REPL from current buffer;
 - Automatically display output images and save them to image history.
-  On supported terminals image display works over tmux and docker (tested in ssh + tmux + docker at one time);
+  On supported terminals, image display works over tmux and docker (tested in ssh + tmux + docker at one time);
 - Neovim theme integration for `jupyter-console`
 
 ## Known Limitations
 
 - Only Python is officially supported and will be prioritized. For R, see https://github.com/R-nvim/R.nvim;
-- Persistance in kernel outputs is not possible right now. Implementing cell logic like `molten.nvim` will complicate current approach;
-- Currently image display supported only on terminals, that support [kitty unicode placeholders protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders).
+- Persistence in kernel outputs is not possible right now. Implementing cell logic like `molten.nvim` will complicate current approach;
+- Currently, image display is supported only on terminals that support [kitty unicode placeholders protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders).
   That allows correct image display in docker - other protocols are limited in this case, see [this image.nvim issue](https://github.com/3rd/image.nvim/issues/331).
 
 ## How It Works
 
-This plugin opens `jupyter-console` in a terminal buffer. Then you can send commands in this console using provided commands.
+This plugin opens `jupyter-console` in a terminal buffer. Then, you can send commands in this console using the provided commands.
 
-Images handled from `jupyter-console`: pyrepl defines custom `image_handler` function in python, so images are forwarded to neovim.
+Images are handled from `jupyter-console`: pyrepl defines custom `image_handler` function in python, so images are forwarded to Neovim.
 
 Jupytext integration converts notebook buffers from and to `py:percent` format.
 
@@ -150,7 +150,7 @@ require("pyrepl").setup({
 })
 ```
 
-If to use this workflow you need to install kernels globally:
+To use this workflow, you need to install kernels globally:
 
 ```bash
 # from kernel virtual environment
