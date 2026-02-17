@@ -11,6 +11,10 @@ local tools = {
     pip = "%s -m pip install",
 }
 
+--- Resolve python path from candidates:
+--- 1) config.python_path;
+--- 2) vim.g.python3_host_prog;
+--- 3) "python".
 ---@return string
 function M.get_python_path()
     if python_path_cache then return python_path_cache end
@@ -45,7 +49,7 @@ function M.get_console_path()
     error(util.msg .. "console script not found", 0)
 end
 
---- List of available kernels
+--- List of available jupyter kernels.
 ---@return { name: string, resource_dir: string }[]
 local function list_kernels()
     local python_path = M.get_python_path()
@@ -86,6 +90,7 @@ local function list_kernels()
     return kernels
 end
 
+--- Prompt user to choose kernel and call callback with that choice.
 ---@param callback fun(kernel: string)
 function M.prompt_kernel(callback)
     local kernels = list_kernels()

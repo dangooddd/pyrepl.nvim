@@ -1,7 +1,5 @@
 local M = {}
 
-local util = require("pyrepl.util")
-
 local compound_top_level_nodes = {
     async_for_statement = true,
     async_function_definition = true,
@@ -102,48 +100,94 @@ local function normalize_python_message(msg)
     return table.concat(out, "\n")
 end
 
---- Send code to the REPL using bracketed paste mode.
+--- Send code to the REPL using bracketed paste.
 ---@param chan integer
 ---@param message string
 local function raw_send_message(chan, message)
     if message == "" then return end
     local prefix = vim.api.nvim_replace_termcodes("<esc>[200~", true, false, true)
     local suffix = vim.api.nvim_replace_termcodes("<esc>[201~", true, false, true)
-
     local normalized = normalize_python_message(message)
     vim.api.nvim_chan_send(chan, prefix .. normalized .. suffix .. "\n")
 end
 
----@param chan? integer
-function M.send_buffer(chan)
-    if not chan then return end
+---@param buf integer
+---@return integer
+---@return integer
+function M.get_visual_range(buf)
+    local start_pos = vim.api.nvim_buf_get_mark(buf, "<")
+    local end_pos = vim.api.nvim_buf_get_mark(buf, ">")
 
-    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    local msg = table.concat(lines, "\n")
+    if (start_pos[1] == 0 and start_pos[2] == 0)
+        or (end_pos[1] == 0 and end_pos[2] == 0)
+    then
+        return -1, -1
+    end
 
-    raw_send_message(chan, msg)
+    local start_idx, end_idx = start_pos[1], end_pos[1]
+    if start_idx > end_idx then
+        start_idx, end_idx = end_idx, start_idx
+    end
+
+    return start_idx, end_idx
 end
 
----@param chan? integer
-function M.send_visual(chan)
-    if not chan then return end
-
-    local start_line, end_line = util.get_visual_range()
-    local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
-    local msg = table.concat(lines, "\n")
-
-    raw_send_message(chan, msg)
-end
-
----@param chan? integer
+---@param buf integer
+---@param idx integer
 ---@param block_pattern string
-function M.send_block(chan, block_pattern)
-    if not chan then return end
+---@return integer
+---@return integer
+function M.get_block_range(buf, idx, block_pattern)
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    if #lines == 0 then return -1, -1 end
 
-    local start_line, end_line = util.get_block_range(block_pattern)
-    local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+    -- block start
+    local start_idx = 1
+    for i = idx, 1, -1 do
+        if lines[i]:match(block_pattern) then
+            start_idx = i + 1
+            break
+        end
+    end
+
+    -- block end
+    local end_idx = #lines
+    for i = idx + 1, #lines do
+        if lines[i]:match(block_pattern) then
+            end_idx = i - 1
+            break
+        end
+    end
+
+    if start_idx > end_idx then return -1, -1 end
+    return start_idx, end_idx
+end
+
+---@param buf integer
+---@param chan integer
+function M.send_buffer(buf, chan)
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     local msg = table.concat(lines, "\n")
+    raw_send_message(chan, msg)
+end
 
+---@param buf integer
+---@param chan integer
+function M.send_visual(buf, chan)
+    local start_idx, end_idx = M.get_visual_range(buf)
+    local lines = vim.api.nvim_buf_get_lines(buf, start_idx - 1, end_idx, false)
+    local msg = table.concat(lines, "\n")
+    raw_send_message(chan, msg)
+end
+
+---@param buf integer
+---@param chan integer
+---@param idx integer
+---@param block_pattern string
+function M.send_block(buf, chan, idx, block_pattern)
+    local start_idx, end_idx = M.get_block_range(buf, idx, block_pattern)
+    local lines = vim.api.nvim_buf_get_lines(buf, start_idx - 1, end_idx, false)
+    local msg = table.concat(lines, "\n")
     raw_send_message(chan, msg)
 end
 

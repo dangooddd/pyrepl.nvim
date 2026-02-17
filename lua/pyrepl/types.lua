@@ -11,7 +11,7 @@
 ---@field block_pattern string|nil
 ---@field python_path string|nil
 ---@field preferred_kernel string|nil
----@field jupytext_integration boolean
+---@field jupytext_hook boolean
 
 ---@class pyrepl.ConfigOpts
 ---@field split_horizontal? boolean
@@ -24,7 +24,7 @@
 ---@field block_pattern? string
 ---@field python_path? string
 ---@field preferred_kernel? string
----@field jupytext_integration? boolean
+---@field jupytext_hook? boolean
 
 ---@class pyrepl.KernelSpec
 ---@field name string

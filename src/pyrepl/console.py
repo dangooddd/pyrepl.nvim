@@ -104,7 +104,7 @@ def image_pipeline(data: Any):
 def image_worker(queue: Queue, dead: Event):
     """Main thread worker to handle image display in nvim."""
     addr = os.environ.get("NVIM")
-    command = "require('pyrepl.image').endpoint(...)"
+    command = "require('pyrepl.image').console_endpoint(...)"
     nvim = None
 
     if addr is None:

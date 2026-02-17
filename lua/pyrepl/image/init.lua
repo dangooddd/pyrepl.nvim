@@ -1,5 +1,10 @@
 local M = {}
 
+local provider = require("pyrepl.image.placeholders")
+local util = require("pyrepl.util")
+
+local group = vim.api.nvim_create_augroup("PyreplImage", { clear = true })
+
 ---@type pyrepl.ImageState
 local state = {
     history = {},
@@ -8,9 +13,9 @@ local state = {
     win = nil,
 }
 
-local provider = require("pyrepl.image.placeholders")
-local util = require("pyrepl.util")
-
+--- Open float window to place image in.
+--- Placed in top-right angle in vertical layout.
+--- Placed in bottom-right angle in horizontal layout.
 ---@param buf integer
 ---@return integer
 local function open_image_win(buf)
@@ -62,11 +67,11 @@ local function open_image_win(buf)
     return win
 end
 
-local function setup_cursor_autocmd()
-    local group = vim.api.nvim_create_augroup(
-        "PyreplImageCursor",
-        { clear = true }
-    )
+local function setup_cursor_autocmds()
+    vim.api.nvim_clear_autocmds({
+        event = { "CursorMoved", "CursorMovedI" },
+        group = group,
+    })
 
     vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
         group = group,
@@ -77,20 +82,25 @@ end
 
 ---@param buf integer
 ---@param win integer
-local function setup_manager_autocmd(buf, win)
-    if not util.is_valid_buf(buf) then return end
-    if not util.is_valid_win(win) then return end
+local function setup_manager_autocmds(buf, win)
+    vim.api.nvim_clear_autocmds({
+        event = { "WinResized", "WinClosed" },
+        group = group,
+        pattern = tostring(win),
+    })
 
-    local group = vim.api.nvim_create_augroup(
-        "PyreplImageClose",
-        { clear = true }
-    )
-
-    vim.api.nvim_create_autocmd({ "BufWipeout", "BufDelete" }, {
+    vim.api.nvim_clear_autocmds({
+        event = { "BufWipeout", "BufDelete" },
         group = group,
         buffer = buf,
-        callback = function() M.close_image() end,
-        once = true
+    })
+
+    vim.api.nvim_create_autocmd("WinResized", {
+        group = group,
+        pattern = tostring(win),
+        callback = function()
+            vim.schedule(function() provider.redraw(buf, win) end)
+        end,
     })
 
     vim.api.nvim_create_autocmd("WinClosed", {
@@ -99,32 +109,12 @@ local function setup_manager_autocmd(buf, win)
         callback = function() M.close_image() end,
         once = true
     })
-end
 
---- Redraw image placeholders on editor resize/focus changes.
----@param buf integer
----@param win integer
-local function setup_resize_autocmd(buf, win)
-    if not util.is_valid_buf(buf) then return end
-    if not util.is_valid_win(win) then return end
-
-    local group = vim.api.nvim_create_augroup(
-        "PyreplImageResize",
-        { clear = true }
-    )
-
-    vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
+    vim.api.nvim_create_autocmd({ "BufWipeout", "BufDelete" }, {
         group = group,
-        callback = function()
-            vim.schedule(function() provider.redraw(buf, win) end)
-        end,
-    })
-
-    vim.api.nvim_create_autocmd({ "BufWinEnter", "WinEnter", "TabEnter" }, {
-        group = group,
-        callback = function()
-            vim.schedule(function() provider.redraw(buf, win) end)
-        end
+        buffer = buf,
+        callback = function() M.close_image() end,
+        once = true
     })
 end
 
@@ -142,10 +132,15 @@ end
 local function pop_history()
     if state.history_index > 0 and #state.history >= state.history_index then
         table.remove(state.history, state.history_index)
-        state.history_index = math.min(#state.history, state.history_index + 1)
+        state.history_index = math.min(#state.history, state.history_index)
     end
 end
 
+--- Sets keymap in history manager:
+--- j/h - show previous image;
+--- k/l - show next image;
+--- dd - delete image;
+--- Esc/q - exit manager.
 ---@param buf integer
 local function set_keymaps(buf)
     local opts = { noremap = true, silent = true, nowait = true, buffer = buf }
@@ -189,12 +184,12 @@ end
 ---@param focus boolean
 ---@param auto_clear boolean
 local function render_image(img_data, focus, auto_clear)
-    if util.is_valid_buf(state.buf) then
+    if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
         vim.api.nvim_buf_delete(state.buf, { force = true })
     end
     state.buf = vim.api.nvim_create_buf(false, true)
 
-    if not util.is_valid_win(state.win) then
+    if not state.win or not vim.api.nvim_win_is_valid(state.win) then
         state.win = open_image_win(state.buf)
     end
 
@@ -207,8 +202,7 @@ local function render_image(img_data, focus, auto_clear)
     vim.api.nvim_win_set_config(state.win, opts)
 
     provider.render(img_data, state.buf, state.win)
-    setup_resize_autocmd(state.buf, state.win)
-    setup_manager_autocmd(state.buf, state.win)
+    setup_manager_autocmds(state.buf, state.win)
     set_keymaps(state.buf)
 
     if focus then
@@ -216,12 +210,12 @@ local function render_image(img_data, focus, auto_clear)
     end
 
     if auto_clear then
-        setup_cursor_autocmd()
+        setup_cursor_autocmds()
     end
 end
 
 --- Show a specific image from history.
----@param index? integer
+---@param index? integer last image by default
 ---@param focus? boolean true by default
 ---@param auto_clear? boolean false by default
 function M.open_images(index, focus, auto_clear)
@@ -248,7 +242,7 @@ end
 
 --- Store base64 PNG data and display it.
 ---@param img_data string
-function M.endpoint(img_data)
+function M.console_endpoint(img_data)
     if type(img_data) ~= "string" or img_data == "" then
         error(util.msg .. "image data missing or invalid", 0)
     end
@@ -256,13 +250,13 @@ function M.endpoint(img_data)
     M.open_images(#state.history, false, true)
 end
 
---- Closes image history window
+--- Closes image history window.
 function M.close_image()
-    if util.is_valid_win(state.win) then
+    if state.win and vim.api.nvim_win_is_valid(state.win) then
         vim.api.nvim_win_close(state.win, true)
     end
 
-    if util.is_valid_buf(state.buf) then
+    if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
         provider.clear(state.buf)
         vim.api.nvim_buf_delete(state.buf, { force = true })
     end
@@ -271,24 +265,24 @@ function M.close_image()
     state.win = nil
 end
 
----@param focus? boolean
----@param auto_clear? boolean
+---@param focus? boolean default like in open_images
+---@param auto_clear? boolean default like in open_images
 function M.show_previous_image(focus, auto_clear)
     if state.history_index <= 1 then
         state.history_index = 1
-        return
+    else
+        M.open_images(state.history_index - 1, focus, auto_clear)
     end
-    M.open_images(state.history_index - 1, focus, auto_clear)
 end
 
----@param focus? boolean
----@param auto_clear? boolean
+---@param focus? boolean default like in open_images
+---@param auto_clear? boolean default like in open_images
 function M.show_next_image(focus, auto_clear)
     if state.history_index >= #state.history then
         state.history_index = #state.history
-        return
+    else
+        M.open_images(state.history_index + 1, focus, auto_clear)
     end
-    M.open_images(state.history_index + 1, focus, auto_clear)
 end
 
 return M

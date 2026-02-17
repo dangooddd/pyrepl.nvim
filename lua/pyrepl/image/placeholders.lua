@@ -1,8 +1,6 @@
 local M = {}
 
-local util = require("pyrepl.util")
-
-local ns = vim.api.nvim_create_namespace("PyreplImagePlaceholders")
+local ns = vim.api.nvim_create_namespace("PyreplPlaceholders")
 local tmux_detected = nil
 local used_ids = {}
 local next_id = 0
@@ -145,11 +143,12 @@ local function get_image_id()
     return next_id
 end
 
+--- Draw image in buffer with given geometry.
 ---@param buf integer
 ---@param img_id integer
 ---@param geometry placeholders.Geometry
 local function draw(buf, img_id, geometry)
-    if not util.is_valid_buf(buf) then return end
+    if not vim.api.nvim_buf_is_valid(buf) then return end
 
     local x = geometry.x or 0
     local y = geometry.y or 0
@@ -188,11 +187,12 @@ local function draw(buf, img_id, geometry)
     vim.defer_fn(function() create_placement(img_id, cols, rows) end, 25)
 end
 
+--- Redraw previously drawed in buffer image.
 ---@param buf integer
 ---@param win integer
 function M.redraw(buf, win)
-    if not util.is_valid_buf(buf) then return end
-    if not util.is_valid_win(win) then return end
+    if not vim.api.nvim_buf_is_valid(buf) then return end
+    if not vim.api.nvim_win_is_valid(win) then return end
 
     local rows = vim.api.nvim_win_get_height(win)
     local cols = vim.api.nvim_win_get_width(win)
@@ -211,8 +211,8 @@ end
 ---@param buf integer
 ---@param win integer
 function M.render(img_data, buf, win)
-    if not util.is_valid_buf(buf) then return end
-    if not util.is_valid_win(win) then return end
+    if not vim.api.nvim_buf_is_valid(buf) then return end
+    if not vim.api.nvim_win_is_valid(win) then return end
 
     local img_id = vim.b[buf].placeholders_img_id or get_image_id()
     vim.b[buf].placeholders_img_id = img_id
@@ -221,9 +221,10 @@ function M.render(img_data, buf, win)
     M.redraw(buf, win)
 end
 
+--- Delete placeholders image, clear hl groups.
 ---@param buf integer
 function M.clear(buf)
-    if not util.is_valid_buf(buf) then return end
+    if not vim.api.nvim_buf_is_valid(buf) then return end
     local img_id = vim.b[buf].placeholders_img_id
 
     if img_id then
