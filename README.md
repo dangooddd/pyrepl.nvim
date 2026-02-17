@@ -24,7 +24,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       block_pattern = "^# %%%%.*$",
       python_path = "python",
       preferred_kernel = "python3",
-      jupytext_integration = true,
+      jupytext_hook = true,
     })
 
     -- main commands
@@ -54,11 +54,17 @@ Then install pyrepl runtime packages with `uv` or `pip` directly from Neovim:
 :PyreplInstall uv
 ```
 
-To activate jupytext integration, install jupytext globally:
+To use jupytext integration, make jupytext available at runtime:
 
 ```bash
-# or any other method which adds jupytext in your PATH in neovim runtime.
+# or any other method which adds jupytext in your PATH.
 uv tool install jupytext
+```
+
+For mason users:
+
+```vim
+:MasonInstall jupytext
 ```
 
 ## Demo
@@ -104,16 +110,17 @@ Jupytext integration converts notebook buffers from and to `py:percent` format.
 
 Commands:
 
-- `:PyreplOpen` - select a kernel and open the REPL.
-- `:PyreplHide` - hide the REPL window (kernel stays alive).
-- `:PyreplClose` - close the REPL and shut down the kernel.
-- `:PyreplSendVisual` - send the last visual selection.
-- `:PyreplSendBuffer` - send the entire buffer.
-- `:PyreplSendBlock` - send the "block" around the cursor (by default blocks are separated by lines matching `# %% ...`; configure via `block_pattern`).
-- `:PyreplBlockForward` - move cursor to the start of the next block separated by `block_pattern`.
-- `:PyreplBlockBackward` - move cursor to the start of the previous block separated by `block_pattern`.
-- `:PyreplOpenImages` - open the image manager (history of recent images). Use `j`/`h` for previous, `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close.
-- `:PyreplExport {path?}` - (python buffers only) export current buffer using `jupytext` (should be installed). Optionally provide path to export.
+- `:PyreplOpen` - select a kernel and open the REPL;
+- `:PyreplHide` - hide the REPL window (kernel stays alive);
+- `:PyreplClose` - close the REPL and shut down the kernel;
+- `:PyreplSendVisual` - send the last visual selection;
+- `:PyreplSendBuffer` - send the entire buffer;
+- `:PyreplSendBlock` - send the "block" around the cursor (by default blocks are separated by lines matching `# %% ...`; configure via `block_pattern`);
+- `:PyreplBlockForward` - move cursor to the start of the next block separated by `block_pattern`;
+- `:PyreplBlockBackward` - move cursor to the start of the previous block separated by `block_pattern`;
+- `:PyreplOpenImages` - open the image manager (history of recent images). Use `j`/`h` for previous, `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close;
+- `:PyreplExport` - export current buffer using `jupytext` (should be installed);
+- `:PyreplConvert` - prompt to convert current notebook buffer using `jupytext` (should be installed);
 - `:PyreplInstall {tool}` - install pyrepl runtime packages into the configured Python (`tool`: `pip` or `uv`).
 
 Lua API:
@@ -129,7 +136,8 @@ require("pyrepl").send_block()
 require("pyrepl").block_forward()
 require("pyrepl").block_backward()
 require("pyrepl").open_images()
-require("pyrepl").export_to_notebook([name], [buf])
+require("pyrepl").export_notebook()
+require("pyrepl").convert_notebook_guarded()
 require("pyrepl").install_packages(tool)
 ```
 

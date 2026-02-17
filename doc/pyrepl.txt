@@ -47,7 +47,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
         block_pattern = "^# %%%%.*$",
         python_path = "python",
         preferred_kernel = "python3",
-        jupytext_integration = true,
+        jupytext_hook = true,
       })
 
       -- main commands
@@ -64,7 +64,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       -- utility commands
       vim.keymap.set("n", "<leader>jp", ":PyreplBlockBackward<CR>", { silent = true })
       vim.keymap.set("n", "<leader>jn", ":PyreplBlockForward<CR>", { silent = true })
-      vim.keymap.set("n", "<leader>je", ":PyreplExport")
+      vim.keymap.set("n", "<leader>je", ":PyreplExport<CR>", { silent = true })
       vim.keymap.set("n", "<leader>js", ":PyreplInstall")
     end,
   }
@@ -146,9 +146,12 @@ COMMANDS                                                        *pyrepl-commands
     Open the image manager (history of recent images). Use `j`/`h` for previous,
     `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close.
 
-:PyreplExport {path?}                                           *PyreplExport*
-    (python buffers only) Export current buffer using `jupytext` (should be
-    installed). Optionally provide path to export.
+:PyreplExport                                                   *PyreplExport*
+    Export current buffer using `jupytext` (should be installed).
+
+:PyreplConvert                                                  *PyreplConvert*
+    Prompt to convert current notebook buffer using `jupytext` (should be installed).
+    Helpful only when `config.jupytext_hook` is `false`.
 
 :PyreplInstall {tool}                                           *PyreplInstall*
     Install pyrepl runtime packages into the configured Python interpreter.
@@ -184,7 +187,7 @@ require("pyrepl").block_backward()                              *pyrepl.block_ba
 
 require("pyrepl").send_visual()                                 *pyrepl.send_visual*
     Same as |PyreplSendVisual|. Uses the '< and '> marks, so it maps nicely as
-    `:<C-u>PyreplSendVisual<CR>gv`.
+    `:<C-u>PyreplSendVisual<CR>gv` (`gv` to place cursor at visual range end).
 
 require("pyrepl").send_buffer()                                 *pyrepl.send_buffer*
     Same as |PyreplSendBuffer|. Sends the entire buffer.
@@ -192,8 +195,11 @@ require("pyrepl").send_buffer()                                 *pyrepl.send_buf
 require("pyrepl").open_images()                                 *pyrepl.open_images*
     Same as |PyreplOpenImages|. Opens the image manager.
 
-require("pyrepl").export_to_notebook([name], [buf])             *pyrepl.export_to_notebook*
-    Same as |PyreplExport|. Optionally provide name and buffer number.
+require("pyrepl").export_notebook()                             *pyrepl.export_notebook*
+    Same as |PyreplExport|. Exports buffer to notebook format.
+
+require("pyrepl").convert_notebook_guarded()                    *pyrepl.convert_notebook_guarded*
+    Same as |PyreplConvert|. Converts notebook to `py:percent` format.
 
 require("pyrepl").install_packages({tool})                      *pyrepl.install_packages*
     Same as |PyreplInstall|. {tool} is "pip" or "uv".
@@ -214,7 +220,7 @@ Default configuration:
     block_pattern = "^# %%%%.*$",
     python_path = "python",
     preferred_kernel = "python3",
-    jupytext_integration = true,
+    jupytext_hook = true,
   })
 <
 
@@ -249,9 +255,8 @@ Options:
   preferred_kernel (string)
       Kernel name moved to the first position in the kernel picker.
       Default: "python3".
-  jupytext_integration (boolean)
-      Enable jupytext integration for converting notebook buffers from and to
-      `py:percent` format. Default: true.
+  jupytext_hook (boolean)
+      Enable jupytext hook to automatically convert notebook buffers to `py:percent`. Default: true.
 
 ==============================================================================
 TIPS & TRICKS                                                  *pyrepl-tips*
