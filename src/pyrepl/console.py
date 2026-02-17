@@ -19,7 +19,7 @@ class ImageMimeTypes(StrEnum):
 
 
 def log(msg: str):
-    print("(pyrepl) ", msg)
+    print("[pyrepl]", msg)
 
 
 def normalize_payload(payload: Any) -> str | None:

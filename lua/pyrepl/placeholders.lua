@@ -148,8 +148,6 @@ end
 ---@param img_id integer
 ---@param geometry placeholders.Geometry
 local function draw(buf, img_id, geometry)
-    if not vim.api.nvim_buf_is_valid(buf) then return end
-
     local x = geometry.x or 0
     local y = geometry.y or 0
     local rows = geometry.rows or 0
@@ -191,19 +189,18 @@ end
 ---@param buf integer
 ---@param win integer
 function M.redraw(buf, win)
-    if not vim.api.nvim_buf_is_valid(buf) then return end
-    if not vim.api.nvim_win_is_valid(win) then return end
-
     local rows = vim.api.nvim_win_get_height(win)
     local cols = vim.api.nvim_win_get_width(win)
     local img_id = vim.b[buf].placeholders_img_id
 
-    draw(buf, img_id, {
-        x = 0,
-        y = 0,
-        rows = rows,
-        cols = cols,
-    })
+    if img_id then
+        draw(buf, img_id, {
+            x = 0,
+            y = 0,
+            rows = rows,
+            cols = cols,
+        })
+    end
 end
 
 --- Render a placeholder grid that the terminal replaces with the image.
@@ -211,9 +208,6 @@ end
 ---@param buf integer
 ---@param win integer
 function M.render(img_data, buf, win)
-    if not vim.api.nvim_buf_is_valid(buf) then return end
-    if not vim.api.nvim_win_is_valid(win) then return end
-
     local img_id = vim.b[buf].placeholders_img_id or get_image_id()
     vim.b[buf].placeholders_img_id = img_id
 
@@ -224,7 +218,6 @@ end
 --- Delete placeholders image, clear hl groups.
 ---@param buf integer
 function M.clear(buf)
-    if not vim.api.nvim_buf_is_valid(buf) then return end
     local img_id = vim.b[buf].placeholders_img_id
 
     if img_id then

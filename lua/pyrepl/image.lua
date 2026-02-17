@@ -1,6 +1,6 @@
 local M = {}
 
-local provider = require("pyrepl.image.placeholders")
+local placeholders = require("pyrepl.placeholders")
 local util = require("pyrepl.util")
 
 local group = vim.api.nvim_create_augroup("PyreplImage", { clear = true })
@@ -99,7 +99,7 @@ local function setup_manager_autocmds(buf, win)
         group = group,
         pattern = tostring(win),
         callback = function()
-            vim.schedule(function() provider.redraw(buf, win) end)
+            vim.schedule(function() placeholders.redraw(buf, win) end)
         end,
     })
 
@@ -201,7 +201,7 @@ local function render_image(img_data, focus, auto_clear)
     local opts = { title = title, title_pos = "center" }
     vim.api.nvim_win_set_config(state.win, opts)
 
-    provider.render(img_data, state.buf, state.win)
+    placeholders.render(img_data, state.buf, state.win)
     setup_manager_autocmds(state.buf, state.win)
     set_keymaps(state.buf)
 
@@ -257,7 +257,7 @@ function M.close_image()
     end
 
     if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
-        provider.clear(state.buf)
+        placeholders.clear(state.buf)
         vim.api.nvim_buf_delete(state.buf, { force = true })
     end
 
