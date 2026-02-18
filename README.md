@@ -10,40 +10,43 @@ Minimal lazy.nvim setup with the default config and example keymaps:
 
 ```lua
 {
-  "dangooddd/pyrepl.nvim",
-  dependencies = { "nvim-treesitter/nvim-treesitter" },
-  config = function()
-    require("pyrepl").setup({
-      -- defaults (you can omit these):
-      split_horizontal = false,
-      split_ratio = 0.5,
-      style_treesitter = true,
-      image_max_history = 10,
-      image_width_ratio = 0.5,
-      image_height_ratio = 0.5,
-      block_pattern = "^# %%%%.*$",
-      python_path = "python",
-      preferred_kernel = "python3",
-      jupytext_hook = true,
-    })
+    "dangooddd/pyrepl.nvim",
+    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    config = function()
+        require("pyrepl").setup({
+            -- defaults (you can omit these):
+            split_horizontal = false,
+            split_ratio = 0.5,
+            style_treesitter = true,
+            image_max_history = 10,
+            image_width_ratio = 0.5,
+            image_height_ratio = 0.5,
+            -- built-in provider, works best for ghostty and kitty
+            -- for other terminals use "image" instead of "placeholders"
+            image_provider = "placeholders",
+            block_pattern = "^# %%%%.*$",
+            python_path = "python",
+            preferred_kernel = "python3",
+            jupytext_hook = true,
+        })
 
-    -- main commands
-    vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>jh", ":PyreplHide<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>jc", ":PyreplClose<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
+        -- main commands
+        vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>jh", ":PyreplHide<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>jc", ":PyreplClose<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
 
-    -- send commands
-    vim.keymap.set("n", "<leader>jb", ":PyreplSendBlock<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>jf", ":PyreplSendBuffer<CR>", { silent = true })
-    vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv<Esc>", { silent = true })
+        -- send commands
+        vim.keymap.set("n", "<leader>jb", ":PyreplSendBlock<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>jf", ":PyreplSendBuffer<CR>", { silent = true })
+        vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv<Esc>", { silent = true })
 
-    -- utility commands
-    vim.keymap.set("n", "<leader>jp", ":PyreplBlockBackward<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>jn", ":PyreplBlockForward<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>je", ":PyreplExport<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>js", ":PyreplInstall")
-  end,
+        -- utility commands
+        vim.keymap.set("n", "<leader>jp", ":PyreplBlockBackward<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>jn", ":PyreplBlockForward<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>je", ":PyreplExport<CR>", { silent = true })
+        vim.keymap.set("n", "<leader>js", ":PyreplInstall")
+    end,
 }
 ```
 
@@ -54,7 +57,7 @@ Then install pyrepl runtime packages with `uv` or `pip` directly from Neovim:
 :PyreplInstall uv
 ```
 
-To use jupytext integration, make jupytext available at runtime:
+To use jupytext integration, make sure jupytext is available in neovim:
 
 ```bash
 # or any other method which adds jupytext in your PATH.
@@ -87,16 +90,13 @@ What features `pyrepl.nvim` currently provides:
 - Use `jupyter-console` TUI for the REPL;
 - Prompt the user to choose jupyter kernel on REPL start;
 - Send code to the REPL from current buffer;
-- Automatically display output images and save them to image history.
-  On supported terminals, image display works over tmux and docker (tested in ssh + tmux + docker at one time);
-- Neovim theme integration for `jupyter-console`
+- Automatically display output images and save them to image history;
+- Neovim theme integration for `jupyter-console`.
 
 ## Known Limitations
 
 - Only Python is officially supported and will be prioritized. For R, see https://github.com/R-nvim/R.nvim;
 - Persistence in kernel outputs is not possible right now. Implementing cell logic like `molten.nvim` will complicate current approach;
-- Currently, image display is supported only on terminals that support [kitty unicode placeholders protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders).
-  That allows correct image display in docker - other protocols are limited in this case, see [this image.nvim issue](https://github.com/3rd/image.nvim/issues/331).
 
 ## How It Works
 
@@ -143,6 +143,35 @@ require("pyrepl").install_packages(tool)
 
 ## Tips & Tricks
 
+### Image display
+
+If you use [ghostty](https://github.com/ghostty-org/ghostty) or [kitty](https://github.com/kovidgoyal/kitty),
+do not change default provider `placeholders` - it works better and tested in various cases, like ssh + tmux + docker.
+
+Only if you use other terminals, change provider to `image` - in this case `pyrepl` will use [image.nvim](https://github.com/3rd/image.nvim) image provider.
+For example, to display images in terminal with `sixel` protocol support:
+
+```lua
+{
+    "3rd/image.nvim",
+    config = function()
+        require("image").setup({
+            backend = "sixel",
+        })
+    end,
+},
+
+{
+    "dangooddd/pyrepl.nvim",
+    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    config = function()
+        require("pyrepl").setup({
+            image_provider = "image",
+        })
+    end,
+}
+```
+
 ### Use a dedicated Python environment
 
 - By default pyrepl.nvim uses `python` (`python_path = "python"`). If Neovim is started inside a venv, that venv is usually used.
@@ -161,7 +190,7 @@ Then, in `init.lua`:
 
 ```lua
 require("pyrepl").setup({
-  python_path = "~/.venv_nvim/bin/python",
+    python_path = "~/.venv_nvim/bin/python",
 })
 ```
 
@@ -178,8 +207,8 @@ If you do not like the treesitter-based REPL colors, disable it and pick a built
 
 ```lua
 require("pyrepl").setup({
-  style_treesitter = false,
-  style = "default", -- or another Pygments style, e.g. "gruvbox-dark"
+    style_treesitter = false,
+    style = "default", -- or another Pygments style, e.g. "gruvbox-dark"
 })
 ```
 
@@ -189,8 +218,8 @@ Combine "send" and "block" commands:
 
 ```lua
 vim.keymap.set("n", "<leader>jb", function()
-  vim.cmd("PyreplSendBlock")
-  vim.cmd("PyreplBlockForward")
+    vim.cmd("PyreplSendBlock")
+    vim.cmd("PyreplBlockForward")
 end)
 ```
 
