@@ -8,6 +8,7 @@
 ---@field image_max_history integer
 ---@field image_width_ratio number
 ---@field image_height_ratio number
+---@field image_provider string
 ---@field block_pattern string|nil
 ---@field python_path string|nil
 ---@field preferred_kernel string|nil
@@ -21,6 +22,7 @@
 ---@field image_max_history? integer
 ---@field image_width_ratio? number
 ---@field image_height_ratio? number
+---@field image_provider? string
 ---@field block_pattern? string
 ---@field python_path? string
 ---@field preferred_kernel? string

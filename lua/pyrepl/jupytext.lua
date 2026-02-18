@@ -1,6 +1,6 @@
 local M = {}
 
-local util = require("pyrepl.util")
+local message = require("pyrepl.config").message
 
 local template = [[
 {
@@ -20,6 +20,18 @@ local template = [[
   "nbformat_minor": 5
 }
 ]]
+
+---@param path string
+local function edit_relative(path)
+    local relative = vim.fn.fnamemodify(path, ":.")
+    vim.cmd.edit(vim.fn.fnameescape(relative))
+end
+
+---@param buf integer
+local function get_buf_text(buf)
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    return table.concat(lines, "\n")
+end
 
 ---@param buf integer
 ---@param ext string
@@ -55,41 +67,41 @@ end
 
 ---@param buf integer
 function M.convert_notebook(buf)
-    if not vim.api.nvim_buf_is_valid(buf) then return end
+    if not vim.api.nvim_buf_is_valid(buf) then
+        return
+    end
 
     local name = bufname_with_ext(buf, "py")
-    local text = util.get_buf_text(buf)
-    if #text == 0 then text = template end
+    local text = get_buf_text(buf)
+    if #text == 0 then
+        text = template
+    end
 
     vim.schedule(function()
         local ok, error = pcall(convert_text, text, name, false)
         if not ok then
-            vim.notify(
-                util.msg .. "failed to run jupytext: " .. error,
-                vim.log.levels.ERROR
-            )
+            vim.notify(message .. "failed to run jupytext: " .. error, vim.log.levels.ERROR)
         else
-            util.edit_relative(name)
+            edit_relative(name)
         end
     end)
 end
 
 ---@param buf integer
 function M.export_notebook(buf)
-    if not vim.api.nvim_buf_is_valid(buf) then return end
+    if not vim.api.nvim_buf_is_valid(buf) then
+        return
+    end
 
     local name = bufname_with_ext(buf, "ipynb")
-    local text = util.get_buf_text(buf)
+    local text = get_buf_text(buf)
 
     vim.schedule(function()
         local ok, error = pcall(convert_text, text, name, true)
         if not ok then
-            vim.notify(
-                util.msg .. "failed to sync: " .. error,
-                vim.log.levels.ERROR
-            )
+            vim.notify(message .. "failed to sync: " .. error, vim.log.levels.ERROR)
         else
-            print(util.msg .. string.format('script exported to "%s"', name))
+            print(message .. string.format('script exported to "%s"', name))
         end
     end)
 end
@@ -105,12 +117,12 @@ function M.convert_notebook_guarded(buf)
     end
 
     vim.ui.select(choices, {
-        prompt = string.format('Convert notebook to "%s"?', name)
+        prompt = string.format('Convert notebook to "%s"?', name),
     }, function(choice)
         if choice == "yes" then
             M.convert_notebook(buf)
         elseif choice == "open existing file" then
-            util.edit_relative(name)
+            edit_relative(name)
         end
     end)
 end

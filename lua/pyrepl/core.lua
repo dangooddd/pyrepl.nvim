@@ -4,15 +4,15 @@ local M = {}
 M.state = nil
 
 local python = require("pyrepl.python")
-local util = require("pyrepl.util")
 local theme = require("pyrepl.theme")
 
+local message = require("pyrepl.config").message
 local group = vim.api.nvim_create_augroup("PyreplCore", { clear = true })
 
 --- Create window according to current config.
 ---@return integer
 local function open_scratch_win()
-    local config = require("pyrepl").config
+    local config = require("pyrepl.config").state
 
     if config.split_horizontal then
         local height = math.floor(vim.o.lines * config.split_ratio)
@@ -22,6 +22,7 @@ local function open_scratch_win()
         vim.cmd("botright " .. width .. "vsplit")
     end
 
+    vim.api.nvim_win_set_config(0, { style = "minimal" })
     return vim.api.nvim_get_current_win()
 end
 
@@ -36,7 +37,9 @@ local function setup_buf_autocmds(buf)
     vim.api.nvim_create_autocmd({ "BufWipeout", "TermClose" }, {
         group = group,
         buffer = buf,
-        callback = function() M.close_repl() end,
+        callback = function()
+            M.close_repl()
+        end,
         once = true,
     })
 end
@@ -52,20 +55,20 @@ local function setup_win_autocmds(win)
     vim.api.nvim_create_autocmd("WinClosed", {
         group = group,
         pattern = tostring(win),
-        callback = function() M.hide_repl() end,
+        callback = function()
+            M.hide_repl()
+        end,
         once = true,
     })
 end
 
 --- Scrolls REPL window to the end, so latest cell in focus.
 function M.scroll_repl()
-    if not (M.state and M.state.win and vim.api.nvim_win_is_valid(M.state.win)) then
-        return
+    if M.state and M.state.win and vim.api.nvim_win_is_valid(M.state.win) then
+        vim.api.nvim_win_call(M.state.win, function()
+            vim.cmd.normal({ "G", bang = true })
+        end)
     end
-
-    vim.api.nvim_win_call(M.state.win, function()
-        vim.cmd.normal({ "G", bang = true })
-    end)
 end
 
 --- Open window, if session is active but win = nil.
@@ -86,9 +89,11 @@ end
 --- Opens REPL process and window.
 ---@param kernel string
 local function open_new_repl(kernel)
-    if M.state then return end
+    if M.state then
+        return
+    end
 
-    local config = require("pyrepl").config
+    local config = require("pyrepl.config").state
     local python_path = python.get_python_path()
     local console_path = python.get_console_path()
     local style = config.style or "default"
@@ -125,16 +130,14 @@ local function open_new_repl(kernel)
     local chan = vim.fn.jobstart(cmd, {
         term = true,
         pty = true,
-        env = vim.tbl_extend(
-            "force",
-            vim.env,
-            { NVIM = nvim_socket }
-        ),
-        on_exit = function() M.close_repl() end,
+        env = vim.tbl_extend("force", vim.env, { NVIM = nvim_socket }),
+        on_exit = function()
+            M.close_repl()
+        end,
     })
 
     if chan == 0 or chan == -1 then
-        error(util.msg .. "failed to start jupyter-console correctly", 0)
+        error(message .. "failed to start jupyter-console correctly", 0)
     end
 
     M.state = {
@@ -153,14 +156,11 @@ end
 function M.open_repl()
     if M.state then
         open_hidden_repl()
-        return
+    else
+        python.prompt_kernel(function(kernel)
+            open_new_repl(kernel)
+        end)
     end
-
-    local on_choice = function(kernel)
-        open_new_repl(kernel)
-    end
-
-    python.prompt_kernel(on_choice)
 end
 
 --- Close REPL window.
@@ -177,12 +177,12 @@ end
 --- 3) Delete terminal buffer;
 --- 4) Move state to nil.
 function M.close_repl()
-    if not M.state then return end
-
-    M.hide_repl()
-    pcall(vim.fn.jobstop, M.state.chan)
-    pcall(vim.cmd.bdelete, { M.state.buf, bang = true })
-    M.state = nil
+    if M.state then
+        M.hide_repl()
+        pcall(vim.fn.jobstop, M.state.chan)
+        pcall(vim.cmd.bdelete, { M.state.buf, bang = true })
+        M.state = nil
+    end
 end
 
 return M

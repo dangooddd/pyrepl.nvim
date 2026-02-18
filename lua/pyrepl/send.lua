@@ -20,13 +20,19 @@ local compound_top_level_nodes = {
 ---@return string
 local function normalize_python_message(msg)
     local lines = vim.split(msg, "\n", { plain = true, trimempty = false })
-    if #lines <= 1 then return msg end
+    if #lines <= 1 then
+        return msg
+    end
 
     local ok_parser, parser = pcall(vim.treesitter.get_string_parser, msg, "python")
-    if not ok_parser or not parser then return msg end
+    if not ok_parser or not parser then
+        return msg
+    end
 
     local tree = parser:parse()[1]
-    if not tree then return msg end
+    if not tree then
+        return msg
+    end
 
     local root = tree:root()
     local top_nodes = {}
@@ -35,7 +41,9 @@ local function normalize_python_message(msg)
             table.insert(top_nodes, node)
         end
     end
-    if #top_nodes == 0 then return msg end
+    if #top_nodes == 0 then
+        return msg
+    end
 
     ---@return integer
     local function node_last_row(node)
@@ -75,9 +83,7 @@ local function normalize_python_message(msg)
             local next_node = top_nodes[idx + 1]
             local next_start0 = next_node and select(1, next_node:range()) or #lines
 
-            if next_start0 > last_row0 and
-                not has_blank_line_between(last_row0, next_start0)
-            then
+            if next_start0 > last_row0 and not has_blank_line_between(last_row0, next_start0) then
                 insert_after[last_row0 + 1] = true
             end
         end
@@ -87,7 +93,9 @@ local function normalize_python_message(msg)
         insert_after[#lines] = true
     end
 
-    if next(insert_after) == nil then return msg end
+    if next(insert_after) == nil then
+        return msg
+    end
 
     local out = {}
     for i, line in ipairs(lines) do
@@ -104,7 +112,9 @@ end
 ---@param chan integer
 ---@param message string
 local function raw_send_message(chan, message)
-    if message == "" then return end
+    if message == "" then
+        return
+    end
     local prefix = vim.api.nvim_replace_termcodes("<esc>[200~", true, false, true)
     local suffix = vim.api.nvim_replace_termcodes("<esc>[201~", true, false, true)
     local normalized = normalize_python_message(message)
@@ -118,9 +128,7 @@ function M.get_visual_range(buf)
     local start_pos = vim.api.nvim_buf_get_mark(buf, "<")
     local end_pos = vim.api.nvim_buf_get_mark(buf, ">")
 
-    if (start_pos[1] == 0 and start_pos[2] == 0)
-        or (end_pos[1] == 0 and end_pos[2] == 0)
-    then
+    if (start_pos[1] == 0 and start_pos[2] == 0) or (end_pos[1] == 0 and end_pos[2] == 0) then
         return -1, -1
     end
 
@@ -139,7 +147,9 @@ end
 ---@return integer
 function M.get_block_range(buf, idx, block_pattern)
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    if #lines == 0 then return -1, -1 end
+    if #lines == 0 then
+        return -1, -1
+    end
 
     -- block start
     local start_idx = 1
@@ -159,7 +169,9 @@ function M.get_block_range(buf, idx, block_pattern)
         end
     end
 
-    if start_idx > end_idx then return -1, -1 end
+    if start_idx > end_idx then
+        return -1, -1
+    end
     return start_idx, end_idx
 end
 
