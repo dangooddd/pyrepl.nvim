@@ -23,8 +23,6 @@ globally with default settings)
 - Prompt user to choose jupyter kernel on REPL start
 - Send code to the REPL from current buffer
 - Automatically display output images and save them to image history.
-  On supported terminals image display works over tmux and docker (tested in
-  ssh + tmux + docker at one time)
 - Neovim theme integration for `jupyter-console`
 
 ------------------------------------------------------------------------------
@@ -44,6 +42,9 @@ Minimal lazy.nvim setup with the default config and example keymaps:
         image_max_history = 10,
         image_width_ratio = 0.5,
         image_height_ratio = 0.5,
+	-- built-in provider, works best for ghostty and kitty
+	-- for other terminals use "image" instead of "placeholders"
+	image_provider = "placeholders",
         block_pattern = "^# %%%%.*$",
         python_path = "python",
         preferred_kernel = "python3",
@@ -94,8 +95,6 @@ REQUIREMENTS                                                   *pyrepl-reqs*
   python3 -m ipykernel install --user --name python3
 <
 
-- Image rendering requires kitty graphics protocol (unicode placeholders).
-
 ==============================================================================
 KNOWN LIMITATIONS                                          *pyrepl-limitations*
 
@@ -103,10 +102,6 @@ KNOWN LIMITATIONS                                          *pyrepl-limitations*
   https://github.com/R-nvim/R.nvim
 - Persistence in kernel outputs is not possible right now. Implementing cell
   logic like `molten.nvim` will complicate current approach
-- Currently image display supported only on terminals that support kitty
-  unicode placeholders protocol (https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders).
-  That allows correct image display in docker - other protocols are limited in
-  this case, see https://github.com/3rd/image.nvim/issues/331
 
 ==============================================================================
 COMMANDS                                                        *pyrepl-commands*
@@ -217,6 +212,7 @@ Default configuration:
     image_max_history = 10,
     image_width_ratio = 0.5,
     image_height_ratio = 0.5,
+    image_provider = "placeholders",
     block_pattern = "^# %%%%.*$",
     python_path = "python",
     preferred_kernel = "python3",
@@ -244,6 +240,10 @@ Options:
   image_height_ratio (number)
       Target image height as a fraction of editor lines. Default: 0.5.
       Used for sizing the render box and can upscale images.
+  image_provider (string)
+      Use "placeholders" for ghostty and kitty terminals.
+      Use "image" for other terminals, you should configure `image.nvim`
+      plugin.
   block_pattern (string)
       Lua pattern used as block separators for |PyreplSendBlock|,
       |PyreplBlockForward| and |PyreplBlockBackward|.
@@ -260,6 +260,37 @@ Options:
 
 ==============================================================================
 TIPS & TRICKS                                                  *pyrepl-tips*
+
+Image display ~
+
+If you use ghostty (https://github.com/ghostty-org/ghostty) or kitty
+(https://github.com/kovidgoyal/kitty), do not change default provider
+"placeholders" - it works better and tested in various cases, like ssh + tmux +
+docker.
+
+Only if you use other terminals, change provider to "image" - in this case
+pyrepl will use image.nvim (https://github.com/3rd/image.nvim) image provider.
+For example, to display images in terminal with `sixel` protocol support:
+>
+  {
+    "3rd/image.nvim",
+    config = function()
+      require("image").setup({
+        backend = "sixel",
+      })
+    end,
+  },
+
+  {
+    "dangooddd/pyrepl.nvim",
+    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    config = function()
+      require("pyrepl").setup({
+        image_provider = "image",
+      })
+    end,
+  }
+<
 
 Use a dedicated Python environment ~
 
@@ -363,6 +394,7 @@ TROUBLESHOOTING                                                *pyrepl-troublesh
 <
  - If images do not render, verify kitty graphics protocol support in your
    terminal and pass-through over tmux is enabled.
+   If you use `image` provider, upstream issue.
 
 ==============================================================================
 END

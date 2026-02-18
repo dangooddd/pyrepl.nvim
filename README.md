@@ -10,43 +10,43 @@ Minimal lazy.nvim setup with the default config and example keymaps:
 
 ```lua
 {
-    "dangooddd/pyrepl.nvim",
-    dependencies = { "nvim-treesitter/nvim-treesitter" },
-    config = function()
-        require("pyrepl").setup({
-            -- defaults (you can omit these):
-            split_horizontal = false,
-            split_ratio = 0.5,
-            style_treesitter = true,
-            image_max_history = 10,
-            image_width_ratio = 0.5,
-            image_height_ratio = 0.5,
-            -- built-in provider, works best for ghostty and kitty
-            -- for other terminals use "image" instead of "placeholders"
-            image_provider = "placeholders",
-            block_pattern = "^# %%%%.*$",
-            python_path = "python",
-            preferred_kernel = "python3",
-            jupytext_hook = true,
-        })
+  "dangooddd/pyrepl.nvim",
+  dependencies = { "nvim-treesitter/nvim-treesitter" },
+  config = function()
+    require("pyrepl").setup({
+      -- defaults (you can omit these):
+      split_horizontal = false,
+      split_ratio = 0.5,
+      style_treesitter = true,
+      image_max_history = 10,
+      image_width_ratio = 0.5,
+      image_height_ratio = 0.5,
+      -- built-in provider, works best for ghostty and kitty
+      -- for other terminals use "image" instead of "placeholders"
+      image_provider = "placeholders",
+      block_pattern = "^# %%%%.*$",
+      python_path = "python",
+      preferred_kernel = "python3",
+      jupytext_hook = true,
+    })
 
-        -- main commands
-        vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
-        vim.keymap.set("n", "<leader>jh", ":PyreplHide<CR>", { silent = true })
-        vim.keymap.set("n", "<leader>jc", ":PyreplClose<CR>", { silent = true })
-        vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
+    -- main commands
+    vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>jh", ":PyreplHide<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>jc", ":PyreplClose<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
 
-        -- send commands
-        vim.keymap.set("n", "<leader>jb", ":PyreplSendBlock<CR>", { silent = true })
-        vim.keymap.set("n", "<leader>jf", ":PyreplSendBuffer<CR>", { silent = true })
-        vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv<Esc>", { silent = true })
+    -- send commands
+    vim.keymap.set("n", "<leader>jb", ":PyreplSendBlock<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>jf", ":PyreplSendBuffer<CR>", { silent = true })
+    vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv<Esc>", { silent = true })
 
-        -- utility commands
-        vim.keymap.set("n", "<leader>jp", ":PyreplBlockBackward<CR>", { silent = true })
-        vim.keymap.set("n", "<leader>jn", ":PyreplBlockForward<CR>", { silent = true })
-        vim.keymap.set("n", "<leader>je", ":PyreplExport<CR>", { silent = true })
-        vim.keymap.set("n", "<leader>js", ":PyreplInstall")
-    end,
+    -- utility commands
+    vim.keymap.set("n", "<leader>jp", ":PyreplBlockBackward<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>jn", ":PyreplBlockForward<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>je", ":PyreplExport<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>js", ":PyreplInstall")
+  end,
 }
 ```
 
@@ -153,22 +153,22 @@ For example, to display images in terminal with `sixel` protocol support:
 
 ```lua
 {
-    "3rd/image.nvim",
-    config = function()
-        require("image").setup({
-            backend = "sixel",
-        })
-    end,
+  "3rd/image.nvim",
+  config = function()
+    require("image").setup({
+      backend = "sixel",
+    })
+  end,
 },
 
 {
-    "dangooddd/pyrepl.nvim",
-    dependencies = { "nvim-treesitter/nvim-treesitter" },
-    config = function()
-        require("pyrepl").setup({
-            image_provider = "image",
-        })
-    end,
+  "dangooddd/pyrepl.nvim",
+  dependencies = { "nvim-treesitter/nvim-treesitter" },
+  config = function()
+    require("pyrepl").setup({
+      image_provider = "image",
+    })
+  end,
 }
 ```
 
@@ -190,7 +190,7 @@ Then, in `init.lua`:
 
 ```lua
 require("pyrepl").setup({
-    python_path = "~/.venv_nvim/bin/python",
+  python_path = "~/.venv_nvim/bin/python",
 })
 ```
 
@@ -207,8 +207,8 @@ If you do not like the treesitter-based REPL colors, disable it and pick a built
 
 ```lua
 require("pyrepl").setup({
-    style_treesitter = false,
-    style = "default", -- or another Pygments style, e.g. "gruvbox-dark"
+  style_treesitter = false,
+  style = "default", -- or another Pygments style, e.g. "gruvbox-dark"
 })
 ```
 
@@ -218,8 +218,8 @@ Combine "send" and "block" commands:
 
 ```lua
 vim.keymap.set("n", "<leader>jb", function()
-    vim.cmd("PyreplSendBlock")
-    vim.cmd("PyreplBlockForward")
+  vim.cmd("PyreplSendBlock")
+  vim.cmd("PyreplBlockForward")
 end)
 ```
 
