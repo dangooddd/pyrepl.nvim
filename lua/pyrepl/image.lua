@@ -1,6 +1,5 @@
 local M = {}
 
-local provider = require("pyrepl.config").resolve_image_provider()
 local message = require("pyrepl.config").message
 
 local group = vim.api.nvim_create_augroup("PyreplImage", { clear = true })
@@ -12,6 +11,11 @@ local state = {
     buf = nil,
     win = nil,
 }
+
+--- Dynamically loads provider according to current config.
+local function provider()
+    return require("pyrepl.config").provider
+end
 
 --- Open float window to place image in.
 --- Placed in top-right angle in vertical layout.
@@ -100,7 +104,7 @@ local function setup_manager_autocmds(buf, win)
         pattern = tostring(win),
         callback = function()
             vim.schedule(function()
-                provider.redraw(buf, win)
+                provider().redraw(buf, win)
             end)
         end,
     })
@@ -203,7 +207,7 @@ local function render_image(img_data, focus, auto_clear)
     local opts = { title = title, title_pos = "center" }
     vim.api.nvim_win_set_config(state.win, opts)
 
-    provider.render(img_data, state.buf, state.win)
+    provider().render(img_data, state.buf, state.win)
     setup_manager_autocmds(state.buf, state.win)
     set_keymaps(state.buf)
 
@@ -255,13 +259,13 @@ end
 
 --- Closes image history window.
 function M.close_image()
-    if state.win and vim.api.nvim_win_is_valid(state.win) then
-        vim.api.nvim_win_close(state.win, true)
+    if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
+        provider().clear(state.buf)
+        vim.api.nvim_buf_delete(state.buf, { force = true })
     end
 
-    if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
-        provider.clear(state.buf)
-        vim.api.nvim_buf_delete(state.buf, { force = true })
+    if state.win and vim.api.nvim_win_is_valid(state.win) then
+        vim.api.nvim_win_close(state.win, true)
     end
 
     state.buf = nil

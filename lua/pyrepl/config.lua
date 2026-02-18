@@ -21,6 +21,7 @@ M.state = vim.deepcopy(defaults)
 
 -- should be used as prefix with error/notify messages
 M.message = "[pyrepl] "
+M.provider = require("pyrepl.providers." .. defaults.image_provider)
 
 ---@param num any
 ---@param min number
@@ -41,7 +42,7 @@ local function clip_number(num, min, max, fallback)
     return num
 end
 
-function M.resolve_image_provider()
+local function resolve_image_provider()
     local ok, provider = pcall(require, "pyrepl.providers." .. M.state.image_provider)
 
     if not ok then
@@ -66,6 +67,8 @@ function M.apply(opts)
         local key, min, max = args[1], args[2], args[3]
         M.state[key] = clip_number(M.state[key], min, max, defaults[key] --[[@as number]])
     end
+
+    M.provider = resolve_image_provider()
 end
 
 return M
