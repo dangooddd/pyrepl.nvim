@@ -12,11 +12,6 @@ local state = {
     win = nil,
 }
 
---- Dynamically loads provider according to current config.
-local function provider()
-    return require("pyrepl.config").provider
-end
-
 --- Open float window to place image in.
 --- Placed in top-right angle in vertical layout.
 --- Placed in bottom-right angle in horizontal layout.
@@ -69,11 +64,15 @@ local function open_image_win(buf)
     return win
 end
 
-local function setup_cursor_autocmds()
+local function clear_cursor_autocmds()
     vim.api.nvim_clear_autocmds({
         event = { "CursorMoved", "CursorMovedI" },
         group = group,
     })
+end
+
+local function setup_cursor_autocmds()
+    clear_cursor_autocmds()
 
     vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
         group = group,
@@ -104,7 +103,7 @@ local function setup_manager_autocmds(buf, win)
         pattern = tostring(win),
         callback = function()
             vim.schedule(function()
-                provider().redraw(buf, win)
+                require("pyrepl.config").get_provider().redraw(buf, win)
             end)
         end,
     })
@@ -156,19 +155,19 @@ local function set_keymaps(buf)
     local opts = { noremap = true, silent = true, nowait = true, buffer = buf }
 
     vim.keymap.set("n", "j", function()
-        M.show_previous_image(true, false)
+        M.show_previous_image(true)
     end, opts)
 
     vim.keymap.set("n", "h", function()
-        M.show_previous_image(true, false)
+        M.show_previous_image(true)
     end, opts)
 
     vim.keymap.set("n", "k", function()
-        M.show_next_image(true, false)
+        M.show_next_image(true)
     end, opts)
 
     vim.keymap.set("n", "l", function()
-        M.show_next_image(true, false)
+        M.show_next_image(true)
     end, opts)
 
     vim.keymap.set("n", "dd", function()
@@ -192,30 +191,29 @@ end
 --- Render an image entry into a floating window.
 ---@param img_data string
 ---@param focus boolean
----@param auto_clear boolean
-local function render_image(img_data, focus, auto_clear)
-    if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
-        vim.api.nvim_buf_delete(state.buf, { force = true })
+local function render_image(img_data, focus)
+    if not (state.buf and vim.api.nvim_buf_is_valid(state.buf)) then
+        state.buf = vim.api.nvim_create_buf(false, true)
     end
-    state.buf = vim.api.nvim_create_buf(false, true)
 
-    if not state.win or not vim.api.nvim_win_is_valid(state.win) then
+    if not (state.win and vim.api.nvim_win_is_valid(state.win)) then
         state.win = open_image_win(state.buf)
+    else
+        vim.api.nvim_win_set_buf(state.win, state.buf)
     end
 
     local title = string.format(" History %d/%d ", state.history_index, #state.history)
     local opts = { title = title, title_pos = "center" }
     vim.api.nvim_win_set_config(state.win, opts)
 
-    provider().render(img_data, state.buf, state.win)
+    require("pyrepl.config").get_provider().render(img_data, state.buf, state.win)
     setup_manager_autocmds(state.buf, state.win)
     set_keymaps(state.buf)
 
     if focus then
+        clear_cursor_autocmds()
         vim.api.nvim_set_current_win(state.win)
-    end
-
-    if auto_clear then
+    else
         setup_cursor_autocmds()
     end
 end
@@ -223,19 +221,16 @@ end
 --- Show a specific image from history.
 ---@param index? integer last image by default
 ---@param focus? boolean true by default
----@param auto_clear? boolean false by default
-function M.open_images(index, focus, auto_clear)
+function M.open_images(index, focus)
+    index = index or #state.history
+
     if #state.history == 0 then
         vim.notify(message .. "no image history available", vim.log.levels.WARN)
         return
     end
 
-    index = index or #state.history
     if focus == nil then
         focus = true
-    end
-    if auto_clear == nil then
-        auto_clear = false
     end
 
     if index < 1 or index > #state.history then
@@ -244,7 +239,7 @@ function M.open_images(index, focus, auto_clear)
 
     local img_data = state.history[index]
     state.history_index = index
-    render_image(img_data, focus, auto_clear)
+    render_image(img_data, focus)
 end
 
 --- Store base64 PNG data and display it.
@@ -254,17 +249,21 @@ function M.console_endpoint(img_data)
         error(message .. "image data missing or invalid", 0)
     end
     push_history(img_data)
-    M.open_images(#state.history, false, true)
+    M.open_images(#state.history, false)
 end
 
 --- Closes image history window.
 function M.close_image()
+    clear_cursor_autocmds()
+
     if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
-        provider().clear(state.buf)
+        require("pyrepl.config").get_provider().clear(state.buf)
+        vim.api.nvim_clear_autocmds({ group = group, buffer = state.buf })
         vim.api.nvim_buf_delete(state.buf, { force = true })
     end
 
     if state.win and vim.api.nvim_win_is_valid(state.win) then
+        vim.api.nvim_clear_autocmds({ group = group, pattern = tostring(state.win) })
         vim.api.nvim_win_close(state.win, true)
     end
 
@@ -273,22 +272,20 @@ function M.close_image()
 end
 
 ---@param focus? boolean default like in open_images
----@param auto_clear? boolean default like in open_images
-function M.show_previous_image(focus, auto_clear)
+function M.show_previous_image(focus)
     if state.history_index <= 1 then
         state.history_index = 1
     else
-        M.open_images(state.history_index - 1, focus, auto_clear)
+        M.open_images(state.history_index - 1, focus)
     end
 end
 
 ---@param focus? boolean default like in open_images
----@param auto_clear? boolean default like in open_images
-function M.show_next_image(focus, auto_clear)
+function M.show_next_image(focus)
     if state.history_index >= #state.history then
         state.history_index = #state.history
     else
-        M.open_images(state.history_index + 1, focus, auto_clear)
+        M.open_images(state.history_index + 1, focus)
     end
 end
 

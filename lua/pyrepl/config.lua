@@ -16,12 +16,13 @@ local defaults = {
     jupytext_hook = true,
 }
 
+local provider_cache
+
 ---@type pyrepl.Config
 M.state = vim.deepcopy(defaults)
 
 -- should be used as prefix with error/notify messages
 M.message = "[pyrepl] "
-M.provider = require("pyrepl.providers." .. defaults.image_provider)
 
 ---@param num any
 ---@param min number
@@ -42,14 +43,18 @@ local function clip_number(num, min, max, fallback)
     return num
 end
 
-local function resolve_image_provider()
-    local ok, provider = pcall(require, "pyrepl.providers." .. M.state.image_provider)
+function M.get_provider()
+    if not provider_cache then
+        local ok, provider = pcall(require, "pyrepl.providers." .. M.state.image_provider)
 
-    if not ok then
-        provider = require("pyrepl.providers.placeholders")
+        if ok then
+            provider_cache = provider
+        else
+            provider_cache = require("pyrepl.providers." .. defaults.image_provider)
+        end
     end
 
-    return provider
+    return provider_cache
 end
 
 ---@param opts? pyrepl.ConfigOpts
@@ -68,7 +73,8 @@ function M.apply(opts)
         M.state[key] = clip_number(M.state[key], min, max, defaults[key] --[[@as number]])
     end
 
-    M.provider = resolve_image_provider()
+    -- reload image provider after config update
+    provider_cache = nil
 end
 
 return M
