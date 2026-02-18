@@ -93,54 +93,6 @@ What features `pyrepl.nvim` currently provides:
 - Automatically display output images and save them to image history;
 - Neovim theme integration for `jupyter-console`.
 
-## Known Limitations
-
-- Only Python is officially supported and will be prioritized. For R, see https://github.com/R-nvim/R.nvim;
-- Persistence in kernel outputs is not possible right now. Implementing cell logic like `molten.nvim` will complicate current approach;
-
-## How It Works
-
-This plugin opens `jupyter-console` in a terminal buffer. Then, you can send commands in this console using the provided commands.
-
-Images are handled from `jupyter-console`: pyrepl defines custom `image_handler` function in python, so images are forwarded to Neovim.
-
-Jupytext integration converts notebook buffers from and to `py:percent` format.
-
-## Commands and API
-
-Commands:
-
-- `:PyreplOpen` - select a kernel and open the REPL;
-- `:PyreplHide` - hide the REPL window (kernel stays alive);
-- `:PyreplClose` - close the REPL and shut down the kernel;
-- `:PyreplSendVisual` - send the last visual selection;
-- `:PyreplSendBuffer` - send the entire buffer;
-- `:PyreplSendBlock` - send the "block" around the cursor (by default blocks are separated by lines matching `# %% ...`; configure via `block_pattern`);
-- `:PyreplBlockForward` - move cursor to the start of the next block separated by `block_pattern`;
-- `:PyreplBlockBackward` - move cursor to the start of the previous block separated by `block_pattern`;
-- `:PyreplOpenImages` - open the image manager (history of recent images). Use `j`/`h` for previous, `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close;
-- `:PyreplExport` - export current buffer using `jupytext` (should be installed);
-- `:PyreplConvert` - prompt to convert current notebook buffer using `jupytext` (should be installed);
-- `:PyreplInstall {tool}` - install pyrepl runtime packages into the configured Python (`tool`: `pip` or `uv`).
-
-Lua API:
-
-```lua
-require("pyrepl").setup(opts)
-require("pyrepl").open_repl()
-require("pyrepl").hide_repl()
-require("pyrepl").close_repl()
-require("pyrepl").send_visual()
-require("pyrepl").send_buffer()
-require("pyrepl").send_block()
-require("pyrepl").block_forward()
-require("pyrepl").block_backward()
-require("pyrepl").open_images()
-require("pyrepl").export_notebook()
-require("pyrepl").convert_notebook_guarded()
-require("pyrepl").install_packages(tool)
-```
-
 ## Tips & Tricks
 
 ### Image display
@@ -221,6 +173,54 @@ vim.keymap.set("n", "<leader>jb", function()
   vim.cmd("PyreplSendBlock")
   vim.cmd("PyreplBlockForward")
 end)
+```
+
+## Known Limitations
+
+- Only Python is officially supported and will be prioritized. For R, see https://github.com/R-nvim/R.nvim;
+- Persistence in kernel outputs is not possible right now. Implementing cell logic like `molten.nvim` will complicate current approach.
+
+## How It Works
+
+This plugin opens `jupyter-console` in a terminal buffer. Then, you can send commands in this console using the provided commands.
+
+Images are handled from `jupyter-console`: pyrepl defines custom `image_handler` function in python, so images are forwarded to Neovim.
+
+Jupytext integration converts notebook buffers from and to `py:percent` format.
+
+## Commands and API
+
+Commands:
+
+- `:PyreplOpen` - select a kernel and open the REPL;
+- `:PyreplHide` - hide the REPL window (kernel stays alive);
+- `:PyreplClose` - close the REPL and shut down the kernel;
+- `:PyreplSendVisual` - send the last visual selection;
+- `:PyreplSendBuffer` - send the entire buffer;
+- `:PyreplSendBlock` - send the "block" around the cursor (by default blocks are separated by lines matching `# %% ...`; configure via `block_pattern`);
+- `:PyreplBlockForward` - move cursor to the start of the next block separated by `block_pattern`;
+- `:PyreplBlockBackward` - move cursor to the start of the previous block separated by `block_pattern`;
+- `:PyreplOpenImages` - open the image manager (history of recent images). Use `j`/`h` for previous, `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close;
+- `:PyreplExport` - export current buffer using `jupytext` (should be installed);
+- `:PyreplConvert` - prompt to convert current notebook buffer using `jupytext` (should be installed);
+- `:PyreplInstall {tool}` - install pyrepl runtime packages into the configured Python (`tool`: `pip` or `uv`).
+
+Lua API:
+
+```lua
+require("pyrepl").setup(opts)
+require("pyrepl").open_repl()
+require("pyrepl").hide_repl()
+require("pyrepl").close_repl()
+require("pyrepl").send_visual()
+require("pyrepl").send_buffer()
+require("pyrepl").send_block()
+require("pyrepl").block_forward()
+require("pyrepl").block_backward()
+require("pyrepl").open_images()
+require("pyrepl").export_notebook()
+require("pyrepl").convert_notebook_guarded()
+require("pyrepl").install_packages(tool)
 ```
 
 ## Thanks
