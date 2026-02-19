@@ -60,20 +60,14 @@ local diac = {
 ---@type (integer|nil)[]
 local state = {}
 
----@class placeholders.Geometry
----@field x? integer
----@field y? integer
----@field rows? integer
----@field cols? integer
-
---- Wrap an escape sequence so tmux passes it through to the terminal.
+---Wrap an escape sequence so tmux passes it through to the terminal.
 ---@param sequence string
 ---@return string
 local function wrap_tmux(sequence)
     return esc .. "Ptmux;" .. sequence:gsub(esc, esc .. esc) .. esc .. "\\"
 end
 
---- Detect tmux by sending DA1.
+---Detect tmux by sending DA1.
 ---@param timeout_ms integer
 ---@return boolean
 local function detect_tmux(timeout_ms)
@@ -121,7 +115,7 @@ local function is_tmux()
     return tmux_detected
 end
 
---- Send a kitty graphics APC sequence to stderr.
+---Send a kitty graphics APC sequence to stderr.
 ---@param body string
 local function send_apc(body)
     local sequence = esc .. "_G" .. body .. esc .. "\\"
@@ -131,7 +125,7 @@ local function send_apc(body)
     vim.api.nvim_chan_send(vim.v.stderr, sequence)
 end
 
---- Upload base64 PNG data to the terminal image store.
+---Upload base64 PNG data to the terminal image store.
 ---@param img_id integer
 ---@param img_data string
 local function upload_image(img_id, img_data)
@@ -145,7 +139,7 @@ local function delete_image(img_id)
     used_ids[img_id] = false
 end
 
---- Place an uploaded image into a cell region.
+---Place an uploaded image into a cell region.
 ---@param img_id integer
 ---@param cols integer
 ---@param rows integer
@@ -165,7 +159,13 @@ local function get_image_id()
     return next_id
 end
 
---- Draw image in buffer with given geometry.
+---@class placeholders.Geometry
+---@field x? integer
+---@field y? integer
+---@field rows? integer
+---@field cols? integer
+
+---Draw image in buffer with given geometry.
 ---@param buf integer
 ---@param img_id integer
 ---@param geometry placeholders.Geometry
@@ -209,7 +209,7 @@ local function draw(buf, img_id, geometry)
     end, 25)
 end
 
---- Redraw previously drawed in buffer image.
+---Redraw previously drawed in buffer image.
 ---@param buf integer
 ---@param win integer
 function M.redraw(buf, win)
@@ -226,7 +226,7 @@ function M.redraw(buf, win)
     end
 end
 
---- Render a placeholder grid that the terminal replaces with the image.
+---Render a placeholder grid that the terminal replaces with the image.
 ---@param img_data string
 ---@param buf integer
 ---@param win integer
@@ -236,7 +236,7 @@ function M.render(img_data, buf, win)
     M.redraw(buf, win)
 end
 
---- Delete placeholders image, clear hl groups.
+---Delete placeholders image, clear hl groups.
 ---@param buf integer
 function M.clear(buf)
     if state[buf] then

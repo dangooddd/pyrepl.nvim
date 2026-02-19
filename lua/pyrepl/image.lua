@@ -12,9 +12,9 @@ local state = {
     win = nil,
 }
 
---- Open float window to place image in.
---- Placed in top-right angle in vertical layout.
---- Placed in bottom-right angle in horizontal layout.
+---Open float window to place image in.
+---Placed in top-right angle in vertical layout.
+---Placed in bottom-right angle in horizontal layout.
 ---@param buf integer
 ---@return integer
 local function open_image_win(buf)
@@ -127,7 +127,7 @@ local function setup_manager_autocmds(buf, win)
     })
 end
 
---- Add an image to history.
+---Add an image to history.
 ---@param img_data string
 local function push_history(img_data)
     if #state.history >= require("pyrepl.config").state.image_max_history then
@@ -137,7 +137,7 @@ local function push_history(img_data)
     state.history_index = #state.history
 end
 
---- Pop image entry from history.
+---Pop image entry from history.
 local function pop_history()
     if state.history_index > 0 and #state.history >= state.history_index then
         table.remove(state.history, state.history_index)
@@ -145,11 +145,6 @@ local function pop_history()
     end
 end
 
---- Sets keymap in history manager:
---- j/h - show previous image;
---- k/l - show next image;
---- dd - delete image;
---- Esc/q - exit manager.
 ---@param buf integer
 local function set_keymaps(buf)
     local opts = { noremap = true, silent = true, nowait = true, buffer = buf }
@@ -188,7 +183,7 @@ local function set_keymaps(buf)
     end, opts)
 end
 
---- Render an image entry into a floating window.
+---Render an image entry into a floating window.
 ---@param img_data string
 ---@param focus boolean
 local function render_image(img_data, focus)
@@ -218,7 +213,7 @@ local function render_image(img_data, focus)
     end
 end
 
---- Show a specific image from history.
+---Show a specific image from history.
 ---@param index? integer last image by default
 ---@param focus? boolean true by default
 function M.open_images(index, focus)
@@ -242,7 +237,7 @@ function M.open_images(index, focus)
     render_image(img_data, focus)
 end
 
---- Store base64 PNG data and display it.
+---Store base64 PNG data and display it.
 ---@param img_data string
 function M.console_endpoint(img_data)
     if type(img_data) ~= "string" or img_data == "" then
@@ -252,7 +247,7 @@ function M.console_endpoint(img_data)
     M.open_images(#state.history, false)
 end
 
---- Closes image history window.
+---Closes image history window.
 function M.close_image()
     clear_cursor_autocmds()
 
@@ -271,7 +266,7 @@ function M.close_image()
     state.win = nil
 end
 
----@param focus? boolean default like in open_images
+---@param focus? boolean
 function M.show_previous_image(focus)
     if state.history_index <= 1 then
         state.history_index = 1
@@ -280,7 +275,7 @@ function M.show_previous_image(focus)
     end
 end
 
----@param focus? boolean default like in open_images
+---@param focus? boolean
 function M.show_next_image(focus)
     if state.history_index >= #state.history then
         state.history_index = #state.history

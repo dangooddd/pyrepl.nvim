@@ -9,10 +9,10 @@ local tools = {
     pip = "%s -m pip install",
 }
 
---- Resolve python path from candidates:
---- 1) config.python_path;
---- 2) vim.g.python3_host_prog;
---- 3) "python".
+---Resolve python path from candidates:
+---1) config.python_path;
+---2) vim.g.python3_host_prog;
+---3) "python".
 ---@return string
 function M.get_python_path()
     if python_path_cache then
@@ -51,7 +51,7 @@ function M.get_console_path()
     error(message .. "console script not found", 0)
 end
 
---- List of available jupyter kernels.
+---List of available jupyter kernels.
 ---@return { name: string, resource_dir: string }[]
 local function list_kernels()
     local python_path = M.get_python_path()
@@ -93,7 +93,7 @@ local function list_kernels()
     return kernels
 end
 
---- Prompt user to choose kernel and call callback with that choice.
+---Prompt user to choose kernel and call callback with that choice.
 ---@param callback fun(kernel: string)
 function M.prompt_kernel(callback)
     local kernels = list_kernels()
@@ -113,7 +113,7 @@ function M.prompt_kernel(callback)
     end)
 end
 
---- Feed command to install required packages in command line.
+---Feed command to install required packages in command line.
 ---@param tool string
 function M.install_packages(tool)
     if not tools[tool] then
@@ -132,7 +132,7 @@ function M.install_packages(tool)
     vim.api.nvim_feedkeys(":!" .. cmd, "n", true)
 end
 
---- Get available tool list (completion function for install_packages).
+---Get available tool list (completion function for install_packages).
 ---@return string[]
 function M.get_tools()
     local tool_list = {}

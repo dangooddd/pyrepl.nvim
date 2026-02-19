@@ -9,7 +9,7 @@ local theme = require("pyrepl.theme")
 local message = require("pyrepl.config").message
 local group = vim.api.nvim_create_augroup("PyreplCore", { clear = true })
 
---- Create window according to current config.
+---Create window according to current config.
 ---@return integer
 local function open_scratch_win()
     local config = require("pyrepl.config").state
@@ -62,7 +62,7 @@ local function setup_win_autocmds(win)
     })
 end
 
---- Scrolls REPL window to the end, so latest cell in focus.
+---Scrolls REPL window to the end, so latest cell in focus.
 function M.scroll_repl()
     if M.state and M.state.win and vim.api.nvim_win_is_valid(M.state.win) then
         vim.api.nvim_win_call(M.state.win, function()
@@ -71,7 +71,7 @@ function M.scroll_repl()
     end
 end
 
---- Open window, if session is active but win = nil.
+---Open window, if session is active but win = nil.
 local function open_hidden_repl()
     if not M.state or (M.state.win and vim.api.nvim_win_is_valid(M.state.win)) then
         return
@@ -85,8 +85,8 @@ local function open_hidden_repl()
     M.scroll_repl()
 end
 
---- Main session initialization function.
---- Opens REPL process and window.
+---Main session initialization function.
+---Opens REPL process and window.
 ---@param kernel string
 local function open_new_repl(kernel)
     if M.state then
@@ -156,7 +156,7 @@ local function open_new_repl(kernel)
     M.scroll_repl()
 end
 
---- Toggle REPL terminal focus; opens terminal in insert mode.
+---Toggle REPL terminal focus; opens terminal in insert mode.
 function M.toggle_repl_focus()
     open_hidden_repl()
 
@@ -173,7 +173,7 @@ function M.toggle_repl_focus()
     end
 end
 
---- Open hidden REPL or initialize new from prompted kernel.
+---Open hidden REPL or initialize new from prompted kernel.
 function M.open_repl()
     if M.state then
         open_hidden_repl()
@@ -184,7 +184,7 @@ function M.open_repl()
     end
 end
 
---- Close REPL window.
+---Close REPL window.
 function M.hide_repl()
     if M.state and M.state.win and vim.api.nvim_win_is_valid(M.state.win) then
         pcall(vim.api.nvim_win_close, M.state.win, true)
@@ -192,11 +192,11 @@ function M.hide_repl()
     end
 end
 
---- Close session completely:
---- 1) Close window;
---- 2) Terminate console process;
---- 3) Delete terminal buffer;
---- 4) Move state to nil.
+---Close session completely:
+---1) Close window;
+---2) Terminate console process;
+---3) Delete terminal buffer;
+---4) Move state to nil.
 function M.close_repl()
     if M.state then
         M.hide_repl()

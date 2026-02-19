@@ -9,6 +9,8 @@ local api = require("image")
 ---@type (image.ImageEntry|nil)[]
 local state = {}
 
+---@param buf integer
+---@param win integer
 function M.redraw(buf, win)
     if state[buf] then
         local height = vim.api.nvim_win_get_height(win)
@@ -27,6 +29,9 @@ function M.redraw(buf, win)
     end
 end
 
+---@param img_data string
+---@param buf integer
+---@param win integer
 function M.render(img_data, buf, win)
     M.clear(buf)
     local decoded = vim.base64.decode(img_data)
@@ -47,6 +52,7 @@ function M.render(img_data, buf, win)
     M.redraw(buf, win)
 end
 
+---@param buf integer
 function M.clear(buf)
     if state[buf] then
         state[buf].image:clear()

@@ -15,7 +15,7 @@ local compound_top_level_nodes = {
     with_statement = true,
 }
 
---- Normalize pasted Python so multi-block code executes correctly.
+---Normalize pasted Python so multi-block code executes correctly.
 ---@param msg string
 ---@return string
 local function normalize_python_message(msg)
@@ -60,12 +60,12 @@ local function normalize_python_message(msg)
         return (line and line:match("^%s*$")) ~= nil
     end
 
-    ---@param last_row0 integer
-    ---@param next_start0 integer
+    ---@param last_row integer
+    ---@param next_start integer
     ---@return boolean
-    local function has_blank_line_between(last_row0, next_start0)
-        for row0 = last_row0 + 1, next_start0 - 1 do
-            local line = lines[row0 + 1]
+    local function has_blank_line_between(last_row, next_start)
+        for row = last_row + 1, next_start - 1 do
+            local line = lines[row + 1]
             if is_blank_line(line) then
                 return true
             end
@@ -79,12 +79,12 @@ local function normalize_python_message(msg)
         if compound_top_level_nodes[node:type()] then
             has_compound = true
 
-            local last_row0 = node_last_row(node)
+            local last_row = node_last_row(node)
             local next_node = top_nodes[idx + 1]
-            local next_start0 = next_node and select(1, next_node:range()) or #lines
+            local next_start = next_node and select(1, next_node:range()) or #lines
 
-            if next_start0 > last_row0 and not has_blank_line_between(last_row0, next_start0) then
-                insert_after[last_row0 + 1] = true
+            if next_start > last_row and not has_blank_line_between(last_row, next_start) then
+                insert_after[last_row + 1] = true
             end
         end
     end
@@ -108,7 +108,7 @@ local function normalize_python_message(msg)
     return table.concat(out, "\n")
 end
 
---- Send code to the REPL using bracketed paste.
+---Send code to the REPL using bracketed paste.
 ---@param chan integer
 ---@param message string
 local function raw_send_message(chan, message)
