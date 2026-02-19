@@ -20,6 +20,10 @@ function M.close_repl()
     core.close_repl()
 end
 
+function M.toggle_repl_focus()
+    core.toggle_repl_focus()
+end
+
 function M.open_images()
     image.open_images()
 end
@@ -39,8 +43,17 @@ end
 
 function M.send_visual()
     if core.state and core.state.chan then
-        send.send_visual(0, core.state.chan)
-        core.scroll_repl()
+        -- update visual selection marks
+        vim.api.nvim_feedkeys(
+            vim.api.nvim_replace_termcodes("<Esc>", true, false, true),
+            "n",
+            false
+        )
+        -- schedule to ensure marks are updated
+        vim.schedule(function()
+            send.send_visual(0, core.state.chan)
+            core.scroll_repl()
+        end)
     end
 end
 
@@ -62,10 +75,9 @@ end
 function M.block_forward()
     local idx = vim.api.nvim_win_get_cursor(0)[1]
     local _, end_idx = send.get_block_range(0, idx, require("pyrepl.config").state.block_pattern)
-    if end_idx <= 0 then
-        return
+    if end_idx then
+        vim.cmd.normal({ tostring(end_idx + 1) .. "gg^", bang = true })
     end
-    vim.cmd.normal({ tostring(end_idx + 1) .. "gg^", bang = true })
 end
 
 function M.block_backward()
@@ -77,7 +89,10 @@ function M.block_backward()
     end
 
     local start_idx, _ = send.get_block_range(0, idx, require("pyrepl.config").state.block_pattern)
-    vim.cmd.normal({ tostring(math.max(0, start_idx - 1)) .. "gg^", bang = true })
+
+    if start_idx then
+        vim.cmd.normal({ tostring(math.max(0, start_idx - 1)) .. "gg^", bang = true })
+    end
 end
 
 ---@param opts? pyrepl.ConfigOpts
@@ -89,6 +104,7 @@ function M.setup(opts)
         PyreplOpen = M.open_repl,
         PyreplHide = M.hide_repl,
         PyreplClose = M.close_repl,
+        PyreplFocus = M.toggle_repl_focus,
         PyreplSendVisual = M.send_visual,
         PyreplSendBuffer = M.send_buffer,
         PyreplSendBlock = M.send_block,

@@ -122,14 +122,14 @@ local function raw_send_message(chan, message)
 end
 
 ---@param buf integer
----@return integer
----@return integer
+---@return integer|nil
+---@return integer|nil
 function M.get_visual_range(buf)
     local start_pos = vim.api.nvim_buf_get_mark(buf, "<")
     local end_pos = vim.api.nvim_buf_get_mark(buf, ">")
 
     if (start_pos[1] == 0 and start_pos[2] == 0) or (end_pos[1] == 0 and end_pos[2] == 0) then
-        return -1, -1
+        return nil, nil
     end
 
     local start_idx, end_idx = start_pos[1], end_pos[1]
@@ -143,12 +143,12 @@ end
 ---@param buf integer
 ---@param idx integer
 ---@param block_pattern string
----@return integer
----@return integer
+---@return integer|nil
+---@return integer|nil
 function M.get_block_range(buf, idx, block_pattern)
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     if #lines == 0 then
-        return -1, -1
+        return nil, nil
     end
 
     -- block start
@@ -170,7 +170,7 @@ function M.get_block_range(buf, idx, block_pattern)
     end
 
     if start_idx > end_idx then
-        return -1, -1
+        return nil, nil
     end
     return start_idx, end_idx
 end
@@ -187,9 +187,12 @@ end
 ---@param chan integer
 function M.send_visual(buf, chan)
     local start_idx, end_idx = M.get_visual_range(buf)
-    local lines = vim.api.nvim_buf_get_lines(buf, start_idx - 1, end_idx, false)
-    local msg = table.concat(lines, "\n")
-    raw_send_message(chan, msg)
+
+    if start_idx and end_idx then
+        local lines = vim.api.nvim_buf_get_lines(buf, start_idx - 1, end_idx, false)
+        local msg = table.concat(lines, "\n")
+        raw_send_message(chan, msg)
+    end
 end
 
 ---@param buf integer
@@ -198,9 +201,12 @@ end
 ---@param block_pattern string
 function M.send_block(buf, chan, idx, block_pattern)
     local start_idx, end_idx = M.get_block_range(buf, idx, block_pattern)
-    local lines = vim.api.nvim_buf_get_lines(buf, start_idx - 1, end_idx, false)
-    local msg = table.concat(lines, "\n")
-    raw_send_message(chan, msg)
+
+    if start_idx and end_idx then
+        local lines = vim.api.nvim_buf_get_lines(buf, start_idx - 1, end_idx, false)
+        local msg = table.concat(lines, "\n")
+        raw_send_message(chan, msg)
+    end
 end
 
 return M

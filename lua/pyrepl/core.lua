@@ -152,6 +152,23 @@ local function open_new_repl(kernel)
     M.scroll_repl()
 end
 
+--- Toggle REPL terminal focus. Opens terminal in insert mode.
+function M.toggle_repl_focus()
+    open_hidden_repl()
+
+    if not (M.state and M.state.win and vim.api.nvim_win_is_valid(M.state.win)) then
+        return
+    end
+
+    if vim.api.nvim_get_current_win() == M.state.win then
+        vim.cmd.stopinsert()
+        vim.cmd.wincmd("p")
+    else
+        vim.api.nvim_set_current_win(M.state.win)
+        vim.cmd.startinsert()
+    end
+end
+
 --- Open hidden REPL or initialize new from prompted kernel.
 function M.open_repl()
     if M.state then
