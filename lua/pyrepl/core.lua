@@ -130,7 +130,11 @@ local function open_new_repl(kernel)
     local chan = vim.fn.jobstart(cmd, {
         term = true,
         pty = true,
-        env = vim.tbl_extend("force", vim.env, { NVIM = nvim_socket }),
+        env = vim.tbl_extend(
+            "force",
+            vim.env,
+            { NVIM = nvim_socket, PYDEVD_DISABLE_FILE_VALIDATION = 1 }
+        ),
         on_exit = function()
             M.close_repl()
         end,
@@ -152,7 +156,7 @@ local function open_new_repl(kernel)
     M.scroll_repl()
 end
 
---- Toggle REPL terminal focus. Opens terminal in insert mode.
+--- Toggle REPL terminal focus; opens terminal in insert mode.
 function M.toggle_repl_focus()
     open_hidden_repl()
 
