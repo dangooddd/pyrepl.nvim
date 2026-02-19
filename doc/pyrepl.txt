@@ -34,17 +34,19 @@ Minimal lazy.nvim setup with the default config and example keymaps:
     "dangooddd/pyrepl.nvim",
     dependencies = { "nvim-treesitter/nvim-treesitter" },
     config = function()
-      require("pyrepl").setup({
-        -- defaults (you can omit these):
+      local pyrepl = require("pyrepl")
+
+      -- default config
+      pyrepl.setup({
         split_horizontal = false,
         split_ratio = 0.5,
         style_treesitter = true,
         image_max_history = 10,
         image_width_ratio = 0.5,
         image_height_ratio = 0.5,
-	-- built-in provider, works best for ghostty and kitty
-	-- for other terminals use "image" instead of "placeholders"
-	image_provider = "placeholders",
+        -- built-in provider, works best for ghostty and kitty
+        -- for other terminals use "image" instead of "placeholders"
+        image_provider = "placeholders",
         block_pattern = "^# %%%%.*$",
         python_path = "python",
         preferred_kernel = "python3",
@@ -52,20 +54,21 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       })
 
       -- main commands
-      vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
-      vim.keymap.set("n", "<leader>jh", ":PyreplHide<CR>", { silent = true })
-      vim.keymap.set("n", "<leader>jc", ":PyreplClose<CR>", { silent = true })
-      vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
+      vim.keymap.set("n", "<leader>jo", pyrepl.open_repl)
+      vim.keymap.set("n", "<leader>jh", pyrepl.hide_repl)
+      vim.keymap.set("n", "<leader>jc", pyrepl.close_repl)
+      vim.keymap.set({ "n", "t" }, "<C-j>", pyrepl.toggle_repl_focus)
+      vim.keymap.set("n", "<leader>ji", pyrepl.open_images)
 
       -- send commands
-      vim.keymap.set("n", "<leader>jb", ":PyreplSendBlock<CR>", { silent = true })
-      vim.keymap.set("n", "<leader>jf", ":PyreplSendBuffer<CR>", { silent = true })
-      vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv<Esc>", { silent = true })
+      vim.keymap.set("n", "<leader>jf", pyrepl.send_buffer)
+      vim.keymap.set("n", "<leader>jb", pyrepl.send_block)
+      vim.keymap.set("v", "<leader>jv", pyrepl.send_visual)
 
       -- utility commands
-      vim.keymap.set("n", "<leader>jp", ":PyreplBlockBackward<CR>", { silent = true })
-      vim.keymap.set("n", "<leader>jn", ":PyreplBlockForward<CR>", { silent = true })
-      vim.keymap.set("n", "<leader>je", ":PyreplExport<CR>", { silent = true })
+      vim.keymap.set("n", "<leader>jp", pyrepl.block_backward)
+      vim.keymap.set("n", "<leader>jn", pyrepl.block_forward)
+      vim.keymap.set("n", "<leader>je", pyrepl.export_notebook)
       vim.keymap.set("n", "<leader>js", ":PyreplInstall")
     end,
   }
@@ -121,12 +124,15 @@ COMMANDS                                                        *pyrepl-commands
 :PyreplClose                                                    *PyreplClose*
     Close the REPL and shut down the kernel.
 
+:PyreplFocus                                                    *PyreplFocus*
+    Toggle open REPL terminal in insert mode.
+
 :PyreplSendVisual                                               *PyreplSendVisual*
-    Send the last visual selection to the REPL.
+    Change mode to normal and send last visual selection to REPL.
 
 :PyreplSendBlock                                                *PyreplSendBlock*
-    Send the "block" around the cursor (by default blocks are separated by lines
-    matching `# %% ...`; configure via `block_pattern`).
+    Send the "block" around the cursor (by default blocks are separated
+    by lines matching `# %% ...`; configure via `block_pattern`).
 
 :PyreplBlockForward                                             *PyreplBlockForward*
     Move cursor to the start of the next block separated by `block_pattern`.
@@ -151,8 +157,8 @@ COMMANDS                                                        *pyrepl-commands
 :PyreplInstall {tool}                                           *PyreplInstall*
     Install pyrepl runtime packages into the configured Python interpreter.
     Supported tools:
-      - pip: `<python_path> -m pip install jupyter-console pynvim`
-      - uv:  `uv pip install -p <python_path> jupyter-console pynvim`
+      - pip: `<python_path> -m pip install <packages>`
+      - uv:  `uv pip install -p <python_path> <packages>`
 
 
 ==============================================================================
@@ -171,6 +177,9 @@ require("pyrepl").hide_repl()                                   *pyrepl.hide_rep
 require("pyrepl").close_repl()                                  *pyrepl.close_repl*
     Same as |PyreplClose|. Closes the REPL and shuts down the kernel.
 
+require("pyrepl").toggle_repl_focus()                           *pyrepl.toggle_repl_focus*
+    Same as |PyreplFocus|. Toggle open REPL terminal in insert mode.
+
 require("pyrepl").send_block()                                  *pyrepl.send_block*
     Same as |PyreplSendBlock|. Sends the block around the cursor.
 
@@ -181,8 +190,8 @@ require("pyrepl").block_backward()                              *pyrepl.block_ba
     Same as |PyreplBlockBackward|. Jumps to the previous block.
 
 require("pyrepl").send_visual()                                 *pyrepl.send_visual*
-    Same as |PyreplSendVisual|. Uses the '< and '> marks, so it maps nicely as
-    `:<C-u>PyreplSendVisual<CR>gv` (`gv` to place cursor at visual range end).
+    Same as |PyreplSendVisual|. Changes mode to normal and sends last visual
+    selection to REPL.
 
 require("pyrepl").send_buffer()                                 *pyrepl.send_buffer*
     Same as |PyreplSendBuffer|. Sends the entire buffer.
@@ -283,7 +292,7 @@ For example, to display images in terminal with `sixel` protocol support:
 
   {
     "dangooddd/pyrepl.nvim",
-    dependencies = { "nvim-treesitter/nvim-treesitter" },
+    dependencies = { "nvim-treesitter/nvim-treesitter", "3rd/image.nvim" },
     config = function()
       require("pyrepl").setup({
         image_provider = "image",
@@ -292,14 +301,14 @@ For example, to display images in terminal with `sixel` protocol support:
   }
 <
 
-Use a dedicated Python environment ~
+Use a dedicated Python environment for runtime packages ~
 
-- By default pyrepl.nvim uses `python` (`python_path = "python"`). If Neovim is
-  started inside a venv, that venv is usually used.
+- By default pyrepl.nvim uses `python` (`python_path = "python"`).
+  If Neovim is started inside a venv, that venv is usually used.
 - For one dedicated interpreter, set `python_path` directly (or set
   `python_path = nil` to use `vim.g.python3_host_prog`).
 
-Example dedicated interpreter workflow:
+Example:
 >
   uv venv ~/.venv_nvim
   source ~/.venv_nvim/bin/activate
@@ -311,13 +320,13 @@ Example dedicated interpreter workflow:
   })
 <
 
-If to use this workflow you need to install kernels globally:
+To use kernel in that case, you need to install it globally:
 >
   # from kernel virtual environment
   python -m ipykernel install --user --name {kernel_name}
 <
 
-Use a built-in Pygments style instead ~
+Use a built-in Pygments style ~
 
 If you do not like the treesitter-based REPL colors, disable it and pick a
 built-in Pygments theme:
@@ -343,11 +352,13 @@ See also |pyrepl-config| for interpreter resolution details.
 ==============================================================================
 IMAGES                                                         *pyrepl-images*
 
-Image rendering uses kitty graphics protocol with unicode placeholders.
+Image rendering uses kitty unicode placeholders protocol for `placeholders`
+provider, and requires terminal that supports it. For other terminals, use `image`
+provider instead.
+
 Supported input formats from Jupyter are PNG, JPEG and SVG. JPEG/SVG are
 converted to PNG (requires pillow/cairosvg).
 
-Compatible terminals are listed in kitty's documentation (see README).
 If you run via SSH/tmux, your terminal must pass through graphics APC sequences.
 
 You can open the image manager with:
@@ -391,10 +402,10 @@ TROUBLESHOOTING                                                *pyrepl-troublesh
 
  - Install required Python packages into that interpreter (see |pyrepl-reqs|).
    You can use |PyreplInstall| with `pip` or `uv`.
-<
+
  - If images do not render, verify kitty graphics protocol support in your
    terminal and pass-through over tmux is enabled.
-   If you use `image` provider, upstream issue.
+   If you use `image` provider, check `image.nvim` docs.
 
 ==============================================================================
 END

@@ -13,7 +13,8 @@ Minimal lazy.nvim setup with the default config and example keymaps:
   "dangooddd/pyrepl.nvim",
   dependencies = { "nvim-treesitter/nvim-treesitter" },
   config = function()
-    require("pyrepl").setup({
+    local pyrepl = require("pyrepl")
+    pyrepl.setup({
       -- defaults (you can omit these):
       split_horizontal = false,
       split_ratio = 0.5,
@@ -31,20 +32,21 @@ Minimal lazy.nvim setup with the default config and example keymaps:
     })
 
     -- main commands
-    vim.keymap.set("n", "<leader>jo", ":PyreplOpen<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>jh", ":PyreplHide<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>jc", ":PyreplClose<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>ji", ":PyreplOpenImages<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>jo", pyrepl.open_repl)
+    vim.keymap.set("n", "<leader>jh", pyrepl.hide_repl)
+    vim.keymap.set("n", "<leader>jc", pyrepl.close_repl)
+    vim.keymap.set({ "n", "t" }, "<C-j>", pyrepl.toggle_repl_focus)
+    vim.keymap.set("n", "<leader>ji", pyrepl.open_images)
 
     -- send commands
-    vim.keymap.set("n", "<leader>jb", ":PyreplSendBlock<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>jf", ":PyreplSendBuffer<CR>", { silent = true })
-    vim.keymap.set("v", "<leader>jv", ":<C-u>PyreplSendVisual<CR>gv<Esc>", { silent = true })
+    vim.keymap.set("n", "<leader>jf", pyrepl.send_buffer)
+    vim.keymap.set("n", "<leader>jb", pyrepl.send_block)
+    vim.keymap.set("v", "<leader>jv", pyrepl.send_visual)
 
     -- utility commands
-    vim.keymap.set("n", "<leader>jp", ":PyreplBlockBackward<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>jn", ":PyreplBlockForward<CR>", { silent = true })
-    vim.keymap.set("n", "<leader>je", ":PyreplExport<CR>", { silent = true })
+    vim.keymap.set("n", "<leader>jp", pyrepl.block_backward)
+    vim.keymap.set("n", "<leader>jn", pyrepl.block_forward)
+    vim.keymap.set("n", "<leader>je", pyrepl.export_notebook)
     vim.keymap.set("n", "<leader>js", ":PyreplInstall")
   end,
 }
@@ -115,7 +117,7 @@ For example, to display images in terminal with `sixel` protocol support:
 
 {
   "dangooddd/pyrepl.nvim",
-  dependencies = { "nvim-treesitter/nvim-treesitter" },
+  dependencies = { "nvim-treesitter/nvim-treesitter", "3rd/image.nvim" },
   config = function()
     require("pyrepl").setup({
       image_provider = "image",
@@ -124,12 +126,14 @@ For example, to display images in terminal with `sixel` protocol support:
 }
 ```
 
-### Use a dedicated Python environment
+### Use a dedicated Python environment for runtime packages
 
-- By default pyrepl.nvim uses `python` (`python_path = "python"`). If Neovim is started inside a venv, that venv is usually used.
-- For one dedicated interpreter, set `python_path` directly (or set `python_path = nil` to use `vim.g.python3_host_prog`).
+- By default pyrepl.nvim uses `python` (`python_path = "python"`).
+  If Neovim is started inside a venv, that venv is usually used.
+- For one dedicated interpreter with all required packages,
+  set `python_path` directly (or set `python_path = nil` to use `vim.g.python3_host_prog`).
 
-Example dedicated interpreter workflow:
+Example:
 
 ```bash
 uv venv ~/.venv_nvim
@@ -146,14 +150,14 @@ require("pyrepl").setup({
 })
 ```
 
-To use this workflow, you need to install kernels globally:
+To use kernel in that case, you need to install it globally:
 
 ```bash
 # from kernel virtual environment
 python -m ipykernel install --user --name {kernel_name}
 ```
 
-### Use a built-in Pygments style instead
+### Use a built-in Pygments style
 
 If you do not like the treesitter-based REPL colors, disable it and pick a built-in Pygments theme:
 
@@ -195,6 +199,7 @@ Commands:
 - `:PyreplOpen` - select a kernel and open the REPL;
 - `:PyreplHide` - hide the REPL window (kernel stays alive);
 - `:PyreplClose` - close the REPL and shut down the kernel;
+- `:PyreplFocus` - toggle REPL focus, terminal opened in insert mode;
 - `:PyreplSendVisual` - send the last visual selection;
 - `:PyreplSendBuffer` - send the entire buffer;
 - `:PyreplSendBlock` - send the "block" around the cursor (by default blocks are separated by lines matching `# %% ...`; configure via `block_pattern`);
@@ -212,6 +217,7 @@ require("pyrepl").setup(opts)
 require("pyrepl").open_repl()
 require("pyrepl").hide_repl()
 require("pyrepl").close_repl()
+require("pyrepl").toggle_repl_focus()
 require("pyrepl").send_visual()
 require("pyrepl").send_buffer()
 require("pyrepl").send_block()
