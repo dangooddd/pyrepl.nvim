@@ -14,8 +14,9 @@ Minimal lazy.nvim setup with the default config and example keymaps:
   dependencies = { "nvim-treesitter/nvim-treesitter" },
   config = function()
     local pyrepl = require("pyrepl")
+
+    -- default config
     pyrepl.setup({
-      -- defaults (you can omit these):
       split_horizontal = false,
       split_ratio = 0.5,
       style_treesitter = true,
