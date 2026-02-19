@@ -199,7 +199,7 @@ Commands:
 - `:PyreplOpen` - select a kernel and open the REPL;
 - `:PyreplHide` - hide the REPL window (kernel stays alive);
 - `:PyreplClose` - close the REPL and shut down the kernel;
-- `:PyreplFocus` - toggle REPL focus, terminal opened in insert mode;
+- `:PyreplFocus` - toggle REPL focus, terminal opens in insert mode;
 - `:PyreplSendVisual` - send the last visual selection;
 - `:PyreplSendBuffer` - send the entire buffer;
 - `:PyreplSendBlock` - send the "block" around the cursor (by default blocks are separated by lines matching `# %% ...`; configure via `block_pattern`);
