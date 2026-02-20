@@ -1,7 +1,7 @@
 *pyrepl.txt*  Python REPL for Neovim (pyrepl.nvim by dangooddd)
 
 ==============================================================================
-INTRODUCTION                                                     *pyrepl*
+INTRODUCTION                                                    *pyrepl*
 
 pyrepl.nvim is a Python REPL inside Neovim powered by Jupyter kernels. It opens
 `jupyter-console` UI in a terminal split and provides commands to send
@@ -25,7 +25,7 @@ globally with default settings)
 - Neovim theme integration for `jupyter-console`
 
 ------------------------------------------------------------------------------
-QUICKSTART                                                  *pyrepl-quickstart*
+QUICKSTART                                                      *pyrepl-quickstart*
 
 Minimal lazy.nvim setup with the default config and example keymaps:
 >
@@ -98,7 +98,7 @@ REQUIREMENTS                                                   *pyrepl-reqs*
 <
 
 ==============================================================================
-KNOWN LIMITATIONS                                          *pyrepl-limitations*
+KNOWN LIMITATIONS                                               *pyrepl-limitations*
 
 - Only Python is officially supported and will be prioritized. For R, see
   https://github.com/R-nvim/R.nvim
@@ -123,16 +123,16 @@ COMMANDS                                                        *pyrepl-commands
 :PyreplClose                                                    *PyreplClose*
     Close the REPL and shut down the kernel.
 
-:PyreplFocus                                                    *PyreplFocus*
+:PyreplToggleFocus                                              *PyreplToggleFocus*
     Toggle open REPL terminal in insert mode.
 
 :PyreplSendVisual                                               *PyreplSendVisual*
     Change mode to normal and send last visual selection to REPL.
 
-:PyreplSendCell                                                *PyreplSendCell*
+:PyreplSendCell                                                 *PyreplSendCell*
     Send the "cell" around the cursor (cells are separated by `cell_pattern`).
 
-:PyreplStepCellForward                                         *PyreplStepCellForward*
+:PyreplStepCellForward                                          *PyreplStepCellForward*
     Move cursor to the start of the next cell separated by `cell_pattern`.
 
 :PyreplStepCellBackward                                         *PyreplStepCellBackward*
