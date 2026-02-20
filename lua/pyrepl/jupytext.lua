@@ -66,24 +66,6 @@ local function convert_text(text, name, notebook)
 end
 
 ---@param buf integer
-local function convert_to_python_unguarded(buf)
-    local name = bufname_with_ext(buf, "py")
-    local text = get_buf_text(buf)
-    if #text == 0 then
-        text = template
-    end
-
-    vim.schedule(function()
-        local ok, error = pcall(convert_text, text, name, false)
-        if not ok then
-            vim.notify(message .. "failed to run jupytext: " .. error, vim.log.levels.ERROR)
-        else
-            edit_relative(name)
-        end
-    end)
-end
-
----@param buf integer
 function M.convert_to_python(buf)
     if not vim.api.nvim_buf_is_valid(buf) then
         return
@@ -97,11 +79,27 @@ function M.convert_to_python(buf)
         choices[#choices + 1] = "open existing file"
     end
 
+    local function on_choice_yes()
+        local text = get_buf_text(buf)
+        if #text == 0 then
+            text = template
+        end
+
+        vim.schedule(function()
+            local ok, error = pcall(convert_text, text, name, false)
+            if not ok then
+                vim.notify(message .. "failed to run jupytext: " .. error, vim.log.levels.ERROR)
+            else
+                edit_relative(name)
+            end
+        end)
+    end
+
     vim.ui.select(choices, {
         prompt = string.format('Convert notebook to "%s"?', name),
     }, function(choice)
         if choice == "yes" then
-            convert_to_python_unguarded(buf)
+            on_choice_yes()
         elseif choice == "open existing file" then
             edit_relative(name)
         end
