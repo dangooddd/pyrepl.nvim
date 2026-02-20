@@ -1,3 +1,8 @@
+---@class pyrepl.PlaceholdersObject
+---@field buf integer
+---@field id integer
+
+---@type pyrepl.ImageProvider<pyrepl.PlaceholdersObject>
 local M = {}
 
 local ns = vim.api.nvim_create_namespace("PyreplPlaceholders")
@@ -56,9 +61,6 @@ local diac = {
     "\u{20D1}", "\u{20D4}", "\u{20D5}",
 }
 -- stylua: ignore end
-
----@type (integer|nil)[]
-local state = {}
 
 ---Wrap an escape sequence so tmux passes it through to the terminal.
 ---@param sequence string
@@ -159,7 +161,7 @@ local function get_image_id()
     return next_id
 end
 
----@class placeholders.Geometry
+---@class pyrepl.PlaceholdersGeometry
 ---@field x? integer
 ---@field y? integer
 ---@field rows? integer
@@ -168,7 +170,7 @@ end
 ---Draw image in buffer with given geometry.
 ---@param buf integer
 ---@param img_id integer
----@param geometry placeholders.Geometry
+---@param geometry pyrepl.PlaceholdersGeometry
 local function draw(buf, img_id, geometry)
     local x = geometry.x or 0
     local y = geometry.y or 0
@@ -209,44 +211,43 @@ local function draw(buf, img_id, geometry)
     end, 25)
 end
 
----Redraw previously drawed in buffer image.
----@param buf integer
----@param win integer
-function M.redraw(buf, win)
-    if state[buf] then
-        local rows = vim.api.nvim_win_get_height(win)
-        local cols = vim.api.nvim_win_get_width(win)
-
-        draw(buf, state[buf], {
-            x = 0,
-            y = 0,
-            rows = rows,
-            cols = cols,
-        })
-    end
-end
-
 ---Render a placeholder grid that the terminal replaces with the image.
----@param img_data string
+---@param img_base64 string
 ---@param buf integer
 ---@param win integer
-function M.render(img_data, buf, win)
-    state[buf] = state[buf] or get_image_id()
-    upload_image(state[buf], img_data)
-    M.redraw(buf, win)
+---@return pyrepl.PlaceholdersObject|nil
+function M.create(img_base64, buf, win)
+    if not (vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win)) then
+        return
+    end
+
+    local id = get_image_id()
+    local rows = vim.api.nvim_win_get_height(win)
+    local cols = vim.api.nvim_win_get_width(win)
+
+    upload_image(id, img_base64)
+
+    draw(buf, id, {
+        x = 0,
+        y = 0,
+        rows = rows,
+        cols = cols,
+    })
+
+    return {
+        buf = buf,
+        id = id,
+    }
 end
 
 ---Delete placeholders image, clear hl groups.
----@param buf integer
-function M.clear(buf)
-    if state[buf] then
-        delete_image(state[buf])
-        local hl = string.format("PyreplPlaceholdersImage_%d", state[buf])
-        pcall(vim.api.nvim_set_hl, 0, hl, {})
-        state[buf] = nil
+---@param image pyrepl.PlaceholdersObject|nil
+function M.delete(image)
+    if image then
+        delete_image(image.id)
+        pcall(vim.api.nvim_set_hl, 0, "PyreplPlaceholdersImage_" .. image.id, {})
+        pcall(vim.api.nvim_buf_clear_namespace, image.buf, ns, 0, -1)
     end
-
-    vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 end
 
 return M

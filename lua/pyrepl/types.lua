@@ -38,8 +38,14 @@
 ---@field win? integer
 ---@field kernel string
 
+---@generic pyrepl.TImage
+---@class pyrepl.ImageProvider
+---@field create fun(img_base64: string, buf: integer, win: integer): pyrepl.TImage|nil
+---@field delete fun(image: pyrepl.TImage|nil): nil
+
 ---@class pyrepl.ImageState
 ---@field history string[]
----@field history_index integer
----@field buf integer|nil
----@field win integer|nil
+---@field history_idx integer
+---@field buf? integer
+---@field win? integer
+---@field image? any

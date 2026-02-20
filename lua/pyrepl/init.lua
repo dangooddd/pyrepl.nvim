@@ -24,8 +24,8 @@ function M.toggle_repl_focus()
     core.toggle_repl_focus()
 end
 
-function M.open_images()
-    image.open_images()
+function M.open_image()
+    image.open_image()
 end
 
 function M.export_notebook()
@@ -110,7 +110,7 @@ function M.setup(opts)
         PyreplSendBlock = M.send_block,
         PyreplBlockForward = M.block_forward,
         PyreplBlockBackward = M.block_backward,
-        PyreplOpenImages = M.open_images,
+        PyreplOpenImage = M.open_image,
         PyreplExport = M.export_notebook,
         PyreplConvert = M.convert_notebook_guarded,
     }
