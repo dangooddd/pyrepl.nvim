@@ -85,14 +85,12 @@ function M.convert_to_python(buf)
             text = template
         end
 
-        vim.schedule(function()
-            local ok, error = pcall(convert_text, text, name, false)
-            if not ok then
-                vim.notify(message .. "failed to run jupytext: " .. error, vim.log.levels.ERROR)
-            else
-                edit_relative(name)
-            end
-        end)
+        local ok, error = pcall(convert_text, text, name, false)
+        if not ok then
+            vim.notify(message .. "failed to run jupytext: " .. error, vim.log.levels.ERROR)
+        else
+            edit_relative(name)
+        end
     end
 
     vim.ui.select(choices, {
