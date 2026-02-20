@@ -130,8 +130,7 @@ COMMANDS                                                        *pyrepl-commands
     Change mode to normal and send last visual selection to REPL.
 
 :PyreplSendCell                                                *PyreplSendCell*
-    Send the "cell" around the cursor (by default cells are separated
-    by lines matching `# %% ...`; configure via `cell_pattern`).
+    Send the "cell" around the cursor (cells are separated by `cell_pattern`).
 
 :PyreplStepCellForward                                         *PyreplStepCellForward*
     Move cursor to the start of the next cell separated by `cell_pattern`.

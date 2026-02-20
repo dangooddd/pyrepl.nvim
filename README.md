@@ -202,12 +202,12 @@ Commands:
 - `:PyreplFocus` - toggle REPL focus, terminal opens in insert mode;
 - `:PyreplSendVisual` - send the last visual selection;
 - `:PyreplSendBuffer` - send the entire buffer;
-- `:PyreplSendCell` - send the "cell" around the cursor (by default cells are separated by lines matching `# %% ...`; configure via `cell_pattern`);
+- `:PyreplSendCell` - send the "cell" around the cursor (cells are separated by `cell_pattern`);
 - `:PyreplStepCellForward` - move cursor to the start of the next cell separated by `cell_pattern`;
 - `:PyreplStepCellBackward` - move cursor to the start of the previous cell separated by `cell_pattern`;
 - `:PyreplOpenImageHistory` - open the image manager (history of recent images). Use `j`/`h` for previous, `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close;
-- `:PyreplExport` - export current buffer using `jupytext` (should be installed);
-- `:PyreplConvert` - prompt to convert current notebook buffer using `jupytext` (should be installed);
+- `:PyreplExport` - export current buffer to notebook (`jupytext` should be installed);
+- `:PyreplConvert` - prompt to convert current notebook buffer to python (`jupytext` should be installed);
 - `:PyreplInstall {tool}` - install pyrepl runtime packages into the configured Python (`tool`: `pip` or `uv`).
 
 Lua API:
