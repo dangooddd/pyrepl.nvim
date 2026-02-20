@@ -28,12 +28,12 @@ function M.open_image_history()
     image.open_image_history()
 end
 
-function M.export_python()
-    jupytext.export_python(0)
+function M.export_to_notebook()
+    jupytext.export_to_notebook(0)
 end
 
-function M.convert_notebook_guarded()
-    jupytext.convert_notebook_guarded(0)
+function M.convert_to_python()
+    jupytext.convert_to_python(0)
 end
 
 ---@param tool string
@@ -111,8 +111,8 @@ function M.setup(opts)
         PyreplSendCell = M.send_cell,
         PyreplStepCellForward = M.step_cell_forward,
         PyreplStepCellBackward = M.step_cell_backward,
-        PyreplExport = M.export_python,
-        PyreplConvert = M.convert_notebook_guarded,
+        PyreplExport = M.export_to_notebook,
+        PyreplConvert = M.convert_to_python,
     }
 
     for name, callback in pairs(commands) do
@@ -133,7 +133,7 @@ function M.setup(opts)
         vim.api.nvim_create_autocmd("BufReadPost", {
             group = group,
             pattern = "*.ipynb",
-            callback = vim.schedule_wrap(M.convert_notebook_guarded),
+            callback = vim.schedule_wrap(M.convert_to_python),
         })
     end
 

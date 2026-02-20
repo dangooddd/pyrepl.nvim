@@ -66,11 +66,7 @@ local function convert_text(text, name, notebook)
 end
 
 ---@param buf integer
-function M.convert_notebook(buf)
-    if not vim.api.nvim_buf_is_valid(buf) then
-        return
-    end
-
+local function convert_to_python_unguarded(buf)
     local name = bufname_with_ext(buf, "py")
     local text = get_buf_text(buf)
     if #text == 0 then
@@ -88,7 +84,11 @@ function M.convert_notebook(buf)
 end
 
 ---@param buf integer
-function M.convert_notebook_guarded(buf)
+function M.convert_to_python(buf)
+    if not vim.api.nvim_buf_is_valid(buf) then
+        return
+    end
+
     local name = bufname_with_ext(buf, "py")
     local stat = vim.uv.fs_stat(name)
     local choices = { "yes", "no" }
@@ -101,7 +101,7 @@ function M.convert_notebook_guarded(buf)
         prompt = string.format('Convert notebook to "%s"?', name),
     }, function(choice)
         if choice == "yes" then
-            M.convert_notebook(buf)
+            convert_to_python_unguarded(buf)
         elseif choice == "open existing file" then
             edit_relative(name)
         end
@@ -109,7 +109,7 @@ function M.convert_notebook_guarded(buf)
 end
 
 ---@param buf integer
-function M.export_python(buf)
+function M.export_to_notebook(buf)
     if not vim.api.nvim_buf_is_valid(buf) then
         return
     end

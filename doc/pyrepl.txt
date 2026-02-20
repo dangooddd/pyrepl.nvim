@@ -67,7 +67,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       -- utility commands
       vim.keymap.set("n", "<leader>jp", pyrepl.step_cell_backward)
       vim.keymap.set("n", "<leader>jn", pyrepl.step_cell_forward)
-      vim.keymap.set("n", "<leader>je", pyrepl.export_notebook)
+      vim.keymap.set("n", "<leader>je", pyrepl.export_to_notebook)
       vim.keymap.set("n", "<leader>js", ":PyreplInstall")
     end,
   }
@@ -178,7 +178,7 @@ require("pyrepl").close_repl()                                  *pyrepl.close_re
 require("pyrepl").toggle_repl_focus()                           *pyrepl.toggle_repl_focus*
     Same as |PyreplFocus|. Toggle open REPL terminal in insert mode.
 
-require("pyrepl").send_cell()                                  *pyrepl.send_cell*
+require("pyrepl").send_cell()                                   *pyrepl.send_cell*
     Same as |PyreplSendCell|. Sends the cell around the cursor.
 
 require("pyrepl").step_cell_forward()                           *pyrepl.step_cell_forward*
@@ -194,13 +194,13 @@ require("pyrepl").send_visual()                                 *pyrepl.send_vis
 require("pyrepl").send_buffer()                                 *pyrepl.send_buffer*
     Same as |PyreplSendBuffer|. Sends the entire buffer.
 
-require("pyrepl").open_image_history()                           *pyrepl.open_image_history*
+require("pyrepl").open_image_history()                          *pyrepl.open_image_history*
     Same as |PyreplOpenImageHistory|. Opens the image manager.
 
-require("pyrepl").export_python()                               *pyrepl.export_python*
+require("pyrepl").export_to_notebook()                          *pyrepl.export_to_notebook*
     Same as |PyreplExport|. Exports buffer to notebook format.
 
-require("pyrepl").convert_notebook_guarded()                    *pyrepl.convert_notebook_guarded*
+require("pyrepl").convert_to_python()                           *pyrepl.convert_to_python*
     Same as |PyreplConvert|. Converts notebook to `py:percent` format.
 
 require("pyrepl").install_packages({tool})                      *pyrepl.install_packages*

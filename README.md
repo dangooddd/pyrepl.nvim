@@ -47,7 +47,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
     -- utility commands
     vim.keymap.set("n", "<leader>jp", pyrepl.step_cell_backward)
     vim.keymap.set("n", "<leader>jn", pyrepl.step_cell_forward)
-    vim.keymap.set("n", "<leader>je", pyrepl.export_notebook)
+    vim.keymap.set("n", "<leader>je", pyrepl.export_to_notebook)
     vim.keymap.set("n", "<leader>js", ":PyreplInstall")
   end,
 }
@@ -224,8 +224,8 @@ require("pyrepl").send_cell()
 require("pyrepl").step_cell_forward()
 require("pyrepl").step_cell_backward()
 require("pyrepl").open_image_history()
-require("pyrepl").export_python()
-require("pyrepl").convert_notebook_guarded()
+require("pyrepl").export_to_notebook()
+require("pyrepl").convert_to_python()
 require("pyrepl").install_packages(tool)
 ```
 
