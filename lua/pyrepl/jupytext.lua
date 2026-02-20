@@ -79,25 +79,21 @@ function M.convert_to_python(buf)
         choices[#choices + 1] = "open existing file"
     end
 
-    local function on_choice_yes()
-        local text = get_buf_text(buf)
-        if #text == 0 then
-            text = template
-        end
-
-        local ok, error = pcall(convert_text, text, name, false)
-        if not ok then
-            vim.notify(message .. "failed to run jupytext: " .. error, vim.log.levels.ERROR)
-        else
-            edit_relative(name)
-        end
-    end
-
     vim.ui.select(choices, {
         prompt = string.format('Convert notebook to "%s"?', name),
     }, function(choice)
         if choice == "yes" then
-            on_choice_yes()
+            local text = get_buf_text(buf)
+            if #text == 0 then
+                text = template
+            end
+
+            local ok, error = pcall(convert_text, text, name, false)
+            if not ok then
+                vim.notify(message .. "failed to run jupytext: " .. error, vim.log.levels.ERROR)
+            else
+                edit_relative(name)
+            end
         elseif choice == "open existing file" then
             edit_relative(name)
         end
