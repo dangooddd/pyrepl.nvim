@@ -142,10 +142,10 @@ end
 
 ---@param buf integer
 ---@param idx integer
----@param block_pattern string
+---@param cell_pattern string
 ---@return integer|nil
 ---@return integer|nil
-function M.get_block_range(buf, idx, block_pattern)
+function M.get_cell_range(buf, idx, cell_pattern)
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     if #lines == 0 then
         return nil, nil
@@ -154,7 +154,7 @@ function M.get_block_range(buf, idx, block_pattern)
     -- block start
     local start_idx = 1
     for i = idx, 1, -1 do
-        if lines[i]:match(block_pattern) then
+        if lines[i]:match(cell_pattern) then
             start_idx = i + 1
             break
         end
@@ -163,7 +163,7 @@ function M.get_block_range(buf, idx, block_pattern)
     -- block end
     local end_idx = #lines
     for i = idx + 1, #lines do
-        if lines[i]:match(block_pattern) then
+        if lines[i]:match(cell_pattern) then
             end_idx = i - 1
             break
         end
@@ -198,9 +198,9 @@ end
 ---@param buf integer
 ---@param chan integer
 ---@param idx integer
----@param block_pattern string
-function M.send_block(buf, chan, idx, block_pattern)
-    local start_idx, end_idx = M.get_block_range(buf, idx, block_pattern)
+---@param cell_pattern string
+function M.send_cell(buf, chan, idx, cell_pattern)
+    local start_idx, end_idx = M.get_cell_range(buf, idx, cell_pattern)
 
     if start_idx and end_idx then
         local lines = vim.api.nvim_buf_get_lines(buf, start_idx - 1, end_idx, false)

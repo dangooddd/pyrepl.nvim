@@ -26,7 +26,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       -- built-in provider, works best for ghostty and kitty
       -- for other terminals use "image" instead of "placeholders"
       image_provider = "placeholders",
-      block_pattern = "^# %%%%.*$",
+      cell_pattern = "^# %%%%.*$",
       python_path = "python",
       preferred_kernel = "python3",
       jupytext_hook = true,
@@ -36,17 +36,17 @@ Minimal lazy.nvim setup with the default config and example keymaps:
     vim.keymap.set("n", "<leader>jo", pyrepl.open_repl)
     vim.keymap.set("n", "<leader>jh", pyrepl.hide_repl)
     vim.keymap.set("n", "<leader>jc", pyrepl.close_repl)
+    vim.keymap.set("n", "<leader>ji", pyrepl.open_image_history)
     vim.keymap.set({ "n", "t" }, "<C-j>", pyrepl.toggle_repl_focus)
-    vim.keymap.set("n", "<leader>ji", pyrepl.open_images)
 
     -- send commands
-    vim.keymap.set("n", "<leader>jf", pyrepl.send_buffer)
-    vim.keymap.set("n", "<leader>jb", pyrepl.send_block)
+    vim.keymap.set("n", "<leader>jb", pyrepl.send_buffer)
+    vim.keymap.set("n", "<leader>jl", pyrepl.send_cell)
     vim.keymap.set("v", "<leader>jv", pyrepl.send_visual)
 
     -- utility commands
-    vim.keymap.set("n", "<leader>jp", pyrepl.block_backward)
-    vim.keymap.set("n", "<leader>jn", pyrepl.block_forward)
+    vim.keymap.set("n", "<leader>jp", pyrepl.step_cell_backward)
+    vim.keymap.set("n", "<leader>jn", pyrepl.step_cell_forward)
     vim.keymap.set("n", "<leader>je", pyrepl.export_notebook)
     vim.keymap.set("n", "<leader>js", ":PyreplInstall")
   end,
@@ -63,7 +63,7 @@ Then install pyrepl runtime packages with `uv` or `pip` directly from Neovim:
 To use jupytext integration, make sure jupytext is available in neovim:
 
 ```bash
-# or any other method which adds jupytext in your PATH.
+# or any other method which adds jupytext in your PATH
 uv tool install jupytext
 ```
 
@@ -80,7 +80,6 @@ https://github.com/user-attachments/assets/19822d92-5173-4441-8cec-6a59f9eb41b9
 ## Preface
 
 This plugin aims to provide a sensible workflow to work with Python REPL.
-It was started as a fork of [pyrola.nvim](https://github.com/robitx/pyrola.nvim).
 
 Main goals of this project:
 - Ability to send code from buffer to REPL;
@@ -169,14 +168,14 @@ require("pyrepl").setup({
 })
 ```
 
-### Send block and move to the next one
+### Send cell and move to the next one
 
-Combine "send" and "block" commands:
+Combine `send` and `step` commands:
 
 ```lua
-vim.keymap.set("n", "<leader>jb", function()
-  vim.cmd("PyreplSendBlock")
-  vim.cmd("PyreplBlockForward")
+vim.keymap.set("n", "<leader>jl", function()
+  vim.cmd("PyreplSendCell")
+  vim.cmd("PyreplStepCellForward")
 end)
 ```
 
@@ -203,10 +202,10 @@ Commands:
 - `:PyreplFocus` - toggle REPL focus, terminal opens in insert mode;
 - `:PyreplSendVisual` - send the last visual selection;
 - `:PyreplSendBuffer` - send the entire buffer;
-- `:PyreplSendBlock` - send the "block" around the cursor (by default blocks are separated by lines matching `# %% ...`; configure via `block_pattern`);
-- `:PyreplBlockForward` - move cursor to the start of the next block separated by `block_pattern`;
-- `:PyreplBlockBackward` - move cursor to the start of the previous block separated by `block_pattern`;
-- `:PyreplOpenImages` - open the image manager (history of recent images). Use `j`/`h` for previous, `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close;
+- `:PyreplSendCell` - send the "cell" around the cursor (by default cells are separated by lines matching `# %% ...`; configure via `cell_pattern`);
+- `:PyreplStepCellForward` - move cursor to the start of the next cell separated by `cell_pattern`;
+- `:PyreplStepCellBackward` - move cursor to the start of the previous cell separated by `cell_pattern`;
+- `:PyreplOpenImageHistory` - open the image manager (history of recent images). Use `j`/`h` for previous, `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close;
 - `:PyreplExport` - export current buffer using `jupytext` (should be installed);
 - `:PyreplConvert` - prompt to convert current notebook buffer using `jupytext` (should be installed);
 - `:PyreplInstall {tool}` - install pyrepl runtime packages into the configured Python (`tool`: `pip` or `uv`).
@@ -221,11 +220,11 @@ require("pyrepl").close_repl()
 require("pyrepl").toggle_repl_focus()
 require("pyrepl").send_visual()
 require("pyrepl").send_buffer()
-require("pyrepl").send_block()
-require("pyrepl").block_forward()
-require("pyrepl").block_backward()
-require("pyrepl").open_images()
-require("pyrepl").export_notebook()
+require("pyrepl").send_cell()
+require("pyrepl").step_cell_forward()
+require("pyrepl").step_cell_backward()
+require("pyrepl").open_image_history()
+require("pyrepl").export_python()
 require("pyrepl").convert_notebook_guarded()
 require("pyrepl").install_packages(tool)
 ```

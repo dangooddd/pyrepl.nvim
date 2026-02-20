@@ -88,25 +88,6 @@ function M.convert_notebook(buf)
 end
 
 ---@param buf integer
-function M.export_notebook(buf)
-    if not vim.api.nvim_buf_is_valid(buf) then
-        return
-    end
-
-    local name = bufname_with_ext(buf, "ipynb")
-    local text = get_buf_text(buf)
-
-    vim.schedule(function()
-        local ok, error = pcall(convert_text, text, name, true)
-        if not ok then
-            vim.notify(message .. "failed to sync: " .. error, vim.log.levels.ERROR)
-        else
-            print(message .. string.format('script exported to "%s"', name))
-        end
-    end)
-end
-
----@param buf integer
 function M.convert_notebook_guarded(buf)
     local name = bufname_with_ext(buf, "py")
     local stat = vim.uv.fs_stat(name)
@@ -123,6 +104,25 @@ function M.convert_notebook_guarded(buf)
             M.convert_notebook(buf)
         elseif choice == "open existing file" then
             edit_relative(name)
+        end
+    end)
+end
+
+---@param buf integer
+function M.export_python(buf)
+    if not vim.api.nvim_buf_is_valid(buf) then
+        return
+    end
+
+    local name = bufname_with_ext(buf, "ipynb")
+    local text = get_buf_text(buf)
+
+    vim.schedule(function()
+        local ok, error = pcall(convert_text, text, name, true)
+        if not ok then
+            vim.notify(message .. "failed to sync: " .. error, vim.log.levels.ERROR)
+        else
+            print(message .. string.format('script exported to "%s"', name))
         end
     end)
 end

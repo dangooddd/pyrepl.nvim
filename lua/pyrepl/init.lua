@@ -24,12 +24,12 @@ function M.toggle_repl_focus()
     core.toggle_repl_focus()
 end
 
-function M.open_image()
-    image.open_image()
+function M.open_image_history()
+    image.open_image_history()
 end
 
-function M.export_notebook()
-    jupytext.export_notebook(0)
+function M.export_python()
+    jupytext.export_python(0)
 end
 
 function M.convert_notebook_guarded()
@@ -64,31 +64,31 @@ function M.send_buffer()
     end
 end
 
-function M.send_block()
+function M.send_cell()
     if core.state and core.state.chan then
         local idx = vim.api.nvim_win_get_cursor(0)[1]
-        send.send_block(0, core.state.chan, idx, require("pyrepl.config").state.block_pattern)
+        send.send_cell(0, core.state.chan, idx, require("pyrepl.config").state.cell_pattern)
         core.scroll_repl()
     end
 end
 
-function M.block_forward()
+function M.step_cell_forward()
     local idx = vim.api.nvim_win_get_cursor(0)[1]
-    local _, end_idx = send.get_block_range(0, idx, require("pyrepl.config").state.block_pattern)
+    local _, end_idx = send.get_cell_range(0, idx, require("pyrepl.config").state.cell_pattern)
     if end_idx then
         vim.cmd.normal({ tostring(end_idx + 1) .. "gg^", bang = true })
     end
 end
 
-function M.block_backward()
+function M.step_cell_backward()
     local idx = vim.api.nvim_win_get_cursor(0)[1]
     local line = vim.api.nvim_buf_get_lines(0, idx - 1, idx, false)[1]
 
-    if line:match(require("pyrepl.config").state.block_pattern) then
+    if line:match(require("pyrepl.config").state.cell_pattern) then
         idx = math.max(1, idx - 1)
     end
 
-    local start_idx, _ = send.get_block_range(0, idx, require("pyrepl.config").state.block_pattern)
+    local start_idx, _ = send.get_cell_range(0, idx, require("pyrepl.config").state.cell_pattern)
 
     if start_idx then
         vim.cmd.normal({ tostring(math.max(0, start_idx - 1)) .. "gg^", bang = true })
@@ -104,14 +104,14 @@ function M.setup(opts)
         PyreplOpen = M.open_repl,
         PyreplHide = M.hide_repl,
         PyreplClose = M.close_repl,
-        PyreplFocus = M.toggle_repl_focus,
+        PyreplToggleFocus = M.toggle_repl_focus,
+        PyreplOpenImageHistory = M.open_image_history,
         PyreplSendVisual = M.send_visual,
         PyreplSendBuffer = M.send_buffer,
-        PyreplSendBlock = M.send_block,
-        PyreplBlockForward = M.block_forward,
-        PyreplBlockBackward = M.block_backward,
-        PyreplOpenImage = M.open_image,
-        PyreplExport = M.export_notebook,
+        PyreplSendCell = M.send_cell,
+        PyreplStepCellForward = M.step_cell_forward,
+        PyreplStepCellBackward = M.step_cell_backward,
+        PyreplExport = M.export_python,
         PyreplConvert = M.convert_notebook_guarded,
     }
 

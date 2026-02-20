@@ -94,7 +94,7 @@ local function setup_cursor_autocmds()
     vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
         group = group,
         callback = function()
-            M.close_image()
+            M.close_image_history()
         end,
         once = true,
     })
@@ -116,7 +116,7 @@ local function setup_buf_autocmds()
         group = group,
         buffer = state.buf,
         callback = function()
-            M.close_image()
+            M.close_image_history()
         end,
         once = true,
     })
@@ -138,7 +138,7 @@ local function setup_win_autocmds()
         group = group,
         pattern = tostring(state.win),
         callback = function()
-            M.close_image()
+            M.close_image_history()
         end,
         once = true,
     })
@@ -154,26 +154,26 @@ local function setup_keybinds()
     -- show previous image
     vim.keymap.set("n", "j", function()
         if state.history_idx > 1 then
-            M.open_image(state.history_idx - 1, true)
+            M.open_image_history(state.history_idx - 1, true)
         end
     end, opts)
 
     vim.keymap.set("n", "h", function()
         if state.history_idx > 1 then
-            M.open_image(state.history_idx - 1, true)
+            M.open_image_history(state.history_idx - 1, true)
         end
     end, opts)
 
     -- show next image
     vim.keymap.set("n", "k", function()
         if state.history_idx < #state.history then
-            M.open_image(state.history_idx + 1, true)
+            M.open_image_history(state.history_idx + 1, true)
         end
     end, opts)
 
     vim.keymap.set("n", "l", function()
         if state.history_idx < #state.history then
-            M.open_image(state.history_idx + 1, true)
+            M.open_image_history(state.history_idx + 1, true)
         end
     end, opts)
 
@@ -181,25 +181,25 @@ local function setup_keybinds()
     vim.keymap.set("n", "dd", function()
         pop_history(state.history_idx)
         if #state.history == 0 then
-            M.close_image()
+            M.close_image_history()
         else
-            M.open_image(state.history_idx)
+            M.open_image_history(state.history_idx)
         end
     end, opts)
 
     -- exit image
     vim.keymap.set("n", "q", function()
-        M.close_image()
+        M.close_image_history()
     end, opts)
 
     vim.keymap.set("n", "<Esc>", function()
-        M.close_image()
+        M.close_image_history()
     end, opts)
 end
 
 ---@param index? integer
 ---@param focus? boolean if not passed, equals true
-function M.open_image(index, focus)
+function M.open_image_history(index, focus)
     if #state.history == 0 then
         vim.notify(message .. "no image history available", vim.log.levels.WARN)
         return
@@ -241,7 +241,7 @@ function M.open_image(index, focus)
 end
 
 ---Closes image history window completely.
-function M.close_image()
+function M.close_image_history()
     clear_cursor_autocmds()
     state.img = require("pyrepl.config").get_provider().delete(state.img)
 
@@ -266,7 +266,7 @@ function M.console_endpoint(img_base64)
         error(message .. "image data missing or invalid", 0)
     end
     push_history(img_base64)
-    M.open_image(#state.history, false)
+    M.open_image_history(#state.history, false)
 end
 
 return M

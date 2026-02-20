@@ -7,8 +7,7 @@ pyrepl.nvim is a Python REPL inside Neovim powered by Jupyter kernels. It opens
 `jupyter-console` UI in a terminal split and provides commands to send
 code from your buffer to the selected kernel.
 
-pyrepl.nvim aims to provide a sensible workflow for Python REPL. It started as
-a fork of pyrola.nvim (https://github.com/robitx/pyrola.nvim).
+pyrepl.nvim aims to provide a sensible workflow for Python REPL.
 
 Main goals:
 - Ability to send code from buffer to REPL
@@ -47,7 +46,7 @@ Minimal lazy.nvim setup with the default config and example keymaps:
         -- built-in provider, works best for ghostty and kitty
         -- for other terminals use "image" instead of "placeholders"
         image_provider = "placeholders",
-        block_pattern = "^# %%%%.*$",
+        cell_pattern = "^# %%%%.*$",
         python_path = "python",
         preferred_kernel = "python3",
         jupytext_hook = true,
@@ -57,17 +56,17 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       vim.keymap.set("n", "<leader>jo", pyrepl.open_repl)
       vim.keymap.set("n", "<leader>jh", pyrepl.hide_repl)
       vim.keymap.set("n", "<leader>jc", pyrepl.close_repl)
+      vim.keymap.set("n", "<leader>ji", pyrepl.open_image_history)
       vim.keymap.set({ "n", "t" }, "<C-j>", pyrepl.toggle_repl_focus)
-      vim.keymap.set("n", "<leader>ji", pyrepl.open_images)
 
       -- send commands
-      vim.keymap.set("n", "<leader>jf", pyrepl.send_buffer)
-      vim.keymap.set("n", "<leader>jb", pyrepl.send_block)
+      vim.keymap.set("n", "<leader>jb", pyrepl.send_buffer)
+      vim.keymap.set("n", "<leader>jl", pyrepl.send_cell)
       vim.keymap.set("v", "<leader>jv", pyrepl.send_visual)
 
       -- utility commands
-      vim.keymap.set("n", "<leader>jp", pyrepl.block_backward)
-      vim.keymap.set("n", "<leader>jn", pyrepl.block_forward)
+      vim.keymap.set("n", "<leader>jp", pyrepl.step_cell_backward)
+      vim.keymap.set("n", "<leader>jn", pyrepl.step_cell_forward)
       vim.keymap.set("n", "<leader>je", pyrepl.export_notebook)
       vim.keymap.set("n", "<leader>js", ":PyreplInstall")
     end,
@@ -130,20 +129,20 @@ COMMANDS                                                        *pyrepl-commands
 :PyreplSendVisual                                               *PyreplSendVisual*
     Change mode to normal and send last visual selection to REPL.
 
-:PyreplSendBlock                                                *PyreplSendBlock*
-    Send the "block" around the cursor (by default blocks are separated
-    by lines matching `# %% ...`; configure via `block_pattern`).
+:PyreplSendCell                                                *PyreplSendCell*
+    Send the "cell" around the cursor (by default cells are separated
+    by lines matching `# %% ...`; configure via `cell_pattern`).
 
-:PyreplBlockForward                                             *PyreplBlockForward*
-    Move cursor to the start of the next block separated by `block_pattern`.
+:PyreplStepCellForward                                         *PyreplStepCellForward*
+    Move cursor to the start of the next cell separated by `cell_pattern`.
 
-:PyreplBlockBackward                                            *PyreplBlockBackward*
-    Move cursor to the start of the previous block separated by `block_pattern`.
+:PyreplStepCellBackward                                         *PyreplStepCellBackward*
+    Move cursor to the start of the previous cell separated by `cell_pattern`.
 
 :PyreplSendBuffer                                               *PyreplSendBuffer*
     Send the entire buffer to the REPL.
 
-:PyreplOpenImages                                               *PyreplOpenImages*
+:PyreplOpenImageHistory                                         *PyreplOpenImageHistory*
     Open the image manager (history of recent images). Use `j`/`h` for previous,
     `k`/`l` for next, `dd` to delete, `q` or `<Esc>` to close.
 
@@ -180,14 +179,14 @@ require("pyrepl").close_repl()                                  *pyrepl.close_re
 require("pyrepl").toggle_repl_focus()                           *pyrepl.toggle_repl_focus*
     Same as |PyreplFocus|. Toggle open REPL terminal in insert mode.
 
-require("pyrepl").send_block()                                  *pyrepl.send_block*
-    Same as |PyreplSendBlock|. Sends the block around the cursor.
+require("pyrepl").send_cell()                                  *pyrepl.send_cell*
+    Same as |PyreplSendCell|. Sends the cell around the cursor.
 
-require("pyrepl").block_forward()                               *pyrepl.block_forward*
-    Same as |PyreplBlockForward|. Jumps to the next block.
+require("pyrepl").step_cell_forward()                           *pyrepl.step_cell_forward*
+    Same as |PyreplStepCellForward|. Jumps to the next cell.
 
-require("pyrepl").block_backward()                              *pyrepl.block_backward*
-    Same as |PyreplBlockBackward|. Jumps to the previous block.
+require("pyrepl").step_cell_backward()                          *pyrepl.step_cell_backward*
+    Same as |PyreplStepCellBackward|. Jumps to the previous cell.
 
 require("pyrepl").send_visual()                                 *pyrepl.send_visual*
     Same as |PyreplSendVisual|. Changes mode to normal and sends last visual
@@ -196,10 +195,10 @@ require("pyrepl").send_visual()                                 *pyrepl.send_vis
 require("pyrepl").send_buffer()                                 *pyrepl.send_buffer*
     Same as |PyreplSendBuffer|. Sends the entire buffer.
 
-require("pyrepl").open_images()                                 *pyrepl.open_images*
-    Same as |PyreplOpenImages|. Opens the image manager.
+require("pyrepl").open_image_history()                           *pyrepl.open_image_history*
+    Same as |PyreplOpenImageHistory|. Opens the image manager.
 
-require("pyrepl").export_notebook()                             *pyrepl.export_notebook*
+require("pyrepl").export_python()                               *pyrepl.export_python*
     Same as |PyreplExport|. Exports buffer to notebook format.
 
 require("pyrepl").convert_notebook_guarded()                    *pyrepl.convert_notebook_guarded*
@@ -222,7 +221,7 @@ Default configuration:
     image_width_ratio = 0.5,
     image_height_ratio = 0.5,
     image_provider = "placeholders",
-    block_pattern = "^# %%%%.*$",
+    cell_pattern = "^# %%%%.*$",
     python_path = "python",
     preferred_kernel = "python3",
     jupytext_hook = true,
@@ -253,9 +252,9 @@ Options:
       Use "placeholders" for ghostty and kitty terminals.
       Use "image" for other terminals, you should configure `image.nvim`
       plugin.
-  block_pattern (string)
-      Lua pattern used as block separators for |PyreplSendBlock|,
-      |PyreplBlockForward| and |PyreplBlockBackward|.
+  cell_pattern (string)
+      Lua pattern used as cell separators for |PyreplSendCell|,
+      |PyreplStepCellForward| and |PyreplStepCellBackward|.
       Default: "^# %%%%.*$".
   python_path (string)
       Python interpreter used by pyrepl.nvim. Default: "python".
@@ -337,13 +336,13 @@ built-in Pygments theme:
   })
 <
 
-Send block and move to the next one ~
+Send cell and move to the next one ~
 
-Combine "send" and "block" commands:
+Combine `send` and `step` commands:
 >
-  vim.keymap.set("n", "<leader>jb", function()
-    vim.cmd("PyreplSendBlock")
-    vim.cmd("PyreplBlockForward")
+  vim.keymap.set("n", "<leader>jl", function()
+    vim.cmd("PyreplSendCell")
+    vim.cmd("PyreplStepCellForward")
   end)
 <
 
@@ -363,7 +362,7 @@ If you run via SSH/tmux, your terminal must pass through graphics APC sequences.
 
 You can open the image manager with:
 >
-  require("pyrepl").open_images()
+  require("pyrepl").open_image_history()
 <
 The image manager shows up to `image_max_history` recent images (default: 10).
 The window displays a title showing current image position (e.g., "History 3/10").
