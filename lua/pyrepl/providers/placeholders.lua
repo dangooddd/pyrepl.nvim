@@ -1,8 +1,8 @@
----@class pyrepl.PlaceholdersObject
+---@class pyrepl.PlaceholdersImage
 ---@field buf integer
 ---@field id integer
 
----@type pyrepl.ImageProvider<pyrepl.PlaceholdersObject>
+---@type pyrepl.ImageProvider<pyrepl.PlaceholdersImage>
 local M = {}
 
 local ns = vim.api.nvim_create_namespace("PyreplPlaceholders")
@@ -215,7 +215,7 @@ end
 ---@param img_base64 string
 ---@param buf integer
 ---@param win integer
----@return pyrepl.PlaceholdersObject|nil
+---@return pyrepl.PlaceholdersImage|nil
 function M.create(img_base64, buf, win)
     if not (vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win)) then
         return
@@ -241,12 +241,14 @@ function M.create(img_base64, buf, win)
 end
 
 ---Delete placeholders image, clear hl groups.
----@param image pyrepl.PlaceholdersObject|nil
+---@param image pyrepl.PlaceholdersImage|nil
 function M.delete(image)
     if image then
         delete_image(image.id)
-        pcall(vim.api.nvim_set_hl, 0, "PyreplPlaceholdersImage_" .. image.id, {})
-        pcall(vim.api.nvim_buf_clear_namespace, image.buf, ns, 0, -1)
+        vim.api.nvim_set_hl(0, "PyreplPlaceholdersImage_" .. image.id, {})
+        if vim.api.nvim_buf_is_valid(image.buf) then
+            vim.api.nvim_buf_clear_namespace(image.buf, ns, 0, -1)
+        end
     end
 end
 
