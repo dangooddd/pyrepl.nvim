@@ -1,5 +1,6 @@
 local M = {}
 
+local config = require("pyrepl.config")
 local core = require("pyrepl.core")
 local image = require("pyrepl.image")
 local jupytext = require("pyrepl.jupytext")
@@ -70,8 +71,7 @@ function M.send_cell()
     local chan = core.get_chan()
     if chan then
         local idx = vim.api.nvim_win_get_cursor(0)[1]
-        local config = require("pyrepl.config").get_state()
-        send.send_cell(0, chan, idx, config.cell_pattern)
+        send.send_cell(0, chan, idx, config.get_state().cell_pattern)
         core.scroll_repl()
     end
 end
@@ -87,8 +87,7 @@ end
 ---@param opts? pyrepl.ConfigOpts
 ---@return table
 function M.setup(opts)
-    require("pyrepl.config").update_state(opts)
-    local config = require("pyrepl.config").get_state()
+    config.update_state(opts)
 
     local commands = {
         PyreplOpen = M.open_repl,
@@ -113,7 +112,7 @@ function M.setup(opts)
         M.install_packages(o.args)
     end, { nargs = 1, complete = python.get_tools })
 
-    if config.jupytext_hook and vim.fn.executable("jupytext") == 1 then
+    if config.get_state().jupytext_hook and vim.fn.executable("jupytext") == 1 then
         vim.api.nvim_clear_autocmds({
             event = "BufReadPost",
             group = group,
