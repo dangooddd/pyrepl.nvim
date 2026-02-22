@@ -39,6 +39,7 @@ local function open_image_win(buf)
         row = row,
         col = col,
         style = "minimal",
+        zindex = 25,
     }
 
     local win = vim.api.nvim_open_win(buf, false, opts)
@@ -209,10 +210,13 @@ function M.open_image_history(index, focus)
 
     if not (state.buf and vim.api.nvim_buf_is_valid(state.buf)) then
         state.buf = vim.api.nvim_create_buf(false, true)
+        setup_buf_autocmds()
+        setup_keybinds()
     end
 
     if not (state.win and vim.api.nvim_win_is_valid(state.win)) then
         state.win = open_image_win(state.buf)
+        setup_win_autocmds()
     else
         vim.api.nvim_win_set_buf(state.win, state.buf)
     end
@@ -226,11 +230,6 @@ function M.open_image_history(index, focus)
     local provider = config.get_image_provider()
     state.img = provider.delete(state.img)
     state.img = provider.create(state.history[state.history_idx], state.buf, state.win)
-
-    -- setup history manager
-    setup_buf_autocmds()
-    setup_win_autocmds()
-    setup_keybinds()
 
     if focus or focus == nil then
         clear_cursor_autocmds()
