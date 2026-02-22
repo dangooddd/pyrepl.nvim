@@ -16,13 +16,11 @@ local defaults = {
     jupytext_hook = true,
 }
 
-local provider_cache
+local image_provider_cache
+local message_prefix = "[pyrepl] "
 
 ---@type pyrepl.Config
-M.state = vim.deepcopy(defaults)
-
--- should be used as prefix with error/notify messages
-M.message = "[pyrepl] "
+local state = vim.deepcopy(defaults)
 
 ---@param num any
 ---@param min number
@@ -44,23 +42,33 @@ local function clip_number(num, min, max, fallback)
 end
 
 ---@return pyrepl.ImageProvider<any>
-function M.get_provider()
-    if not provider_cache then
-        local ok, provider = pcall(require, "pyrepl.providers." .. M.state.image_provider)
+function M.get_image_provider()
+    if not image_provider_cache then
+        local ok, provider = pcall(require, "pyrepl.providers." .. state.image_provider)
 
         if ok then
-            provider_cache = provider
+            image_provider_cache = provider
         else
-            provider_cache = require("pyrepl.providers." .. defaults.image_provider)
+            image_provider_cache = require("pyrepl.providers." .. defaults.image_provider)
         end
     end
 
-    return provider_cache
+    return image_provider_cache
+end
+
+---@return string
+function M.get_message_prefix()
+    return message_prefix
+end
+
+---@return pyrepl.Config
+function M.get_state()
+    return state
 end
 
 ---@param opts? pyrepl.ConfigOpts
-function M.apply(opts)
-    M.state = vim.tbl_deep_extend("force", M.state, opts or {})
+function M.update_state(opts)
+    state = vim.tbl_deep_extend("force", state, opts or {})
 
     local to_clip = {
         { "split_ratio", 0.1, 0.9 },
@@ -71,11 +79,11 @@ function M.apply(opts)
 
     for _, args in ipairs(to_clip) do
         local key, min, max = args[1], args[2], args[3]
-        M.state[key] = clip_number(M.state[key], min, max, defaults[key] --[[@as number]])
+        state[key] = clip_number(state[key], min, max, defaults[key] --[[@as number]])
     end
 
     -- reload image provider after config update
-    provider_cache = nil
+    image_provider_cache = nil
 end
 
 return M

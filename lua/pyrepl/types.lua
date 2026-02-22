@@ -9,7 +9,7 @@
 ---@field image_width_ratio number
 ---@field image_height_ratio number
 ---@field image_provider string
----@field cell_pattern string|nil
+---@field cell_pattern string
 ---@field python_path string|nil
 ---@field preferred_kernel string|nil
 ---@field jupytext_hook boolean
@@ -37,6 +37,7 @@
 ---@field chan integer
 ---@field win? integer
 ---@field kernel string
+---@field closing boolean
 
 ---@generic pyrepl.TImage
 ---@class pyrepl.ImageProvider
@@ -46,6 +47,7 @@
 ---@class pyrepl.ImageState
 ---@field history string[]
 ---@field history_idx integer
+---@field closing boolean
 ---@field buf? integer
 ---@field win? integer
----@field image? any
+---@field img? any

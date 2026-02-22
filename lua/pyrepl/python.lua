@@ -1,13 +1,13 @@
 local M = {}
 
-local message = require("pyrepl.config").message
-local python_path_cache
-local console_path_cache
+local config = require("pyrepl.config")
 local packages = { "jupyter-console", "pynvim", "cairosvg", "pillow" }
 local tools = {
     uv = "uv pip install -p %s",
     pip = "%s -m pip install",
 }
+local python_path_cache
+local console_path_cache
 
 ---Resolve python path from candidates:
 ---1) config.python_path;
@@ -20,7 +20,7 @@ function M.get_python_path()
     end
 
     local candidates = {
-        require("pyrepl.config").state.python_path,
+        config.get_state().python_path,
         vim.g.python3_host_prog,
         "python",
     }
@@ -33,7 +33,7 @@ function M.get_python_path()
         end
     end
 
-    error(message .. "can't find correct python executable, see docs", 0)
+    error(config.get_message_prefix() .. "can't find correct python executable, see docs", 0)
 end
 
 ---@return string
@@ -48,7 +48,7 @@ function M.get_console_path()
         return console_path_cache
     end
 
-    error(message .. "console script not found", 0)
+    error(config.get_message_prefix() .. "console script not found", 0)
 end
 
 ---List of available jupyter kernels.
@@ -70,13 +70,16 @@ local function list_kernels()
 
     local obj = vim.system(cmd, { text = true }):wait()
     if obj.code ~= 0 then
-        vim.notify(message .. "install required packages first", vim.log.levels.WARN)
+        vim.notify(
+            config.get_message_prefix() .. "install required packages first",
+            vim.log.levels.WARN
+        )
         return {}
     end
 
     local ok, specs = pcall(vim.json.decode, obj.stdout)
     if not ok then
-        error(message .. "failed to decode kernelspecs json", 0)
+        error(config.get_message_prefix() .. "failed to decode kernelspecs json", 0)
     end
 
     local kernels = {}
@@ -84,7 +87,7 @@ local function list_kernels()
     for name, spec in pairs(specs["kernelspecs"]) do
         local index = #kernels + 1
         local item = { name = name, resource_dir = spec.resource_dir }
-        if name == require("pyrepl.config").state.preferred_kernel then
+        if name == config.get_state().preferred_kernel then
             index = 1
         end
         table.insert(kernels, index, item)
@@ -117,7 +120,10 @@ end
 ---@param tool string
 function M.install_packages(tool)
     if not tools[tool] then
-        vim.notify(message .. "unknown tool to install packages", vim.log.levels.WARN)
+        vim.notify(
+            config.get_message_prefix() .. "unknown tool to install packages",
+            vim.log.levels.WARN
+        )
         return
     end
 

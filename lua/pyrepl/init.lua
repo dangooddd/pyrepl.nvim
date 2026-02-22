@@ -42,7 +42,8 @@ function M.install_packages(tool)
 end
 
 function M.send_visual()
-    if core.state and core.state.chan then
+    local chan = core.get_chan()
+    if chan then
         -- update visual selection marks
         vim.api.nvim_feedkeys(
             vim.api.nvim_replace_termcodes("<Esc>", true, false, true),
@@ -51,54 +52,43 @@ function M.send_visual()
         )
         -- schedule to ensure marks are updated
         vim.schedule(function()
-            send.send_visual(0, core.state.chan)
+            send.send_visual(0, chan)
             core.scroll_repl()
         end)
     end
 end
 
 function M.send_buffer()
-    if core.state and core.state.chan then
-        send.send_buffer(0, core.state.chan)
+    local chan = core.get_chan()
+    if chan then
+        send.send_buffer(0, chan)
         core.scroll_repl()
     end
 end
 
 function M.send_cell()
-    if core.state and core.state.chan then
+    local chan = core.get_chan()
+    if chan then
         local idx = vim.api.nvim_win_get_cursor(0)[1]
-        send.send_cell(0, core.state.chan, idx, require("pyrepl.config").state.cell_pattern)
+        local config = require("pyrepl.config").get_state()
+        send.send_cell(0, chan, idx, config.cell_pattern)
         core.scroll_repl()
     end
 end
 
 function M.step_cell_forward()
-    local idx = vim.api.nvim_win_get_cursor(0)[1]
-    local _, end_idx = send.get_cell_range(0, idx, require("pyrepl.config").state.cell_pattern)
-    if end_idx then
-        vim.cmd.normal({ tostring(end_idx + 1) .. "gg^", bang = true })
-    end
+    send.step_cell_forward(0)
 end
 
 function M.step_cell_backward()
-    local idx = vim.api.nvim_win_get_cursor(0)[1]
-    local line = vim.api.nvim_buf_get_lines(0, idx - 1, idx, false)[1]
-
-    if line:match(require("pyrepl.config").state.cell_pattern) then
-        idx = math.max(1, idx - 1)
-    end
-
-    local start_idx, _ = send.get_cell_range(0, idx, require("pyrepl.config").state.cell_pattern)
-
-    if start_idx then
-        vim.cmd.normal({ tostring(math.max(0, start_idx - 1)) .. "gg^", bang = true })
-    end
+    send.step_cell_backward(0)
 end
 
 ---@param opts? pyrepl.ConfigOpts
 ---@return table
 function M.setup(opts)
-    require("pyrepl.config").apply(opts)
+    require("pyrepl.config").update_state(opts)
+    local config = require("pyrepl.config").get_state()
 
     local commands = {
         PyreplOpen = M.open_repl,
@@ -123,7 +113,7 @@ function M.setup(opts)
         M.install_packages(o.args)
     end, { nargs = 1, complete = python.get_tools })
 
-    if require("pyrepl.config").state.jupytext_hook and vim.fn.executable("jupytext") == 1 then
+    if config.jupytext_hook and vim.fn.executable("jupytext") == 1 then
         vim.api.nvim_clear_autocmds({
             event = "BufReadPost",
             group = group,

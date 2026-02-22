@@ -1,12 +1,13 @@
 local M = {}
 
-local message = require("pyrepl.config").message
+local config = require("pyrepl.config")
 local group = vim.api.nvim_create_augroup("PyreplImage", { clear = true })
 
 ---@type pyrepl.ImageState
 local state = {
     history = {},
     history_idx = 0,
+    closing = false,
     buf = nil,
     win = nil,
     img = nil,
@@ -20,15 +21,14 @@ local state = {
 local function open_image_win(buf)
     local width = vim.o.columns
     local height = vim.o.lines
-    local config = require("pyrepl.config").state
 
-    local float_width = math.max(1, math.floor(width * config.image_width_ratio))
-    local float_height = math.max(1, math.floor(height * config.image_height_ratio))
+    local float_width = math.max(1, math.floor(width * config.get_state().image_width_ratio))
+    local float_height = math.max(1, math.floor(height * config.get_state().image_height_ratio))
 
     local col = math.max(0, width - float_width)
     -- bottom right angle for split_horizontal, top right angle otherwise
     -- subtract 2 to take command line into account
-    local row = math.max(0, config.split_horizontal and height - float_height - 2 or 0)
+    local row = math.max(0, config.get_state().split_horizontal and height - float_height - 2 or 0)
 
     -- effective window size (without borders)
     -- subtract 2 to take borders into account
@@ -66,7 +66,7 @@ end
 
 ---@param img_base64 string
 local function push_history(img_base64)
-    if #state.history >= require("pyrepl.config").state.image_max_history then
+    if #state.history >= config.get_state().image_max_history then
         table.remove(state.history, 1)
     end
     table.insert(state.history, img_base64)
@@ -201,7 +201,7 @@ end
 ---@param focus? boolean if not passed, equals true
 function M.open_image_history(index, focus)
     if #state.history == 0 then
-        vim.notify(message .. "no image history available", vim.log.levels.WARN)
+        vim.notify(config.get_message_prefix() .. "no image history available", vim.log.levels.WARN)
         return
     end
 
@@ -223,7 +223,7 @@ function M.open_image_history(index, focus)
     vim.api.nvim_win_set_config(state.win, opts)
 
     -- render image
-    local provider = require("pyrepl.config").get_provider()
+    local provider = config.get_image_provider()
     state.img = provider.delete(state.img)
     state.img = provider.create(state.history[state.history_idx], state.buf, state.win)
 
@@ -242,28 +242,36 @@ end
 
 ---Closes image history window completely.
 function M.close_image_history()
+    if state.closing then
+        return
+    end
+
+    state.closing = true
     clear_cursor_autocmds()
-    state.img = require("pyrepl.config").get_provider().delete(state.img)
+    state.img = config.get_image_provider().delete(state.img)
 
     if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
-        vim.api.nvim_clear_autocmds({ group = group, buffer = state.buf })
-        vim.api.nvim_buf_delete(state.buf, { force = true })
+        pcall(function()
+            vim.api.nvim_buf_delete(state.buf, { force = true })
+            state.buf = nil
+        end)
     end
 
     if state.win and vim.api.nvim_win_is_valid(state.win) then
-        vim.api.nvim_clear_autocmds({ group = group, pattern = tostring(state.win) })
-        vim.api.nvim_win_close(state.win, true)
+        pcall(function()
+            vim.api.nvim_win_close(state.win, true)
+            state.win = nil
+        end)
     end
 
-    state.buf = nil
-    state.win = nil
+    state.closing = false
 end
 
 ---Push base64 PNG image to history and display it.
 ---@param img_base64 string
 function M.console_endpoint(img_base64)
     if type(img_base64) ~= "string" or img_base64 == "" then
-        error(message .. "image data missing or invalid", 0)
+        error(config.get_message_prefix() .. "image data missing or invalid", 0)
     end
     push_history(img_base64)
     M.open_image_history(#state.history, false)

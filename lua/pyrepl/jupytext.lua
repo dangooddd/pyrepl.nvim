@@ -1,7 +1,6 @@
 local M = {}
 
-local message = require("pyrepl.config").message
-
+local config = require("pyrepl.config")
 local template = [[
 {
   "cells": [
@@ -90,7 +89,10 @@ function M.convert_to_python(buf)
 
             local ok, error = pcall(convert_text, text, name, false)
             if not ok then
-                vim.notify(message .. "failed to run jupytext: " .. error, vim.log.levels.ERROR)
+                vim.notify(
+                    config.get_message_prefix() .. "failed to run jupytext: " .. error,
+                    vim.log.levels.ERROR
+                )
             else
                 edit_relative(name)
             end
@@ -112,9 +114,12 @@ function M.export_to_notebook(buf)
     vim.schedule(function()
         local ok, error = pcall(convert_text, text, name, true)
         if not ok then
-            vim.notify(message .. "failed to sync: " .. error, vim.log.levels.ERROR)
+            vim.notify(
+                config.get_message_prefix() .. "failed to sync: " .. error,
+                vim.log.levels.ERROR
+            )
         else
-            print(message .. string.format('script exported to "%s"', name))
+            print(config.get_message_prefix() .. string.format('script exported to "%s"', name))
         end
     end)
 end

@@ -1,5 +1,7 @@
 local M = {}
 
+local config = require("pyrepl.config")
+
 local compound_top_level_nodes = {
     async_for_statement = true,
     async_function_definition = true,
@@ -124,7 +126,7 @@ end
 ---@param buf integer
 ---@return integer|nil
 ---@return integer|nil
-function M.get_visual_range(buf)
+local function get_visual_range(buf)
     local start_pos = vim.api.nvim_buf_get_mark(buf, "<")
     local end_pos = vim.api.nvim_buf_get_mark(buf, ">")
 
@@ -145,7 +147,7 @@ end
 ---@param cell_pattern string
 ---@return integer|nil
 ---@return integer|nil
-function M.get_cell_range(buf, idx, cell_pattern)
+local function get_cell_range(buf, idx, cell_pattern)
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     if #lines == 0 then
         return nil, nil
@@ -186,7 +188,7 @@ end
 ---@param buf integer
 ---@param chan integer
 function M.send_visual(buf, chan)
-    local start_idx, end_idx = M.get_visual_range(buf)
+    local start_idx, end_idx = get_visual_range(buf)
 
     if start_idx and end_idx then
         local lines = vim.api.nvim_buf_get_lines(buf, start_idx - 1, end_idx, false)
@@ -200,12 +202,45 @@ end
 ---@param idx integer
 ---@param cell_pattern string
 function M.send_cell(buf, chan, idx, cell_pattern)
-    local start_idx, end_idx = M.get_cell_range(buf, idx, cell_pattern)
+    local start_idx, end_idx = get_cell_range(buf, idx, cell_pattern)
 
     if start_idx and end_idx then
         local lines = vim.api.nvim_buf_get_lines(buf, start_idx - 1, end_idx, false)
         local msg = table.concat(lines, "\n")
         raw_send_message(chan, msg)
+    end
+end
+
+---@param win integer
+function M.step_cell_forward(win)
+    local buf = vim.api.nvim_win_get_buf(win)
+    local idx = vim.api.nvim_win_get_cursor(win)[1]
+    local _, end_idx = get_cell_range(buf, idx, config.get_state().cell_pattern)
+
+    if end_idx then
+        vim.api.nvim_win_call(win, function()
+            vim.cmd.normal({ tostring(end_idx + 1) .. "gg^", bang = true })
+        end)
+    end
+end
+
+---@param win integer
+function M.step_cell_backward(win)
+    local buf = vim.api.nvim_win_get_buf(win)
+    local idx = vim.api.nvim_win_get_cursor(win)[1]
+    local line = vim.api.nvim_buf_get_lines(buf, idx - 1, idx, false)[1]
+    local cell_pattern = require("pyrepl.config").get_state().cell_pattern
+
+    if line:match(cell_pattern) then
+        idx = math.max(1, idx - 1)
+    end
+
+    local start_idx, _ = get_cell_range(buf, idx, cell_pattern)
+
+    if start_idx then
+        vim.api.nvim_win_call(win, function()
+            vim.cmd.normal({ tostring(math.max(0, start_idx - 1)) .. "gg^", bang = true })
+        end)
     end
 end
 

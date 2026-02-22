@@ -1,24 +1,25 @@
 local M = {}
 
 ---@type pyrepl.ReplState|nil
-M.state = nil
+local state = nil
 
+local config = require("pyrepl.config")
 local python = require("pyrepl.python")
 local theme = require("pyrepl.theme")
 
-local message = require("pyrepl.config").message
 local group = vim.api.nvim_create_augroup("PyreplCore", { clear = true })
 
 ---Create window according to current config.
 ---@return integer
 local function open_scratch_win()
-    local config = require("pyrepl.config").state
+    local split_horizontal = config.get_state().split_horizontal
+    local split_ratio = config.get_state().split_ratio
 
-    if config.split_horizontal then
-        local height = math.floor(vim.o.lines * config.split_ratio)
+    if split_horizontal then
+        local height = math.floor(vim.o.lines * split_ratio)
         vim.cmd("botright " .. height .. "split")
     else
-        local width = math.floor(vim.o.columns * config.split_ratio)
+        local width = math.floor(vim.o.columns * split_ratio)
         vim.cmd("botright " .. width .. "vsplit")
     end
 
@@ -26,17 +27,20 @@ local function open_scratch_win()
     return vim.api.nvim_get_current_win()
 end
 
----@param buf integer
-local function setup_buf_autocmds(buf)
+local function setup_buf_autocmds()
+    if not (state and state.buf and vim.api.nvim_buf_is_valid(state.buf)) then
+        return
+    end
+
     vim.api.nvim_clear_autocmds({
         event = { "BufWipeout", "TermClose" },
         group = group,
-        buffer = buf,
+        buffer = state.buf,
     })
 
     vim.api.nvim_create_autocmd({ "BufWipeout", "TermClose" }, {
         group = group,
-        buffer = buf,
+        buffer = state.buf,
         callback = function()
             M.close_repl()
         end,
@@ -44,19 +48,24 @@ local function setup_buf_autocmds(buf)
     })
 end
 
----@param win integer
-local function setup_win_autocmds(win)
+local function setup_win_autocmds()
+    if not (state and state.win and vim.api.nvim_win_is_valid(state.win)) then
+        return
+    end
+
     vim.api.nvim_clear_autocmds({
         event = "WinClosed",
         group = group,
-        pattern = tostring(win),
+        pattern = tostring(state.win),
     })
 
     vim.api.nvim_create_autocmd("WinClosed", {
         group = group,
-        pattern = tostring(win),
+        pattern = tostring(state.win),
         callback = function()
-            M.hide_repl()
+            if state then
+                state.win = nil
+            end
         end,
         once = true,
     })
@@ -64,8 +73,8 @@ end
 
 ---Scrolls REPL window to the end, so latest cell in focus.
 function M.scroll_repl()
-    if M.state and M.state.win and vim.api.nvim_win_is_valid(M.state.win) then
-        vim.api.nvim_win_call(M.state.win, function()
+    if state and state.win and vim.api.nvim_win_is_valid(state.win) then
+        vim.api.nvim_win_call(state.win, function()
             vim.cmd.normal({ "G", bang = true })
         end)
     end
@@ -73,15 +82,15 @@ end
 
 ---Open window, if session is active but win = nil.
 local function open_hidden_repl()
-    if not M.state or (M.state.win and vim.api.nvim_win_is_valid(M.state.win)) then
+    if not state or (state.win and vim.api.nvim_win_is_valid(state.win)) then
         return
     end
 
     local win = vim.api.nvim_get_current_win()
-    M.state.win = open_scratch_win()
-    vim.api.nvim_win_set_buf(M.state.win, M.state.buf)
+    state.win = open_scratch_win()
+    vim.api.nvim_win_set_buf(state.win, state.buf)
     vim.api.nvim_set_current_win(win)
-    setup_win_autocmds(M.state.win)
+    setup_win_autocmds()
     M.scroll_repl()
 end
 
@@ -89,24 +98,22 @@ end
 ---Opens REPL process and window.
 ---@param kernel string
 local function open_new_repl(kernel)
-    if M.state then
+    if state then
         return
     end
 
-    local config = require("pyrepl.config").state
     local python_path = python.get_python_path()
     local console_path = python.get_console_path()
-    local style = config.style or "default"
     local nvim_socket = vim.v.servername
+    local style = config.get_state().style
+    local style_treesitter = config.get_state().style_treesitter
 
     local buf = vim.api.nvim_create_buf(false, true)
     vim.bo[buf].bufhidden = "hide"
-    setup_buf_autocmds(buf)
 
     local current_win = vim.api.nvim_get_current_win()
     local win = open_scratch_win()
     vim.api.nvim_win_set_buf(win, buf)
-    setup_win_autocmds(win)
 
     local cmd = {
         python_path,
@@ -119,7 +126,7 @@ local function open_new_repl(kernel)
         vim.o.termguicolors and "True" or "False",
     }
 
-    if config.style_treesitter then
+    if style_treesitter then
         local overrides = theme.build_pygments_theme()
         if overrides then
             cmd[#cmd + 1] = "--ZMQTerminalInteractiveShell.highlighting_style_overrides"
@@ -136,21 +143,24 @@ local function open_new_repl(kernel)
             { NVIM = nvim_socket, PYDEVD_DISABLE_FILE_VALIDATION = 1 }
         ),
         on_exit = function()
-            M.close_repl()
+            vim.defer_fn(M.close_repl, 200)
         end,
     })
 
     if chan == 0 or chan == -1 then
-        error(message .. "failed to start jupyter-console correctly", 0)
+        error(config.get_message_prefix() .. "failed to start jupyter-console correctly", 0)
     end
 
-    M.state = {
+    state = {
         buf = buf,
         win = win,
         chan = chan,
         kernel = kernel,
+        closing = false,
     }
 
+    setup_buf_autocmds()
+    setup_win_autocmds()
     vim.api.nvim_buf_set_name(buf, string.format("kernel: %s", kernel))
     vim.api.nvim_set_current_win(current_win)
     M.scroll_repl()
@@ -160,22 +170,22 @@ end
 function M.toggle_repl_focus()
     open_hidden_repl()
 
-    if not (M.state and M.state.win and vim.api.nvim_win_is_valid(M.state.win)) then
+    if not (state and state.win and vim.api.nvim_win_is_valid(state.win)) then
         return
     end
 
-    if vim.api.nvim_get_current_win() == M.state.win then
+    if vim.api.nvim_get_current_win() == state.win then
         vim.cmd.stopinsert()
         vim.cmd.wincmd("p")
     else
-        vim.api.nvim_set_current_win(M.state.win)
+        vim.api.nvim_set_current_win(state.win)
         vim.cmd.startinsert()
     end
 end
 
 ---Open hidden REPL or initialize new from prompted kernel.
 function M.open_repl()
-    if M.state then
+    if state then
         open_hidden_repl()
     else
         python.prompt_kernel(function(kernel)
@@ -186,9 +196,11 @@ end
 
 ---Close REPL window.
 function M.hide_repl()
-    if M.state and M.state.win and vim.api.nvim_win_is_valid(M.state.win) then
-        pcall(vim.api.nvim_win_close, M.state.win, true)
-        M.state.win = nil
+    if state and state.win and vim.api.nvim_win_is_valid(state.win) then
+        pcall(function()
+            vim.api.nvim_win_close(state.win, true)
+            state.win = nil
+        end)
     end
 end
 
@@ -198,11 +210,22 @@ end
 ---3) Delete terminal buffer;
 ---4) Move state to nil.
 function M.close_repl()
-    if M.state then
-        M.hide_repl()
-        pcall(vim.fn.jobstop, M.state.chan)
-        pcall(vim.cmd.bdelete, { M.state.buf, bang = true })
-        M.state = nil
+    if not state or state.closing then
+        return
+    end
+
+    state.closing = true
+    M.hide_repl()
+    vim.fn.jobstop(state.chan)
+    pcall(vim.cmd.bdelete, { state.buf, bang = true })
+
+    state = nil
+end
+
+---@return integer|nil
+function M.get_chan()
+    if state then
+        return state.chan
     end
 end
 
