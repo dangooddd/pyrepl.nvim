@@ -22,7 +22,7 @@ function M.get_python_path()
     local candidates = {
         config.get_state().python_path,
         vim.g.python3_host_prog,
-        "python",
+        "python3",
     }
 
     for _, candidate in ipairs(candidates) do
@@ -113,11 +113,19 @@ end
 ---@param tool string
 function M.install_packages(tool)
     if not tools[tool] then
-        vim.notify(config.get_message_prefix() .. "unknown tool " .. tool, vim.log.levels.ERROR)
+        vim.notify(
+            config.get_message_prefix() .. string.format("unknown tool '%s'", tool),
+            vim.log.levels.ERROR
+        )
         return
     end
 
-    local python_path = M.get_python_path()
+    local ok, python_path = pcall(M.get_python_path)
+    if not ok then
+        vim.notify(python_path, vim.log.levels.ERROR)
+        return
+    end
+
     local packages_string = table.concat(packages, " ")
     local cmd = tools[tool]:format(python_path) .. " " .. packages_string
 

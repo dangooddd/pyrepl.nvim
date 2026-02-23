@@ -26,7 +26,7 @@ function M.toggle_repl_focus()
 end
 
 function M.open_image_history()
-    image.idx()
+    image.open_image_history()
 end
 
 function M.export_to_notebook()
@@ -89,30 +89,60 @@ end
 function M.setup(opts)
     config.update_state(opts)
 
-    local commands = {
-        PyreplOpen = M.open_repl,
-        PyreplHide = M.hide_repl,
-        PyreplClose = M.close_repl,
-        PyreplToggleFocus = M.toggle_repl_focus,
-        PyreplOpenImageHistory = M.open_image_history,
-        PyreplSendVisual = M.send_visual,
-        PyreplSendBuffer = M.send_buffer,
-        PyreplSendCell = M.send_cell,
-        PyreplStepCellForward = M.step_cell_forward,
-        PyreplStepCellBackward = M.step_cell_backward,
-        PyreplExport = M.export_to_notebook,
-        PyreplConvert = M.convert_to_python,
-    }
+    -- define commands
+    vim.api.nvim_create_user_command("PyreplOpen", function()
+        M.open_repl()
+    end, { nargs = 0 })
 
-    for name, callback in pairs(commands) do
-        local range = (name == 'PyreplSendVisual')
-        vim.api.nvim_create_user_command(name, callback, { force = true, nargs = 0, range = range })
-    end
+    vim.api.nvim_create_user_command("PyreplHide", function()
+        M.hide_repl()
+    end, { nargs = 0 })
+
+    vim.api.nvim_create_user_command("PyreplClose", function()
+        M.close_repl()
+    end, { nargs = 0 })
+
+    vim.api.nvim_create_user_command("PyreplToggleFocus", function()
+        M.toggle_repl_focus()
+    end, { nargs = 0 })
+
+    vim.api.nvim_create_user_command("PyreplOpenImageHistory", function()
+        M.open_image_history()
+    end, { nargs = 0 })
+
+    vim.api.nvim_create_user_command("PyreplSendVisual", function()
+        M.send_visual()
+    end, { nargs = 0, range = true })
+
+    vim.api.nvim_create_user_command("PyreplSendBuffer", function()
+        M.send_buffer()
+    end, { nargs = 0 })
+
+    vim.api.nvim_create_user_command("PyreplSendCell", function()
+        M.send_cell()
+    end, { nargs = 0 })
+
+    vim.api.nvim_create_user_command("PyreplStepCellBackward", function()
+        M.step_cell_backward()
+    end, { nargs = 0 })
+
+    vim.api.nvim_create_user_command("PyreplStepCellForward", function()
+        M.step_cell_forward()
+    end, { nargs = 0 })
+
+    vim.api.nvim_create_user_command("PyreplExport", function()
+        M.export_to_notebook()
+    end, { nargs = 0 })
+
+    vim.api.nvim_create_user_command("PyreplConvert", function()
+        M.convert_to_python()
+    end, { nargs = 0 })
 
     vim.api.nvim_create_user_command("PyreplInstall", function(o)
         M.install_packages(o.args)
     end, { nargs = 1, complete = python.get_tools })
 
+    -- setup jupytext hook
     if config.get_state().jupytext_hook and vim.fn.executable("jupytext") == 1 then
         vim.api.nvim_clear_autocmds({
             event = "BufReadPost",

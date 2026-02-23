@@ -204,7 +204,6 @@ local function draw(buf, img_id, geometry)
     end, 25)
 end
 
----Render a placeholder grid that the terminal replaces with the image.
 ---@param img_base64 string
 ---@return pyrepl.PlaceholdersImage|nil
 function M.create(img_base64)

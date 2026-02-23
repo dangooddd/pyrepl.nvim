@@ -37,7 +37,7 @@
 ---@field kernel string
 ---@field closing boolean
 ---@field buf integer
----@field win? integer
+---@field win integer|nil
 
 ---@class pyrepl.Image
 ---@field create fun(img_base64: string): pyrepl.Image|nil
@@ -49,5 +49,5 @@
 ---@field history pyrepl.Image[]
 ---@field idx integer
 ---@field closing boolean
----@field buf? integer
----@field win? integer
+---@field buf integer|nil
+---@field win integer|nil
