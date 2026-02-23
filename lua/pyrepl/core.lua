@@ -148,7 +148,7 @@ local function open_new_repl(kernel)
     })
 
     if chan == 0 or chan == -1 then
-        error(config.get_message_prefix() .. "failed to start jupyter-console correctly", 0)
+        error(config.get_message_prefix() .. "failed to start REPL, try `:PyreplInstall`", 0)
     end
 
     state = {

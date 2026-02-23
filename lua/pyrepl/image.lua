@@ -3,14 +3,13 @@ local M = {}
 local config = require("pyrepl.config")
 local group = vim.api.nvim_create_augroup("PyreplImage", { clear = true })
 
----@type pyrepl.ImageState
+---@type pyrepl.ImageHistoryState
 local state = {
     history = {},
-    history_idx = 0,
     closing = false,
+    idx = 1,
     buf = nil,
     win = nil,
-    img = nil,
 }
 
 ---Open float window to place image in.
@@ -39,7 +38,6 @@ local function open_image_win(buf)
         row = row,
         col = col,
         style = "minimal",
-        zindex = 25,
     }
 
     local win = vim.api.nvim_open_win(buf, false, opts)
@@ -65,19 +63,21 @@ local function open_image_win(buf)
     return win
 end
 
+---@param idx integer
+local function pop_history(idx)
+    if state.history[idx] then
+        state.history[idx]:delete()
+        table.remove(state.history, idx)
+        state.idx = math.min(state.idx, #state.history)
+    end
+end
+
 ---@param img_base64 string
 local function push_history(img_base64)
     if #state.history >= config.get_state().image_max_history then
-        table.remove(state.history, 1)
+        pop_history(1)
     end
-    table.insert(state.history, img_base64)
-end
-
----@param idx integer
-local function pop_history(idx)
-    if idx > 0 and idx <= #state.history then
-        table.remove(state.history, idx)
-    end
+    table.insert(state.history, config.get_image_provider().create(img_base64))
 end
 
 ---Clear image autoclose on cursor movement.
@@ -154,37 +154,37 @@ local function setup_keybinds()
 
     -- show previous image
     vim.keymap.set("n", "j", function()
-        if state.history_idx > 1 then
-            M.open_image_history(state.history_idx - 1, true)
+        if state.idx > 1 then
+            M.open_image_history(state.idx - 1, true)
         end
     end, opts)
 
     vim.keymap.set("n", "h", function()
-        if state.history_idx > 1 then
-            M.open_image_history(state.history_idx - 1, true)
+        if state.idx > 1 then
+            M.open_image_history(state.idx - 1, true)
         end
     end, opts)
 
     -- show next image
     vim.keymap.set("n", "k", function()
-        if state.history_idx < #state.history then
-            M.open_image_history(state.history_idx + 1, true)
+        if state.idx < #state.history then
+            M.open_image_history(state.idx + 1, true)
         end
     end, opts)
 
     vim.keymap.set("n", "l", function()
-        if state.history_idx < #state.history then
-            M.open_image_history(state.history_idx + 1, true)
+        if state.idx < #state.history then
+            M.open_image_history(state.idx + 1, true)
         end
     end, opts)
 
     -- delete image
     vim.keymap.set("n", "dd", function()
-        pop_history(state.history_idx)
+        pop_history(state.idx)
         if #state.history == 0 then
             M.close_image_history()
         else
-            M.open_image_history(state.history_idx)
+            M.open_image_history(state.idx)
         end
     end, opts)
 
@@ -198,15 +198,18 @@ local function setup_keybinds()
     end, opts)
 end
 
----@param index? integer
+---@param idx? integer
 ---@param focus? boolean if not passed, equals true
-function M.open_image_history(index, focus)
+function M.open_image_history(idx, focus)
     if #state.history == 0 then
         vim.notify(config.get_message_prefix() .. "no image history available", vim.log.levels.WARN)
         return
     end
 
-    state.history_idx = math.max(1, math.min(index or state.history_idx, #state.history))
+    if state.history[state.idx] then
+        state.history[state.idx]:clear()
+    end
+    state.idx = math.max(1, math.min(idx or state.idx, #state.history))
 
     if not (state.buf and vim.api.nvim_buf_is_valid(state.buf)) then
         state.buf = vim.api.nvim_create_buf(false, true)
@@ -222,14 +225,12 @@ function M.open_image_history(index, focus)
     end
 
     -- setup window title
-    local title = string.format(" History %d/%d ", state.history_idx, #state.history)
+    local title = string.format(" History %d/%d ", state.idx, #state.history)
     local opts = { title = title, title_pos = "center" }
     vim.api.nvim_win_set_config(state.win, opts)
 
     -- render image
-    local provider = config.get_image_provider()
-    state.img = provider.delete(state.img)
-    state.img = provider.create(state.history[state.history_idx], state.buf, state.win)
+    state.history[state.idx]:render(state.buf, state.win)
 
     if focus or focus == nil then
         clear_cursor_autocmds()
@@ -247,7 +248,10 @@ function M.close_image_history()
 
     state.closing = true
     clear_cursor_autocmds()
-    state.img = config.get_image_provider().delete(state.img)
+
+    if state.history[state.idx] then
+        state.history[state.idx]:clear()
+    end
 
     if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
         pcall(function()

@@ -1,14 +1,12 @@
----@class pyrepl.PlaceholdersImage
----@field buf integer
----@field id integer
-
----@type pyrepl.ImageProvider<pyrepl.PlaceholdersImage>
+---@class pyrepl.PlaceholdersImage: pyrepl.Image
+---@field buf? integer
+---@field id? integer
 local M = {}
+M.__index = M
 
 local ns = vim.api.nvim_create_namespace("PyreplPlaceholders")
 local tmux_detected = nil
-local used_ids = {}
-local next_id = 0
+local next_id = 1
 local max_ids = 256
 local placeholder = "\u{10EEEE}"
 local esc = "\x1b"
@@ -132,13 +130,16 @@ end
 ---@param img_data string
 local function upload_image(img_id, img_data)
     send_apc(("f=100,t=d,i=%d,q=2;%s"):format(img_id, img_data))
-    used_ids[img_id] = true
+end
+
+---@param img_id integer
+local function clear_image(img_id)
+    send_apc(("a=d,d=i,i=%d,q=2"):format(img_id))
 end
 
 ---@param img_id integer
 local function delete_image(img_id)
-    pcall(send_apc, ("a=d,d=I,i=%d,q=2"):format(img_id))
-    used_ids[img_id] = false
+    send_apc(("a=d,d=I,i=%d,q=2"):format(img_id))
 end
 
 ---Place an uploaded image into a cell region.
@@ -151,14 +152,9 @@ end
 
 ---@return integer
 local function get_image_id()
-    for _ = 1, max_ids do
-        next_id = (next_id % max_ids) + 1
-        if not used_ids[next_id] then
-            return next_id
-        end
-    end
+    local id = next_id
     next_id = (next_id % max_ids) + 1
-    return next_id
+    return id
 end
 
 ---@class pyrepl.PlaceholdersGeometry
@@ -189,11 +185,8 @@ local function draw(buf, img_id, geometry)
     vim.api.nvim_buf_set_lines(buf, buf_lines, buf_lines, false, extra)
 
     -- highlight placeholders
-    local hl = string.format("PyreplPlaceholdersImage_%d", img_id)
-    if vim.fn.hlexists(hl) == 0 then
-        -- unique for each image
-        vim.api.nvim_set_hl(0, hl, { fg = img_id, ctermfg = img_id })
-    end
+    local hl = "PyreplPlaceholdersImage" .. img_id
+    vim.api.nvim_set_hl(0, hl, { fg = img_id, ctermfg = img_id })
 
     -- write placeholders
     for r = 1, rows do
@@ -213,42 +206,51 @@ end
 
 ---Render a placeholder grid that the terminal replaces with the image.
 ---@param img_base64 string
+---@return pyrepl.PlaceholdersImage|nil
+function M.create(img_base64)
+    local self = setmetatable({}, M)
+    self.id = get_image_id()
+    upload_image(self.id, img_base64)
+    return self
+end
+
 ---@param buf integer
 ---@param win integer
----@return pyrepl.PlaceholdersImage|nil
-function M.create(img_base64, buf, win)
-    if not (vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win)) then
+function M:render(buf, win)
+    if not (vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win) and self.id) then
         return
     end
 
-    local id = get_image_id()
+    self:clear()
+    self.buf = buf
     local rows = vim.api.nvim_win_get_height(win)
     local cols = vim.api.nvim_win_get_width(win)
 
-    upload_image(id, img_base64)
-
-    draw(buf, id, {
+    draw(self.buf, self.id, {
         x = 0,
         y = 0,
         rows = rows,
         cols = cols,
     })
-
-    return {
-        buf = buf,
-        id = id,
-    }
 end
 
----Delete placeholders image, clear hl groups.
----@param image pyrepl.PlaceholdersImage|nil
-function M.delete(image)
-    if image then
-        delete_image(image.id)
-        vim.api.nvim_set_hl(0, "PyreplPlaceholdersImage_" .. image.id, {})
-        if vim.api.nvim_buf_is_valid(image.buf) then
-            vim.api.nvim_buf_clear_namespace(image.buf, ns, 0, -1)
+---Clear placeholders image and buffer extmark.
+function M:clear()
+    if self.id then
+        clear_image(self.id)
+        if self.buf and vim.api.nvim_buf_is_valid(self.buf) then
+            vim.api.nvim_buf_clear_namespace(self.buf, ns, 0, -1)
         end
+        self.buf = nil
+    end
+end
+
+---Delete placeholders image completely.
+function M:delete()
+    if self.id then
+        self:clear()
+        delete_image(self.id)
+        self.id = nil
     end
 end
 

@@ -33,21 +33,21 @@
 ---@field resource_dir string
 
 ---@class pyrepl.ReplState
----@field buf integer
 ---@field chan integer
----@field win? integer
 ---@field kernel string
 ---@field closing boolean
+---@field buf integer
+---@field win? integer
 
----@generic pyrepl.TImage
----@class pyrepl.ImageProvider
----@field create fun(img_base64: string, buf: integer, win: integer): pyrepl.TImage|nil
----@field delete fun(image: pyrepl.TImage|nil): nil
+---@class pyrepl.Image
+---@field create fun(img_base64: string): pyrepl.Image|nil
+---@field render fun(self: pyrepl.Image, buf: integer, win: integer)
+---@field clear fun(self: pyrepl.Image)
+---@field delete fun(self: pyrepl.Image)
 
----@class pyrepl.ImageState
----@field history string[]
----@field history_idx integer
+---@class pyrepl.ImageHistoryState
+---@field history pyrepl.Image[]
+---@field idx integer
 ---@field closing boolean
 ---@field buf? integer
 ---@field win? integer
----@field img? any

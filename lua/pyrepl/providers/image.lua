@@ -1,80 +1,76 @@
----@type pyrepl.ImageProvider<Image>
+---@class pyrepl.ImageNvim: pyrepl.Image
+---@field image Image|nil
+---@field tmpfile string
 local M = {}
+M.__index = M
 
 local api = require("image")
 
-local cache = {}
-
 ---@param img_base64 string
----@return string|nil
-local function get_file_from_base64(img_base64)
-    local img_sha256 = vim.fn.sha256(img_base64)
+---@return pyrepl.ImageNvim|nil
+function M.create(img_base64)
+    local decoded = vim.base64.decode(img_base64)
+    local tmpname = vim.fn.tempname() .. ".png"
+    local tmpfile = io.open(tmpname, "wb")
 
-    -- create temp file from base64 string
-    if not cache[img_sha256] then
-        local decoded = vim.base64.decode(img_base64)
-        local tmpname = vim.fn.tempname() .. ".png"
-        local tmpfile = io.open(tmpname, "wb")
-
-        if not tmpfile then
-            return
-        end
-
-        tmpfile:write(decoded)
-        tmpfile:close()
-
-        cache[img_sha256] = tmpname
-    end
-
-    return cache[img_sha256]
-end
-
----@param img_base64 string
----@param buf integer
----@param win integer
----@return Image|nil
-function M.create(img_base64, buf, win)
-    if not (vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win)) then
+    if not tmpfile then
         return
     end
 
-    local tmpname = get_file_from_base64(img_base64)
-    if not tmpname then
-        return
-    end
+    tmpfile:write(decoded)
+    tmpfile:close()
 
-    local img = api.from_file(tmpname, {
-        window = win,
-        buffer = buf,
+    ---@type pyrepl.ImageNvim
+    local self = setmetatable({}, M)
+
+    local image = api.from_file(tmpname, {
         max_height_window_percentage = 100,
         max_width_window_percentage = 100,
         with_virtual_padding = true,
     })
 
-    if not img then
+    if image then
+        self.image = image
+        self.tmpfile = tmpname
+        return self
+    end
+end
+
+---@param buf integer
+---@param win integer
+function M:render(buf, win)
+    if not (vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win) and self.image) then
         return
     end
 
     local height = vim.api.nvim_win_get_height(win)
     local width = vim.api.nvim_win_get_width(win)
 
-    img:render({
+    self.image.buffer = buf
+    self.image.window = win
+
+    self.image:render({
         height = height,
         width = width,
     })
 
-    img:move(
-        math.floor(math.max(width - img.rendered_geometry.width, 0) / 2),
-        math.floor(math.max(height - img.rendered_geometry.height, 0) / 2)
+    self.image:move(
+        math.floor(math.max(width - self.image.rendered_geometry.width, 0) / 2),
+        math.floor(math.max(height - self.image.rendered_geometry.height, 0) / 2)
     )
-
-    return img
 end
 
----@param img Image|nil
-function M.delete(img)
-    if img then
-        img:clear()
+function M:clear()
+    if self.image then
+        self.image:clear()
+    end
+end
+
+function M:delete()
+    if self.image then
+        self:clear()
+        os.remove(self.tmpfile)
+        self.image = nil
     end
 end
 

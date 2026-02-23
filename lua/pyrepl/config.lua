@@ -41,7 +41,7 @@ local function clip_number(num, min, max, fallback)
     return num
 end
 
----@return pyrepl.ImageProvider<any>
+---@return pyrepl.Image
 function M.get_image_provider()
     if not image_provider_cache then
         local ok, provider = pcall(require, "pyrepl.providers." .. state.image_provider)

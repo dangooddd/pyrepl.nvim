@@ -1,6 +1,6 @@
 local M = {}
 
--- we pass python tuples in jupyter console overrides CLI argument
+-- jupyter console overrides CLI argument works with python tuples
 local pygments_hl_map = {
     ["('Text',)"] = { "Normal" },
     ["('Whitespace',)"] = { "Normal" },

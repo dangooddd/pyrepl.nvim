@@ -33,7 +33,7 @@ function M.get_python_path()
         end
     end
 
-    error(config.get_message_prefix() .. "can't find correct python executable, see docs", 0)
+    error(config.get_message_prefix() .. "python executable not found, configure `python_path`", 0)
 end
 
 ---@return string
@@ -48,19 +48,14 @@ function M.get_console_path()
         return console_path_cache
     end
 
-    error(config.get_message_prefix() .. "console script not found", 0)
+    error(config.get_message_prefix() .. "console script not found, potential bug", 0)
 end
 
 ---List of available jupyter kernels.
----@return { name: string, resource_dir: string }[]
+---@return pyrepl.KernelSpec
 local function list_kernels()
-    local python_path = M.get_python_path()
-    if not python_path then
-        return {}
-    end
-
     local cmd = {
-        python_path,
+        M.get_python_path(),
         "-m",
         "jupyter",
         "kernelspec",
@@ -70,11 +65,7 @@ local function list_kernels()
 
     local obj = vim.system(cmd, { text = true }):wait()
     if obj.code ~= 0 then
-        vim.notify(
-            config.get_message_prefix() .. "install required packages first",
-            vim.log.levels.WARN
-        )
-        return {}
+        error(config.get_message_prefix() .. "failed to list kernels, see `:PyreplInstall`", 0)
     end
 
     local ok, specs = pcall(vim.json.decode, obj.stdout)
@@ -99,8 +90,10 @@ end
 ---Prompt user to choose kernel and call callback with that choice.
 ---@param callback fun(kernel: string)
 function M.prompt_kernel(callback)
-    local kernels = list_kernels()
-    if #kernels == 0 then
+    local ok, kernels = pcall(list_kernels)
+
+    if not ok then
+        vim.notify(kernels --[[@as string]], vim.log.levels.ERROR)
         return
     end
 
@@ -120,18 +113,11 @@ end
 ---@param tool string
 function M.install_packages(tool)
     if not tools[tool] then
-        vim.notify(
-            config.get_message_prefix() .. "unknown tool to install packages",
-            vim.log.levels.WARN
-        )
+        vim.notify(config.get_message_prefix() .. "unknown tool " .. tool, vim.log.levels.ERROR)
         return
     end
 
     local python_path = M.get_python_path()
-    if not python_path then
-        return
-    end
-
     local packages_string = table.concat(packages, " ")
     local cmd = tools[tool]:format(python_path) .. " " .. packages_string
 
@@ -141,13 +127,7 @@ end
 ---Get available tool list (completion function for install_packages).
 ---@return string[]
 function M.get_tools()
-    local tool_list = {}
-
-    for tool, _ in pairs(tools) do
-        tool_list[#tool_list + 1] = tool
-    end
-
-    return tool_list
+    return vim.tbl_keys(tools)
 end
 
 return M

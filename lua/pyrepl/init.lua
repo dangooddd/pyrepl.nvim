@@ -26,7 +26,7 @@ function M.toggle_repl_focus()
 end
 
 function M.open_image_history()
-    image.open_image_history()
+    image.idx()
 end
 
 function M.export_to_notebook()
