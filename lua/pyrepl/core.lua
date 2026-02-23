@@ -10,21 +10,26 @@ local theme = require("pyrepl.theme")
 local group = vim.api.nvim_create_augroup("PyreplCore", { clear = true })
 
 ---Create window according to current config.
+---@param buf integer
 ---@return integer
-local function open_scratch_win()
+local function open_scratch_win(buf)
     local split_horizontal = config.get_state().split_horizontal
     local split_ratio = config.get_state().split_ratio
 
+    local win_config = {
+        win = -1,
+        style = "minimal",
+    }
+
     if split_horizontal then
-        local height = math.floor(vim.o.lines * split_ratio)
-        vim.cmd("botright " .. height .. "split")
+        win_config.height = math.floor(vim.o.lines * split_ratio)
+        win_config.split = "bottom"
     else
-        local width = math.floor(vim.o.columns * split_ratio)
-        vim.cmd("botright " .. width .. "vsplit")
+        win_config.width = math.floor(vim.o.columns * split_ratio)
+        win_config.split = "right"
     end
 
-    vim.api.nvim_win_set_config(0, { style = "minimal" })
-    return vim.api.nvim_get_current_win()
+    return vim.api.nvim_open_win(buf, false, win_config)
 end
 
 local function setup_buf_autocmds()
@@ -86,10 +91,7 @@ local function open_hidden_repl()
         return
     end
 
-    local win = vim.api.nvim_get_current_win()
-    state.win = open_scratch_win()
-    vim.api.nvim_win_set_buf(state.win, state.buf)
-    vim.api.nvim_set_current_win(win)
+    state.win = open_scratch_win(state.buf)
     setup_win_autocmds()
     M.scroll_repl()
 end
@@ -109,11 +111,8 @@ local function open_new_repl(kernel)
     local style_treesitter = config.get_state().style_treesitter
 
     local buf = vim.api.nvim_create_buf(false, true)
+    local win = open_scratch_win(buf)
     vim.bo[buf].bufhidden = "hide"
-
-    local current_win = vim.api.nvim_get_current_win()
-    local win = open_scratch_win()
-    vim.api.nvim_win_set_buf(win, buf)
 
     local cmd = {
         python_path,
@@ -134,18 +133,21 @@ local function open_new_repl(kernel)
         end
     end
 
-    local chan = vim.fn.jobstart(cmd, {
-        term = true,
-        pty = true,
-        env = vim.tbl_extend(
-            "force",
-            vim.env,
-            { NVIM = nvim_socket, PYDEVD_DISABLE_FILE_VALIDATION = 1 }
-        ),
-        on_exit = function()
-            vim.defer_fn(M.close_repl, 200)
-        end,
-    })
+    local chan = 0
+    vim.api.nvim_buf_call(buf, function()
+        chan = vim.fn.jobstart(cmd, {
+            term = true,
+            pty = true,
+            env = vim.tbl_extend(
+                "force",
+                vim.env,
+                { NVIM = nvim_socket, PYDEVD_DISABLE_FILE_VALIDATION = 1 }
+            ),
+            on_exit = function()
+                vim.defer_fn(M.close_repl, 200)
+            end,
+        })
+    end)
 
     if chan == 0 or chan == -1 then
         error(config.get_message_prefix() .. "failed to start REPL, try `:PyreplInstall`", 0)
@@ -162,7 +164,6 @@ local function open_new_repl(kernel)
     setup_buf_autocmds()
     setup_win_autocmds()
     vim.api.nvim_buf_set_name(buf, string.format("kernel: %s", kernel))
-    vim.api.nvim_set_current_win(current_win)
     M.scroll_repl()
 end
 
