@@ -23,7 +23,7 @@ local function open_scratch_win(buf)
 
     if split_horizontal then
         win_config.height = math.floor(vim.o.lines * split_ratio)
-        win_config.split = "bottom"
+        win_config.split = "below"
     else
         win_config.width = math.floor(vim.o.columns * split_ratio)
         win_config.split = "right"
