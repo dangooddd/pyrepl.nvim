@@ -37,15 +37,17 @@ function M.convert_to_python()
     jupytext.convert_to_python(0)
 end
 
+---Feed command to install packages with given tool in command line.
 ---@param tool string
 function M.install_packages(tool)
     python.install_packages(tool)
 end
 
+---Change mode to normal and send last visual range to REPL.
 function M.send_visual()
     local chan = core.get_chan()
     if chan then
-        -- update visual selection marks
+        -- update visual selection marks by changing mode to normal
         vim.api.nvim_feedkeys(
             vim.api.nvim_replace_termcodes("<Esc>", true, false, true),
             "n",
@@ -89,7 +91,7 @@ end
 function M.setup(opts)
     config.update_state(opts)
 
-    -- define commands
+    -- define plugin commands
     vim.api.nvim_create_user_command("PyreplOpen", function()
         M.open_repl()
     end, { nargs = 0 })
