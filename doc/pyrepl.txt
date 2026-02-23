@@ -377,16 +377,9 @@ While focused in the image window:
 HIGHLIGHTS                                                     *pyrepl-highlights*
 
 pyrepl.nvim defines these highlight groups:
-  PyreplImageBorder
-  PyreplImageTitle
-  PyreplImageNormal
-
-Default links:
->
-  vim.api.nvim_set_hl(0, "PyreplImageBorder", { link = "FloatBorder" })
-  vim.api.nvim_set_hl(0, "PyreplImageTitle", { link = "FloatTitle" })
-  vim.api.nvim_set_hl(0, "PyreplImageNormal", { link = "NormalFloat" })
-<
+  `PyreplImageBorder` (link to |FloatBorder| by default)
+  `PyreplImageTitle` (link to |FloatTitle| by default)
+  `PyreplImageNormal` (link to |NormalFloat| by default)
 
 ==============================================================================
 TROUBLESHOOTING                                                *pyrepl-troubleshooting*

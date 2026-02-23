@@ -82,11 +82,13 @@ https://github.com/user-attachments/assets/19822d92-5173-4441-8cec-6a59f9eb41b9
 This plugin aims to provide a sensible workflow to work with Python REPL.
 
 Main goals of this project:
+
 - Ability to send code from buffer to REPL;
 - Ability to display images in Neovim directly;
 - Balance code complexity with sensible features for a REPL workflow.
 
 What features `pyrepl.nvim` currently provides:
+
 - Convert notebook files from and to python with `jupytext`;
 - Install all runtime deps required with a command (no need to install kernel globally with default settings);
 - Use `jupyter-console` TUI for the REPL;
@@ -209,6 +211,12 @@ Commands:
 - `:PyreplExport` - export current buffer to notebook (`jupytext` should be installed);
 - `:PyreplConvert` - prompt to convert current notebook buffer to python (`jupytext` should be installed);
 - `:PyreplInstall {tool}` - install pyrepl runtime packages into the configured Python (`tool`: `pip` or `uv`).
+
+Highlight groups:
+
+- `PyreplImageBorder` (link to `FloatBorder` by default);
+- `PyreplImageTitle` (link to `FloatTitle` by default);
+- `PyreplImageNormal` (link to `NormalFloat` by default).
 
 Lua API:
 
