@@ -105,7 +105,8 @@ function M.setup(opts)
     }
 
     for name, callback in pairs(commands) do
-        vim.api.nvim_create_user_command(name, callback, { force = true, nargs = 0 })
+        local range = (name == 'PyreplSendVisual')
+        vim.api.nvim_create_user_command(name, callback, { force = true, nargs = 0, range = range })
     end
 
     vim.api.nvim_create_user_command("PyreplInstall", function(o)
