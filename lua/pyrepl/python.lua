@@ -51,6 +51,10 @@ function M.get_console_path()
     error(config.get_message_prefix() .. "console script not found, potential bug", 0)
 end
 
+---@class pyrepl.KernelSpec
+---@field name string
+---@field resource_dir string
+
 ---List of available jupyter kernels.
 ---@return pyrepl.KernelSpec
 local function list_kernels()

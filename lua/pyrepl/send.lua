@@ -130,6 +130,7 @@ local function get_visual_range(buf)
     local start_pos = vim.api.nvim_buf_get_mark(buf, "<")
     local end_pos = vim.api.nvim_buf_get_mark(buf, ">")
 
+    -- return nil if marks are empty
     if (start_pos[1] == 0 and start_pos[2] == 0) or (end_pos[1] == 0 and end_pos[2] == 0) then
         return nil, nil
     end

@@ -208,17 +208,20 @@ function M.open_image_history(idx, focus)
         return
     end
 
+    -- ensure last image is cleared
     if state.history[state.idx] then
         state.history[state.idx]:clear()
     end
     state.idx = math.max(1, math.min(idx or state.idx, #state.history))
 
+    -- ensure state buf is valid
     if not (state.buf and vim.api.nvim_buf_is_valid(state.buf)) then
         state.buf = vim.api.nvim_create_buf(false, true)
         setup_buf_autocmds()
         setup_keybinds()
     end
 
+    -- ensure state win is valid
     if not (state.win and vim.api.nvim_win_is_valid(state.win)) then
         state.win = open_image_win(state.buf)
         setup_win_autocmds()
@@ -230,6 +233,7 @@ function M.open_image_history(idx, focus)
     local opts = { title = title, title_pos = "center" }
     vim.api.nvim_win_set_config(state.win, opts)
 
+    -- focus history manager or show image once before any cursor movement
     if focus or focus == nil then
         clear_cursor_autocmds()
         vim.api.nvim_set_current_win(state.win)
@@ -237,6 +241,7 @@ function M.open_image_history(idx, focus)
         setup_cursor_autocmds()
     end
 
+    -- render current image
     state.history[state.idx]:render(state.buf, state.win)
 end
 
@@ -246,6 +251,7 @@ function M.close_image_history()
         return
     end
 
+    -- prevent possible recursion
     state.closing = true
     clear_cursor_autocmds()
 

@@ -1,6 +1,6 @@
 local M = {}
 
--- jupyter console overrides CLI argument works with python tuples
+-- jupyter console theme overrides CLI argument works with python tuples
 local pygments_hl_map = {
     ["('Text',)"] = { "Normal" },
     ["('Whitespace',)"] = { "Normal" },
@@ -80,6 +80,7 @@ function M.build_pygments_theme()
     local theme = {}
 
     for pygments, hls in pairs(pygments_hl_map) do
+        -- obtain style from candidates
         for _, hl in ipairs(hls) do
             local color = style_from_hl(hl)
             if color then
@@ -92,6 +93,8 @@ function M.build_pygments_theme()
     if #theme == 0 then
         return nil
     end
+
+    -- return python dictionary with color overrides
     return "{" .. table.concat(theme, ", ") .. "}"
 end
 

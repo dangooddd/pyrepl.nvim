@@ -76,24 +76,12 @@ local function setup_win_autocmds()
     })
 end
 
----Scrolls REPL window to the end, so latest cell in focus.
-function M.scroll_repl()
-    if state and state.win and vim.api.nvim_win_is_valid(state.win) then
-        vim.api.nvim_win_call(state.win, function()
-            vim.cmd.normal({ "G", bang = true })
-        end)
-    end
-end
-
----Open window, if session is active but win = nil.
+---Open window, if session is active but win is invalid or nil.
 local function open_hidden_repl()
-    if not state or (state.win and vim.api.nvim_win_is_valid(state.win)) then
-        return
+    if state and not (state.win and vim.api.nvim_win_is_valid(state.win)) then
+        state.win = open_scratch_win(state.buf)
+        setup_win_autocmds()
     end
-
-    state.win = open_scratch_win(state.buf)
-    setup_win_autocmds()
-    M.scroll_repl()
 end
 
 ---Main session initialization function.
@@ -133,6 +121,7 @@ local function open_new_repl(kernel)
         end
     end
 
+    -- start job from created scratch buffer
     local chan = 0
     vim.api.nvim_buf_call(buf, function()
         chan = vim.fn.jobstart(cmd, {
@@ -153,6 +142,7 @@ local function open_new_repl(kernel)
         error(config.get_message_prefix() .. "failed to start REPL, try `:PyreplInstall`", 0)
     end
 
+    -- set REPL state
     state = {
         buf = buf,
         win = win,
@@ -164,10 +154,18 @@ local function open_new_repl(kernel)
     setup_buf_autocmds()
     setup_win_autocmds()
     vim.api.nvim_buf_set_name(buf, string.format("kernel: %s", kernel))
-    M.scroll_repl()
 end
 
----Toggle REPL terminal focus; opens terminal in insert mode.
+---Scrolls REPL window to the end, so latest cell in focus.
+function M.scroll_repl()
+    if state and state.win and vim.api.nvim_win_is_valid(state.win) then
+        vim.api.nvim_win_call(state.win, function()
+            vim.cmd.normal({ "G", bang = true })
+        end)
+    end
+end
+
+---Toggle REPL terminal focus.
 function M.toggle_repl_focus()
     open_hidden_repl()
 
@@ -176,7 +174,7 @@ function M.toggle_repl_focus()
     end
 
     if vim.api.nvim_get_current_win() == state.win then
-        vim.cmd.stopinsert()
+        vim.cmd.stopinsert() -- start terminal mode
         vim.cmd.wincmd("p")
     else
         vim.api.nvim_set_current_win(state.win)
@@ -215,6 +213,7 @@ function M.close_repl()
         return
     end
 
+    -- prevent possible recursion
     state.closing = true
     M.hide_repl()
     vim.fn.jobstop(state.chan)
@@ -223,6 +222,7 @@ function M.close_repl()
     state = nil
 end
 
+---Get terminal job chan if REPL active, return nil otherwise.
 ---@return integer|nil
 function M.get_chan()
     if state then
