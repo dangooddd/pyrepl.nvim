@@ -4,25 +4,19 @@
 INTRODUCTION                                                    *pyrepl*
 
 pyrepl.nvim is a Python REPL inside Neovim powered by Jupyter kernels. It opens
-`jupyter-console` UI in a terminal split and provides commands to send
+`jupyter-console` in a neovim terminal split and provides commands to send
 code from your buffer to the selected kernel.
 
-pyrepl.nvim aims to provide a sensible workflow for Python REPL.
-
-Main goals:
-- Ability to send code from buffer to REPL
-- Ability to display images in Neovim directly
-- Balance code complication with sensible features for REPL workflow
-
-Features:
-- Convert notebook files from and to python with `jupytext`
-- Install all runtime deps required with command (no need to install kernel
-globally with default settings)
-- Use `jupyter-console` TUI for REPL
-- Prompt user to choose jupyter kernel on REPL start
-- Send code to the REPL from current buffer
-- Automatically display output images and save them to image history.
-- Neovim theme integration for `jupyter-console`
+Features `pyrepl.nvim` currently provides:
+- Convert notebook files from and to python with `jupytext`;
+- Install all runtime deps required with a command (no need to install kernel globally with default settings);
+- Start `jupyter-console` in neovim terminal;
+- Prompt the user to choose jupyter kernel on REPL start;
+- Send code to the REPL from current buffer;
+- Automatically display output images;
+- Neovim theme integration for `jupyter-console`;
+- Jupytext cell navigation;
+- Toggle focus to REPL in active terminal mode.
 
 ------------------------------------------------------------------------------
 QUICKSTART                                                      *pyrepl-quickstart*
@@ -270,13 +264,10 @@ TIPS & TRICKS                                                  *pyrepl-tips*
 
 Image display ~
 
-If you use ghostty (https://github.com/ghostty-org/ghostty) or kitty
-(https://github.com/kovidgoyal/kitty), do not change default provider
-"placeholders" - it works better and tested in various cases, like ssh + tmux +
-docker.
+Use `placeholders` provider for ghostty (https://github.com/ghostty-org/ghostty) and kitty (https://github.com/kovidgoyal/kitty) terminals.
+This allows image display in hard cases (for example, when nvim started in nested `ssh`, `tmux` and `docker`).
 
-Only if you use other terminals, change provider to "image" - in this case
-pyrepl will use image.nvim (https://github.com/3rd/image.nvim) image provider.
+For other terminals change provider to `image` - [image.nvim](https://github.com/3rd/image.nvim) will be used to display images.
 For example, to display images in terminal with `sixel` protocol support:
 >
   {
@@ -301,10 +292,11 @@ For example, to display images in terminal with `sixel` protocol support:
 
 Use a dedicated Python environment for runtime packages ~
 
-- By default pyrepl.nvim uses `python` (`python_path = "python"`).
-  If Neovim is started inside a venv, that venv is usually used.
-- For one dedicated interpreter, set `python_path` directly (or set
-  `python_path = nil` to use `vim.g.python3_host_prog`).
+By default pyrepl.nvim uses `python` (`python_path = "python"`) interpreter.
+If Neovim is started inside a venv, that venv is usually used.
+
+But you can install all required packages once in a dedicated python interpreter and set `python_path`
+(or set `python_path = nil` and `vim.g.python3_host_prog` will be used as fallback).
 
 Example:
 >
@@ -357,16 +349,15 @@ provider instead.
 Supported input formats from Jupyter are PNG, JPEG and SVG. JPEG/SVG are
 converted to PNG (requires pillow/cairosvg).
 
-If you run via SSH/tmux, your terminal must pass through graphics APC sequences.
+If you run via tmux, ensure pass through is enabled.
 
 You can open the image manager with:
 >
   require("pyrepl").open_image_history()
 <
 The image manager shows up to `image_max_history` recent images (default: 10).
-The window displays a title showing current image position (e.g., "History 3/10").
 
-While focused in the image window:
+Keybinds available in the image window:
   j, h     previous image (both keys work)
   k, l     next image (both keys work)
   dd       delete current image from history
@@ -380,23 +371,6 @@ pyrepl.nvim defines these highlight groups:
   `PyreplImageBorder` (link to |FloatBorder| by default)
   `PyreplImageTitle` (link to |FloatTitle| by default)
   `PyreplImageNormal` (link to |NormalFloat| by default)
-
-==============================================================================
-TROUBLESHOOTING                                                *pyrepl-troubleshooting*
-
- - Ensure pyrepl.nvim can resolve a Python executable.
-   If needed, set:
-
->
-  require("pyrepl").setup({ python_path = "/path/to/python3" })
-<
-
- - Install required Python packages into that interpreter (see |pyrepl-reqs|).
-   You can use |PyreplInstall| with `pip` or `uv`.
-
- - If images do not render, verify kitty graphics protocol support in your
-   terminal and pass-through over tmux is enabled.
-   If you use `image` provider, check `image.nvim` docs.
 
 ==============================================================================
 END
