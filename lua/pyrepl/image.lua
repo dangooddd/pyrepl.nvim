@@ -226,13 +226,9 @@ function M.open_image_history(idx, focus)
         vim.api.nvim_win_set_buf(state.win, state.buf)
     end
 
-    -- setup window title
     local title = string.format(" History %d/%d ", state.idx, #state.history)
     local opts = { title = title, title_pos = "center" }
     vim.api.nvim_win_set_config(state.win, opts)
-
-    -- render image
-    state.history[state.idx]:render(state.buf, state.win)
 
     if focus or focus == nil then
         clear_cursor_autocmds()
@@ -240,6 +236,8 @@ function M.open_image_history(idx, focus)
     else
         setup_cursor_autocmds()
     end
+
+    state.history[state.idx]:render(state.buf, state.win)
 end
 
 ---Closes image history window completely.

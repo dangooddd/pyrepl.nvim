@@ -26,7 +26,6 @@ function M.create(img_base64)
     local image = api.from_file(tmpname, {
         max_height_window_percentage = 100,
         max_width_window_percentage = 100,
-        with_virtual_padding = true,
     })
 
     if image then
