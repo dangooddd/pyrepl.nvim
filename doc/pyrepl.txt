@@ -33,7 +33,6 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       pyrepl.setup({
         split_horizontal = false,
         split_ratio = 0.5,
-        style_treesitter = true,
         image_max_history = 10,
         image_width_ratio = 0.5,
         image_height_ratio = 0.5,
@@ -44,6 +43,14 @@ Minimal lazy.nvim setup with the default config and example keymaps:
         python_path = "python",
         preferred_kernel = "python3",
         jupytext_hook = true,
+	style = "default",
+        style_treesitter = true,
+	banner = [[
+  ┏━┓╻ ╻┏━┓┏━╸┏━┓╻
+  ┣━┛┗┳┛┣┳┛┣╸ ┣━┛┃
+  ╹   ╹ ╹┗╸┗━╸╹  ┗━╸
+  jupyter-console {version}
+	]],
       })
 
       -- main commands
@@ -209,7 +216,6 @@ Default configuration:
   require("pyrepl").setup({
     split_horizontal = false,
     split_ratio = 0.5,
-    style_treesitter = true,
     image_max_history = 10,
     image_width_ratio = 0.5,
     image_height_ratio = 0.5,
@@ -218,6 +224,14 @@ Default configuration:
     python_path = "python",
     preferred_kernel = "python3",
     jupytext_hook = true,
+    style = "default",
+    style_treesitter = true,
+    banner = [[
+  ┏━┓╻ ╻┏━┓┏━╸┏━┓╻
+  ┣━┛┗┳┛┣┳┛┣╸ ┣━┛┃
+  ╹   ╹ ╹┗╸┗━╸╹  ┗━╸
+  jupyter-console {version}
+    ]],
   })
 <
 
@@ -226,13 +240,6 @@ Options:
       Use a horizontal split for the REPL terminal. Default: false.
   split_ratio (number)
       Fraction of screen used by the REPL split. Default: 0.5.
-  style (string)
-      Pygments style name used by jupyter-console. Default: "default".
-      Used directly when `style_treesitter` is false.
-  style_treesitter (boolean)
-      Derive Pygments style overrides from current Neovim/Tree-sitter
-      highlight groups for REPL output. Default: true.
-      Set to false to use built-in Pygments styles from `style`.
   image_max_history (integer)
       Maximum number of images kept in history. Default: 10. Minimum: 2.
   image_width_ratio (number)
@@ -258,6 +265,17 @@ Options:
       Default: "python3".
   jupytext_hook (boolean)
       Enable jupytext hook to automatically convert notebook buffers to `py:percent`. Default: true.
+  style (string)
+      Pygments style name used by jupyter-console. Default: "default".
+      Used directly when `style_treesitter` is false.
+  style_treesitter (boolean)
+      Derive Pygments style overrides from current Neovim/Tree-sitter
+      highlight groups for REPL output. Default: true.
+      Set to false to use built-in Pygments styles from `style`.
+  banner (string)
+      Banner to use in jupyter-console. Formatted with {version} and
+      {kernel_banner} variables. Pass nil to use `jupyter-console` built-in
+      banner.
 
 ==============================================================================
 TIPS & TRICKS                                                  *pyrepl-tips*

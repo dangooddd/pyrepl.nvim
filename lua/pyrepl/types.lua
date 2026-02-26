@@ -20,8 +20,6 @@
 ---@class pyrepl.ConfigOpts
 ---@field split_horizontal? boolean
 ---@field split_ratio? number
----@field style? string
----@field style_treesitter? boolean
 ---@field image_max_history? integer
 ---@field image_width_ratio? number
 ---@field image_height_ratio? number
@@ -30,6 +28,8 @@
 ---@field python_path? string
 ---@field preferred_kernel? string
 ---@field jupytext_hook? boolean
+---@field style? string
+---@field style_treesitter? boolean
 ---@field banner? string
 
 ---Image provider interface.

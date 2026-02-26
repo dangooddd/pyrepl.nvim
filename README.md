@@ -16,10 +16,10 @@ Minimal lazy.nvim setup with the default config and example keymaps:
     local pyrepl = require("pyrepl")
 
     -- default config
+    -- :h pyrepl-config
     pyrepl.setup({
       split_horizontal = false,
       split_ratio = 0.5,
-      style_treesitter = true,
       image_max_history = 10,
       image_width_ratio = 0.5,
       image_height_ratio = 0.5,
@@ -30,6 +30,15 @@ Minimal lazy.nvim setup with the default config and example keymaps:
       python_path = "python",
       preferred_kernel = "python3",
       jupytext_hook = true,
+      style = "default",
+      style_treesitter = true,
+      -- pass nil to use jupyter-console built-in banner
+      banner = [[
+┏━┓╻ ╻┏━┓┏━╸┏━┓╻
+┣━┛┗┳┛┣┳┛┣╸ ┣━┛┃
+╹   ╹ ╹┗╸┗━╸╹  ┗━╸
+jupyter-console {version}
+      ]],
     })
 
     -- main commands
@@ -122,10 +131,10 @@ For example, to display images in terminal with `sixel` protocol support:
 
 ### Use a dedicated Python environment for runtime packages
 
-By default pyrepl.nvim uses `python` (`python_path = "python"`).
-If Neovim is started inside a venv, that venv is usually used.
+By default pyrepl.nvim uses `python_path = "python"`.
+If Neovim is started inside a venv, that venv should be used.
 
-But you can install all required packages once in a dedicated python interpreter and set `python_path`
+But you can install all required packages once in a dedicated python interpreter and set correct `python_path`
 (or set `python_path = nil` and `vim.g.python3_host_prog` will be used as fallback).
 
 Example:
