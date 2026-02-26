@@ -14,6 +14,12 @@ local defaults = {
     python_path = "python",
     preferred_kernel = "python3",
     jupytext_hook = true,
+    banner = [[
+┏━┓╻ ╻┏━┓┏━╸┏━┓╻
+┣━┛┗┳┛┣┳┛┣╸ ┣━┛┃
+╹   ╹ ╹┗╸┗━╸╹  ┗━╸
+jupyter-console {version}
+    ]],
 }
 
 local image_provider_cache

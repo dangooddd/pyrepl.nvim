@@ -69,7 +69,7 @@ local function list_kernels()
 
     local obj = vim.system(cmd, { text = true }):wait()
     if obj.code ~= 0 then
-        error(config.get_message_prefix() .. "failed to list kernels, see `:PyreplInstall`", 0)
+        error(config.get_message_prefix() .. "failed to list kernels, try `:PyreplInstall`", 0)
     end
 
     local ok, specs = pcall(vim.json.decode, obj.stdout)

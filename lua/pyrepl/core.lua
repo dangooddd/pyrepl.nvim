@@ -94,9 +94,10 @@ local function open_new_repl(kernel)
 
     local python_path = python.get_python_path()
     local console_path = python.get_console_path()
-    local nvim_socket = vim.v.servername
     local style = config.get_state().style
     local style_treesitter = config.get_state().style_treesitter
+    local banner = config.get_state().banner
+    local nvim_socket = vim.v.servername
 
     local buf = vim.api.nvim_create_buf(false, true)
     local win = open_scratch_win(buf)
@@ -116,9 +117,18 @@ local function open_new_repl(kernel)
     if style_treesitter then
         local overrides = theme.build_pygments_theme()
         if overrides then
-            cmd[#cmd + 1] = "--ZMQTerminalInteractiveShell.highlighting_style_overrides"
-            cmd[#cmd + 1] = overrides
+            vim.list_extend(cmd, {
+                "--ZMQTerminalInteractiveShell.highlighting_style_overrides",
+                overrides,
+            })
         end
+    end
+
+    if banner then
+        vim.list_extend(cmd, {
+            "--ZMQTerminalInteractiveShell.banner",
+            vim.fn.shellescape(banner),
+        })
     end
 
     -- start job from created scratch buffer
@@ -127,11 +137,10 @@ local function open_new_repl(kernel)
         chan = vim.fn.jobstart(cmd, {
             term = true,
             pty = true,
-            env = vim.tbl_extend(
-                "force",
-                vim.env,
-                { NVIM = nvim_socket, PYDEVD_DISABLE_FILE_VALIDATION = 1 }
-            ),
+            env = vim.tbl_extend("force", vim.env, {
+                NVIM = nvim_socket,
+                PYDEVD_DISABLE_FILE_VALIDATION = 1,
+            }),
             on_exit = function()
                 vim.defer_fn(M.close_repl, 200)
             end,
@@ -153,6 +162,7 @@ local function open_new_repl(kernel)
 
     setup_buf_autocmds()
     setup_win_autocmds()
+    -- show kernel name in buffer name
     vim.api.nvim_buf_set_name(buf, string.format("kernel: %s", kernel))
 end
 
