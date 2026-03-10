@@ -59,14 +59,10 @@ local pygments_hl_map = {
 ---@param hl_name string
 ---@return string|nil
 local function style_from_hl(hl_name)
-    local ok, hl = pcall(vim.api.nvim_get_hl, 0, {
+    local hl = vim.api.nvim_get_hl(0, {
         name = hl_name,
         link = false,
     })
-
-    if not ok then
-        return
-    end
 
     if type(hl.fg) ~= "number" then
         return
