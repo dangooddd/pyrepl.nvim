@@ -2,7 +2,7 @@
 
 Python REPL inside Neovim powered by Jupyter console!
 
-<img width="1624" height="971" alt="preview" src="https://github.com/user-attachments/assets/f126b07a-20ac-4fa4-9b58-815ac8fb6230" />
+<img width="1608" height="1057" alt="image" src="https://github.com/user-attachments/assets/1cabf303-9840-4274-9c51-ab14424e8e99" />
 
 ## Quickstart
 
@@ -76,7 +76,7 @@ For mason users:
 
 ## Demo
 
-https://github.com/user-attachments/assets/19822d92-5173-4441-8cec-6a59f9eb41b9
+https://github.com/user-attachments/assets/fb188ae9-3685-4b66-962a-619c940ba120
 
 ## Preface
 
