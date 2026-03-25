@@ -239,10 +239,23 @@ Options:
       Use "placeholders" for ghostty and kitty terminals.
       Use "image" for other terminals, you should configure `image.nvim`
       plugin.
-  cell_pattern (string)
+  cell_pattern (string|function)
       Lua pattern used as cell separators for |PyreplSendCell|,
       |PyreplStepCellForward| and |PyreplStepCellBackward|.
+      Can be a string pattern or a function that returns a pattern.
       Default: "^# %%%%.*$".
+      Example: >
+        cell_pattern = "^```.*$"
+<
+      Example with function for per-filetype patterns: >
+        cell_pattern = function()
+          local ft = vim.bo.filetype
+          if ft == "markdown" or ft == "quarto" then
+            return "^```.*$"
+          end
+          return "^# %%%%.*$"
+        end
+<
   python_path (string)
       Python interpreter used by pyrepl.nvim. Default: "python".
       Resolution order is: `python_path`, then `g:python3_host_prog`, then

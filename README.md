@@ -170,6 +170,26 @@ vim.keymap.set("n", "<leader>jl", function()
 end)
 ```
 
+### Cell Pattern Options
+
+- `cell_pattern` (string|fun(): string): Lua pattern used as cell separator, or a function that returns a pattern. Default: `"^# %%%%.*$"`
+
+```lua
+require("pyrepl").setup({
+    -- Simple cell pattern: can be a string or a function
+    cell_pattern = "^# %%%%.*$",
+
+    -- Or use a function for custom logic
+    cell_pattern = function()
+        local ft = vim.bo.filetype
+        if ft == "markdown" or ft == "quarto" then
+            return "^```.*$"
+        end
+        return "^# %%%%.*$"
+    end,
+})
+```
+
 ## Commands and API
 
 Commands:
