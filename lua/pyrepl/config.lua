@@ -68,11 +68,13 @@ end
 
 ---Get the effective cell pattern for the current buffer.
 ---@return string
-function M.get_effective_cell_pattern()
+function M.get_cell_pattern()
     local pattern = state.cell_pattern
+
     if type(pattern) == "function" then
         return pattern()
     end
+
     return pattern
 end
 

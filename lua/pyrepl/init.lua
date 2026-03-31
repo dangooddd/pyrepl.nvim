@@ -73,7 +73,7 @@ function M.send_cell()
     local chan = core.get_chan()
     if chan then
         local idx = vim.api.nvim_win_get_cursor(0)[1]
-        send.send_cell(0, chan, idx, config.get_effective_cell_pattern())
+        send.send_cell(0, chan, idx, config.get_cell_pattern())
         core.scroll_repl()
     end
 end

@@ -216,7 +216,7 @@ end
 function M.step_cell_forward(win)
     local buf = vim.api.nvim_win_get_buf(win)
     local idx = vim.api.nvim_win_get_cursor(win)[1]
-    local _, end_idx = get_cell_range(buf, idx, config.get_effective_cell_pattern())
+    local _, end_idx = get_cell_range(buf, idx, config.get_cell_pattern())
 
     if end_idx then
         vim.api.nvim_win_call(win, function()
@@ -230,7 +230,7 @@ function M.step_cell_backward(win)
     local buf = vim.api.nvim_win_get_buf(win)
     local idx = vim.api.nvim_win_get_cursor(win)[1]
     local line = vim.api.nvim_buf_get_lines(buf, idx - 1, idx, false)[1]
-    local cell_pattern = config.get_effective_cell_pattern()
+    local cell_pattern = config.get_cell_pattern()
 
     if line:match(cell_pattern) then
         idx = math.max(1, idx - 1)
