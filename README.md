@@ -6,52 +6,55 @@ Python REPL inside Neovim powered by Jupyter console!
 
 ## Quickstart
 
-Minimal lazy.nvim setup with the default config and example keymaps:
+Minimal `vim.pack` setup with the default config and example keymaps:
 
 ```lua
-{
-  "dangooddd/pyrepl.nvim",
-  dependencies = { "nvim-treesitter/nvim-treesitter" },
-  config = function()
-    local pyrepl = require("pyrepl")
+vim.pack.add({
+  "https://github.com/dangooddd/pyrepl.nvim",
+  "https://github.com/nvim-treesitter/nvim-treesitter",
+}, {
+  confirm = false,
+  load = true,
+})
 
-    -- default config
-    pyrepl.setup({
-      split_horizontal = false,
-      split_ratio = 0.5,
-      style = "default",
-      style_treesitter = true,
-      image_max_history = 10,
-      image_width_ratio = 0.5,
-      image_height_ratio = 0.5,
-      -- built-in provider, works best for ghostty and kitty
-      -- for other terminals use "image" provider
-      image_provider = "placeholders",
-      cell_pattern = "^# %%%%.*$",
-      python_path = "python",
-      preferred_kernel = "python3",
-      jupytext_hook = true,
-    })
+local pyrepl = require("pyrepl")
 
-    -- main commands
-    vim.keymap.set("n", "<leader>jo", pyrepl.open_repl)
-    vim.keymap.set("n", "<leader>jh", pyrepl.hide_repl)
-    vim.keymap.set("n", "<leader>jc", pyrepl.close_repl)
-    vim.keymap.set("n", "<leader>ji", pyrepl.open_image_history)
-    vim.keymap.set({ "n", "t" }, "<C-j>", pyrepl.toggle_repl_focus)
+-- default config
+pyrepl.setup({
+  split_horizontal = false,
+  split_ratio = 0.5,
+  style = "default",
+  style_treesitter = true,
+  image_max_history = 10,
+  image_width_ratio = 0.5,
+  image_height_ratio = 0.5,
+  -- built-in provider, works best for ghostty and kitty
+  -- for other terminals use "image" provider
+  image_provider = "placeholders",
+  cell_pattern = "^# %%%%.*$",
+  python_path = "python",
+  preferred_kernel = "python3",
+  -- automatically prompt to convert notebook files into python scripts
+  jupytext_hook = true,
+})
 
-    -- send commands
-    vim.keymap.set("n", "<leader>jb", pyrepl.send_buffer)
-    vim.keymap.set("n", "<leader>jl", pyrepl.send_cell)
-    vim.keymap.set("v", "<leader>jv", pyrepl.send_visual)
+-- repl ui-related commands
+vim.keymap.set("n", "<leader>jo", pyrepl.open_repl)
+vim.keymap.set("n", "<leader>jh", pyrepl.hide_repl)
+vim.keymap.set("n", "<leader>jc", pyrepl.close_repl)
+vim.keymap.set("n", "<leader>ji", pyrepl.open_image_history)
+vim.keymap.set({ "n", "t" }, "<C-j>", pyrepl.toggle_repl_focus)
 
-    -- utility commands
-    vim.keymap.set("n", "<leader>jp", pyrepl.step_cell_backward)
-    vim.keymap.set("n", "<leader>jn", pyrepl.step_cell_forward)
-    vim.keymap.set("n", "<leader>je", pyrepl.export_to_notebook)
-    vim.keymap.set("n", "<leader>js", ":PyreplInstall")
-  end,
-}
+-- send commands
+vim.keymap.set("n", "<leader>jb", pyrepl.send_buffer)
+vim.keymap.set("n", "<leader>jl", pyrepl.send_cell)
+vim.keymap.set("v", "<leader>jv", pyrepl.send_visual)
+
+-- QoL commands
+vim.keymap.set("n", "<leader>jp", pyrepl.step_cell_backward)
+vim.keymap.set("n", "<leader>jn", pyrepl.step_cell_forward)
+vim.keymap.set("n", "<leader>je", pyrepl.export_to_notebook)
+vim.keymap.set("n", "<leader>js", ":PyreplInstall")
 ```
 
 Then install REPL runtime packages with `uv` or `pip` directly from Neovim:
@@ -105,20 +108,17 @@ For other terminals change provider to `image` - [image.nvim](https://github.com
 For example, to display images in terminal with `sixel` protocol support:
 
 ```lua
-{
-  "3rd/image.nvim",
-  config = function()
-    require("image").setup({ backend = "sixel" })
-  end,
-},
+vim.pack.add({
+  "https://github.com/dangooddd/pyrepl.nvim",
+  "https://github.com/nvim-treesitter/nvim-treesitter",
+  "https://github.com/3rd/image.nvim",
+}, {
+  confirm = false,
+  load = true,
+})
 
-{
-  "dangooddd/pyrepl.nvim",
-  dependencies = { "nvim-treesitter/nvim-treesitter", "3rd/image.nvim" },
-  config = function()
-    require("pyrepl").setup({ image_provider = "image" })
-  end,
-}
+require("image").setup({ backend = "sixel" })
+require("pyrepl").setup({ image_provider = "image" })
 ```
 
 ### Use a dedicated Python environment for runtime packages
@@ -170,23 +170,20 @@ vim.keymap.set("n", "<leader>jl", function()
 end)
 ```
 
-### Cell Pattern Options
+### Advanced cell pattern options
 
-- `cell_pattern` (string|fun(): string): Lua pattern used as cell separator, or a function that returns a pattern. Default: `"^# %%%%.*$"`
+You can use function in place of `cell_pattern` config option.
+Example with filetype specific patterns:
 
 ```lua
 require("pyrepl").setup({
-    -- Simple cell pattern: can be a string or a function
-    cell_pattern = "^# %%%%.*$",
-
-    -- Or use a function for custom logic
-    cell_pattern = function()
-        local ft = vim.bo.filetype
-        if ft == "markdown" or ft == "quarto" then
-            return "^```.*$"
-        end
-        return "^# %%%%.*$"
-    end,
+  cell_pattern = function()
+      local ft = vim.bo.filetype
+      if ft == "markdown" or ft == "quarto" then
+          return "^```.*$"
+      end
+      return "^# %%%%.*$"
+  end,
 })
 ```
 
