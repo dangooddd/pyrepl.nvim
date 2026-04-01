@@ -42,7 +42,7 @@ local function open_image_win(buf)
 
     local win = vim.api.nvim_open_win(buf, false, opts)
     vim.wo[win].winhl =
-        "NormalFloat:PyreplImageNormal,FloatBorder:PyreplImageBorder,FloatTitle:PyreplImageBorder"
+        "NormalFloat:PyreplImageNormal,FloatBorder:PyreplImageBorder,FloatTitle:PyreplImageTitle"
 
     return win
 end
