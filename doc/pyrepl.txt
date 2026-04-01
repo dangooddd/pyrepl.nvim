@@ -62,6 +62,7 @@ Minimal `vim.pack` setup with the default config and example keymaps:
   vim.keymap.set("n", "<leader>jo", pyrepl.open_repl)
   vim.keymap.set("n", "<leader>jh", pyrepl.hide_repl)
   vim.keymap.set("n", "<leader>jc", pyrepl.close_repl)
+  vim.keymap.set("n", "<leader>jt", pyrepl.toggle_repl)
   vim.keymap.set("n", "<leader>ji", pyrepl.open_image_history)
   vim.keymap.set({ "n", "t" }, "<C-j>", pyrepl.toggle_repl_focus)
 
@@ -100,6 +101,9 @@ COMMANDS                                                        *pyrepl-commands
 
 :PyreplClose                                                    *PyreplClose*
     Close the REPL and shut down the kernel.
+
+:PyreplToggle                                                   *PyreplToggle*
+    Toggle REPL between hidden and opened state.
 
 :PyreplToggleFocus                                              *PyreplToggleFocus*
     Focus the REPL in terminal mode, or switch back to the previous window.
@@ -152,6 +156,9 @@ require("pyrepl").hide_repl()                                   *pyrepl.hide_rep
 
 require("pyrepl").close_repl()                                  *pyrepl.close_repl*
     Same as |PyreplClose|. Closes the REPL and shuts down the kernel.
+
+require("pyrepl").toggle_repl()                                 *pyrepl.toggle_repl*
+    Same as |PyreplToggle|. Toggles the REPL window.
 
 require("pyrepl").toggle_repl_focus()                           *pyrepl.toggle_repl_focus*
     Same as |PyreplToggleFocus|. Focus the REPL in terminal mode, or switch

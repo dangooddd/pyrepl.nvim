@@ -224,6 +224,15 @@ function M.close_repl()
     state = nil
 end
 
+---Toggle REPL window.
+function M.toggle_repl()
+    if state and state.win and vim.api.nvim_win_is_valid(state.win) then
+        M.hide_repl()
+    else
+        M.open_repl()
+    end
+end
+
 ---Get terminal job chan if REPL active, return nil otherwise.
 ---@return integer|nil
 function M.get_chan()

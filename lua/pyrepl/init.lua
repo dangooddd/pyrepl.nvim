@@ -21,6 +21,10 @@ function M.close_repl()
     core.close_repl()
 end
 
+function M.toggle_repl()
+    core.toggle_repl()
+end
+
 function M.toggle_repl_focus()
     core.toggle_repl_focus()
 end
@@ -102,6 +106,10 @@ function M.setup(opts)
 
     vim.api.nvim_create_user_command("PyreplClose", function()
         M.close_repl()
+    end, { nargs = 0 })
+
+    vim.api.nvim_create_user_command("PyreplToggle", function()
+        M.toggle_repl()
     end, { nargs = 0 })
 
     vim.api.nvim_create_user_command("PyreplToggleFocus", function()

@@ -49,6 +49,7 @@ pyrepl.setup({
 vim.keymap.set("n", "<leader>jo", pyrepl.open_repl)
 vim.keymap.set("n", "<leader>jh", pyrepl.hide_repl)
 vim.keymap.set("n", "<leader>jc", pyrepl.close_repl)
+vim.keymap.set("n", "<leader>jt", pyrepl.toggle_repl)
 vim.keymap.set("n", "<leader>ji", pyrepl.open_image_history)
 vim.keymap.set({ "n", "t" }, "<C-j>", pyrepl.toggle_repl_focus)
 
@@ -201,6 +202,7 @@ Commands:
 - `:PyreplOpen` - select a kernel and open the REPL;
 - `:PyreplHide` - hide the REPL window (kernel stays alive);
 - `:PyreplClose` - close the REPL and shut down the kernel;
+- `:PyreplToggle` - toggle REPL between hidden and opened state;
 - `:PyreplToggleFocus` - focus REPL in terminal mode or switch back to previous window;
 - `:PyreplSendVisual` - send the last visual selection;
 - `:PyreplSendBuffer` - send the entire buffer;
@@ -225,6 +227,7 @@ require("pyrepl").setup(opts)
 require("pyrepl").open_repl()
 require("pyrepl").hide_repl()
 require("pyrepl").close_repl()
+require("pyrepl").toggle_repl()
 require("pyrepl").toggle_repl_focus()
 require("pyrepl").send_visual()
 require("pyrepl").send_buffer()
