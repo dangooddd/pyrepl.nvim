@@ -17,6 +17,15 @@ Features `pyrepl.nvim` currently provides:
 - Toggle focus to REPL window in active terminal mode.
 
 ------------------------------------------------------------------------------
+REQUIREMENTS                                                   *pyrepl-reqs*
+
+- Python 3.12+
+- Neovim 0.11+
+- Optional Python packages:
+  - cairosvg (for displaying SVG images)
+  - pillow (for displaying JPG images)
+
+------------------------------------------------------------------------------
 QUICKSTART                                                      *pyrepl-quickstart*
 
 Minimal `vim.pack` setup with the default config and example keymaps:
@@ -73,25 +82,6 @@ Then install REPL runtime packages with `uv` or `pip` directly from Neovim:
 >
   :PyreplInstall pip
   :PyreplInstall uv
-<
-
-==============================================================================
-REQUIREMENTS                                                   *pyrepl-reqs*
-
-- A working Python executable. By default pyrepl.nvim uses `python`
-  executable from PATH.
-  You can override it with `python_path` (see |pyrepl-config|).
-- The selected Python interpreter must have these packages:
-  - pynvim
-  - jupyter-console
-- Optional for images:
-  - pillow (JPEG -> PNG conversion)
-  - cairosvg (SVG -> PNG conversion)
-- A Jupyter kernel is registered (optional, for global kernels):
-
->
-  python3 -m pip install ipykernel
-  python3 -m ipykernel install --user --name python3
 <
 
 ==============================================================================

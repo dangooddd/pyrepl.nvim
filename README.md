@@ -4,6 +4,14 @@ Python REPL inside Neovim powered by Jupyter console!
 
 <img width="1608" height="1057" alt="image" src="https://github.com/user-attachments/assets/1cabf303-9840-4274-9c51-ab14424e8e99" />
 
+## Requirements
+
+- Python 3.12+
+- Neovim 0.11+
+- Optional Python packages:
+    - [cairosvg](https://cairosvg.org/) for displaying SVG images
+    - [pillow](https://github.com/python-pillow/Pillow) for displaying JPG images
+
 ## Quickstart
 
 Minimal `vim.pack` setup with the default config and example keymaps:
