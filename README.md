@@ -6,11 +6,8 @@ Python REPL inside Neovim powered by Jupyter console!
 
 ## Requirements
 
-- Python 3.12+
 - Neovim 0.11+
-- Optional Python packages:
-    - [cairosvg](https://cairosvg.org/) for displaying SVG images
-    - [pillow](https://github.com/python-pillow/Pillow) for displaying JPG images
+- Python 3.10+
 
 ## Quickstart
 
@@ -32,6 +29,7 @@ pyrepl.setup({
   split_horizontal = false,
   split_ratio = 0.5,
   style = "default",
+  -- generate jupyter-console theme from neovim theme
   style_integration = true,
   image_max_history = 10,
   image_width_ratio = 0.5,
@@ -39,6 +37,7 @@ pyrepl.setup({
   -- built-in provider, works best for ghostty and kitty
   -- for other terminals use "image" provider
   image_provider = "placeholders",
+  -- can also be a function for advanced use cases
   cell_pattern = "^# %%%%.*$",
   python_path = "python",
   preferred_kernel = "python3",
