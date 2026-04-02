@@ -81,7 +81,7 @@ vim.keymap.set("n", "<leader>js", ":PyreplInstall")
 
 Then install REPL runtime packages with `uv` or `pip` directly from Neovim:
 
-```vim
+```
 :PyreplInstall pip
 :PyreplInstall uv
 ```
@@ -95,7 +95,7 @@ uv tool install jupytext
 
 For Mason users:
 
-```vim
+```
 :MasonInstall jupytext
 ```
 
@@ -110,7 +110,7 @@ https://github.com/user-attachments/assets/fb188ae9-3685-4b66-962a-619c940ba120
 Pyrepl supports all features of `jupyter-console`, as it is a wrapper around it.
 You can pass any flags supported by `jupyter-console` to pyrepl with the user command:
 
-```vim
+```
 " PyreplOpen! forcefully prompts you to choose from local kernels, ignoring args
 :PyreplOpen {args}
 ```
@@ -125,7 +125,7 @@ require("pyrepl").open_repl(args)
 
 For example, you can open remote kernel like this:
 
-```vim
+```
 :PyreplOpen --existing /path/to/connection/file.json --ssh user@remote --sshkey ~/.ssh/id_example
 ```
 
