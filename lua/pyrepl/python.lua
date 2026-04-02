@@ -9,7 +9,7 @@ local tools = {
 local python_path_cache
 local console_path_cache
 
----Resolve python path from candidates:
+---Resolve Python path from the following candidates:
 ---1) config.python_path;
 ---2) vim.g.python3_host_prog;
 ---3) "python".
@@ -55,7 +55,7 @@ end
 ---@field name string
 ---@field resource_dir string
 
----List of available jupyter kernels.
+---List available Jupyter kernels.
 ---@return pyrepl.KernelSpec
 local function list_kernels()
     local cmd = {
@@ -112,7 +112,7 @@ function M.prompt_kernel(callback)
     end)
 end
 
----Feed command to install required packages in command line.
+---Feed the command to install the required packages to the command line.
 ---@param tool string
 function M.install_packages(tool)
     if not tools[tool] then
@@ -135,10 +135,40 @@ function M.install_packages(tool)
     vim.api.nvim_feedkeys(":!" .. cmd, "n", true)
 end
 
----Get available tool list (completion function for install_packages).
+---Get completions for Jupyter Console CLI flags.
+---@param arglead string
 ---@return string[]
-function M.get_tools()
-    return vim.tbl_keys(tools)
+function M.get_console_completions(arglead)
+    local items = {
+        "-f",
+        "--hb",
+        "--ip",
+        "--kernel",
+        "--existing",
+        "--sshkey",
+        "--ssh",
+        "--control",
+        "--stdin",
+        "--iopub",
+        "--shell",
+        "--transport",
+        "--config",
+        "--debug",
+        "--log-level",
+    }
+
+    return vim.tbl_filter(function(item)
+        return vim.startswith(item, arglead)
+    end, items)
+end
+
+---Get completions for tools.
+---@param arglead string
+---@return string[]
+function M.get_tool_completions(arglead)
+    return vim.tbl_filter(function(item)
+        return vim.startswith(item, arglead)
+    end, vim.tbl_keys(tools))
 end
 
 return M

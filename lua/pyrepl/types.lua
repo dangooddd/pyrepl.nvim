@@ -40,7 +40,7 @@
 ---@class pyrepl.ReplState
 ---@field closing boolean
 ---@field chan integer
----@field kernel string
+---@field args table
 ---@field buf integer
 ---@field win integer|nil
 

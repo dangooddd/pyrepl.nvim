@@ -2,6 +2,7 @@ local M = {}
 
 local config = require("pyrepl.config")
 local group = vim.api.nvim_create_augroup("PyreplImage", { clear = true })
+local ns = vim.api.nvim_create_namespace("PyreplImage")
 
 ---@type pyrepl.ImageHistoryState
 local state = {
@@ -12,9 +13,9 @@ local state = {
     win = nil,
 }
 
----Open float window to place image in.
----Placed in top-right angle in vertical layout.
----Placed in bottom-right angle in horizontal layout.
+---Open a floating window to place the image in.
+---Placed in the top-right corner in a vertical layout.
+---Placed in the bottom-right corner in a horizontal layout.
 ---@param buf integer
 ---@return integer
 local function open_image_win(buf)
@@ -25,7 +26,7 @@ local function open_image_win(buf)
     local float_height = math.max(1, math.floor(height * config.get_state().image_height_ratio))
 
     local col = math.max(0, width - float_width)
-    -- bottom right angle for split_horizontal, top right angle otherwise
+    -- bottom-right corner for split_horizontal, top-right corner otherwise
     -- subtract 2 to take command line into account
     local row = math.max(0, config.get_state().split_horizontal and height - float_height - 2 or 0)
 
@@ -62,27 +63,6 @@ local function push_history(img_base64)
         pop_history(1)
     end
     table.insert(state.history, config.get_image_provider().create(img_base64))
-end
-
----Clear image autoclose on cursor movement.
-local function clear_cursor_autocmds()
-    vim.api.nvim_clear_autocmds({
-        event = { "CursorMoved", "CursorMovedI" },
-        group = group,
-    })
-end
-
----Set image autoclose on cursor movement.
-local function setup_cursor_autocmds()
-    clear_cursor_autocmds()
-
-    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-        group = group,
-        callback = function()
-            M.close_image_history()
-        end,
-        once = true,
-    })
 end
 
 ---Clear image when buffer is wiped/deleted.
@@ -217,10 +197,13 @@ function M.open_image_history(idx, focus)
 
     -- focus history manager or show image once before any cursor movement
     if focus or focus == nil then
-        clear_cursor_autocmds()
+        vim.on_key(nil, ns)
         vim.api.nvim_set_current_win(state.win)
     else
-        setup_cursor_autocmds()
+        vim.on_key(function()
+            vim.on_key(nil, ns)
+            M.close_image_history()
+        end, ns)
     end
 
     -- render current image
@@ -235,7 +218,7 @@ function M.close_image_history()
 
     -- prevent possible recursion
     state.closing = true
-    clear_cursor_autocmds()
+    vim.on_key(nil, ns)
 
     if state.history[state.idx] then
         state.history[state.idx]:clear()

@@ -136,7 +136,7 @@ def main() -> None:
     config.ZMQTerminalInteractiveShell.callable_image_handler = image_handler
     app = ZMQTerminalIPythonApp.instance(config=config)
 
-    parser = ArgumentParser("Pyrepl console.")
+    parser = ArgumentParser("Pyrepl console.", add_help=False)
     parser.add_argument("--prompt-toolkit-overrides", type=str, default=None)
     known, args = parser.parse_known_args()
 

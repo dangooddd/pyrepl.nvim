@@ -8,6 +8,7 @@ local python = require("pyrepl.python")
 local theme = require("pyrepl.theme")
 
 local group = vim.api.nvim_create_augroup("PyreplCore", { clear = true })
+local ns = vim.api.nvim_create_namespace("PyreplCore")
 
 ---Create window according to current config.
 ---@param buf integer
@@ -38,12 +39,12 @@ local function setup_buf_autocmds()
     end
 
     vim.api.nvim_clear_autocmds({
-        event = { "BufWipeout", "TermClose" },
+        event = { "BufWipeout", "BufDelete" },
         group = group,
         buffer = state.buf,
     })
 
-    vim.api.nvim_create_autocmd({ "BufWipeout", "TermClose" }, {
+    vim.api.nvim_create_autocmd({ "BufWipeout", "BufDelete" }, {
         group = group,
         buffer = state.buf,
         callback = function()
@@ -86,8 +87,8 @@ end
 
 ---Main session initialization function.
 ---Opens REPL process and window.
----@param kernel string
-local function open_new_repl(kernel)
+---@param args table
+local function open_new_repl(args)
     if state then
         return
     end
@@ -101,29 +102,31 @@ local function open_new_repl(kernel)
     local win = open_scratch_win(buf)
     vim.bo[buf].bufhidden = "hide"
 
-    local cmd = {
+    local cmd = vim.list_extend({
         python_path,
         console_path,
-        "--kernel",
-        kernel,
         "--ZMQTerminalInteractiveShell.highlighting_style",
         style,
         "--ZMQTerminalInteractiveShell.true_color",
         vim.o.termguicolors and "True" or "False",
-    }
+    }, args)
 
     if style_integration then
         local pygments_overrides = theme.build_pygments_theme()
         local prompt_toolkit_overrides = theme.build_prompt_toolkit_theme()
 
         if pygments_overrides then
-            cmd[#cmd + 1] = "--ZMQTerminalInteractiveShell.highlighting_style_overrides"
-            cmd[#cmd + 1] = pygments_overrides
+            vim.list_extend(cmd, {
+                "--ZMQTerminalInteractiveShell.highlighting_style_overrides",
+                pygments_overrides,
+            })
         end
 
         if prompt_toolkit_overrides then
-            cmd[#cmd + 1] = "--prompt-toolkit-overrides"
-            cmd[#cmd + 1] = prompt_toolkit_overrides
+            vim.list_extend(cmd, {
+                "--prompt-toolkit-overrides",
+                prompt_toolkit_overrides,
+            })
         end
     end
 
@@ -135,7 +138,10 @@ local function open_new_repl(kernel)
             pty = true,
             env = { PYDEVD_DISABLE_FILE_VALIDATION = 1 },
             on_exit = function()
-                vim.defer_fn(M.close_repl, 100)
+                vim.on_key(function()
+                    vim.on_key(nil, ns)
+                    M.close_repl()
+                end, ns)
             end,
         })
     end)
@@ -149,16 +155,15 @@ local function open_new_repl(kernel)
         buf = buf,
         win = win,
         chan = chan,
-        kernel = kernel,
+        args = args,
         closing = false,
     }
 
     setup_buf_autocmds()
     setup_win_autocmds()
-    vim.api.nvim_buf_set_name(buf, string.format("kernel: %s", kernel))
 end
 
----Scrolls REPL window to the end, so latest cell in focus.
+---Scroll the REPL window to the end so the latest cell is in focus.
 function M.scroll_repl()
     if state and state.win and vim.api.nvim_win_is_valid(state.win) then
         vim.api.nvim_win_call(state.win, function()
@@ -184,13 +189,16 @@ function M.toggle_repl_focus()
     end
 end
 
----Open hidden REPL or initialize new from prompted kernel.
-function M.open_repl()
+---Open the hidden REPL or initialize a new one after prompting for a kernel.
+---@param args table|nil
+function M.open_repl(args)
     if state then
         open_hidden_repl()
+    elseif args then
+        open_new_repl(args)
     else
         python.prompt_kernel(function(kernel)
-            open_new_repl(kernel)
+            open_new_repl({ "--kernel", kernel })
         end)
     end
 end

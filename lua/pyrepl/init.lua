@@ -9,8 +9,9 @@ local send = require("pyrepl.send")
 
 local group = vim.api.nvim_create_augroup("Pyrepl", { clear = true })
 
-function M.open_repl()
-    core.open_repl()
+---@param args table|nil
+function M.open_repl(args)
+    core.open_repl(args)
 end
 
 function M.hide_repl()
@@ -41,7 +42,7 @@ function M.convert_to_python()
     jupytext.convert_to_python(0)
 end
 
----Feed command to install packages with given tool in command line.
+---Feed the package installation command for the given tool to the command line.
 ---@param tool string
 function M.install_packages(tool)
     python.install_packages(tool)
@@ -96,9 +97,13 @@ function M.setup(opts)
     config.update_state(opts)
 
     -- define plugin commands
-    vim.api.nvim_create_user_command("PyreplOpen", function()
-        M.open_repl()
-    end, { nargs = 0 })
+    vim.api.nvim_create_user_command("PyreplOpen", function(o)
+        if o.bang then
+            M.open_repl()
+        else
+            M.open_repl(o.fargs)
+        end
+    end, { nargs = "*", bang = true, complete = python.get_console_completions })
 
     vim.api.nvim_create_user_command("PyreplHide", function()
         M.hide_repl()
@@ -150,7 +155,7 @@ function M.setup(opts)
 
     vim.api.nvim_create_user_command("PyreplInstall", function(o)
         M.install_packages(o.args)
-    end, { nargs = 1, complete = python.get_tools })
+    end, { nargs = 1, complete = python.get_tool_completions })
 
     -- define default highlight groups
     local hl_links = {
