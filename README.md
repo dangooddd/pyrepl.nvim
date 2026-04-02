@@ -2,7 +2,7 @@
 
 Python REPL inside Neovim powered by Jupyter console!
 
-<img width="1608" height="1057" alt="image" src="https://github.com/user-attachments/assets/1cabf303-9840-4274-9c51-ab14424e8e99" />
+<img width="1773" height="1096" alt="image" src="https://github.com/user-attachments/assets/e0c4a998-4378-4f23-a155-bde996466e1c" />
 
 ## Requirements
 
