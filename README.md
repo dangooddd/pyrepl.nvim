@@ -129,6 +129,8 @@ For example, you can open remote kernel like this:
 :PyreplOpen --existing /path/to/connection/file.json --ssh user@remote --sshkey ~/.ssh/id_example
 ```
 
+You will also get completions for `jupyter-console` CLI arguments.
+
 ### Image display
 
 Use `placeholders` provider for [ghostty](https://github.com/ghostty-org/ghostty) and [kitty](https://github.com/kovidgoyal/kitty) terminals.
