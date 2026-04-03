@@ -101,7 +101,7 @@ For Mason users:
 
 ## Demo
 
-https://github.com/user-attachments/assets/fb188ae9-3685-4b66-962a-619c940ba120
+https://github.com/user-attachments/assets/233494d7-c02b-4320-b3c9-f6dfef096fc0
 
 ## Tips & Tricks
 
