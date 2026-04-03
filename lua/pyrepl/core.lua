@@ -214,11 +214,7 @@ function M.hide_repl()
     end
 end
 
----Close session completely:
----1) Close window;
----2) Terminate console process;
----3) Delete terminal buffer;
----4) Move state to nil.
+---Close session completely.
 function M.close_repl()
     if not state or state.closing then
         return

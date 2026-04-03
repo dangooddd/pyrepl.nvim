@@ -2,19 +2,14 @@ local M = {}
 
 local config = require("pyrepl.config")
 local packages = { "jupyter-console", "pynvim", "cairosvg", "pillow" }
-local tools = {
-    uv = "uv pip install -p %s",
-    pip = "%s -m pip install",
-}
+local tools = { uv = "uv pip install -p %s", pip = "%s -m pip install" }
 local python_path_cache
 local console_path_cache
 local console_completions_cache
 local console_completions_running
 
 ---Resolve Python path from the following candidates:
----1) config.python_path;
----2) vim.g.python3_host_prog;
----3) "python3".
+---config.python_path -> vim.g.python3_host_prog -> "python3"
 ---@return string
 function M.get_python_path()
     if python_path_cache then
@@ -22,8 +17,8 @@ function M.get_python_path()
     end
 
     local candidates = {
-        config.get_state().python_path,
-        vim.g.python3_host_prog,
+        config.get_state().python_path or "",
+        vim.g.python3_host_prog or "",
         "python3",
     }
 
