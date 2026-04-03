@@ -223,7 +223,7 @@ require("pyrepl").setup({
 
 Commands:
 
-- `:PyreplOpen {args}` - select a kernel and open the REPL, check [Tips & Tricks](#advanced-console-usage) for advanced use cases;
+- `:PyreplOpen {args}` - open the REPL with given args, use `:PyreplOpen!` to pick kernel interactively;
 - `:PyreplHide` - hide the REPL window (kernel stays alive);
 - `:PyreplClose` - close the REPL and shut down the kernel;
 - `:PyreplToggle` - toggle REPL between hidden and opened state;

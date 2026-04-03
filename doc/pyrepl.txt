@@ -105,14 +105,13 @@ For Mason users:
 COMMANDS                                                        *pyrepl-commands*
 
 :PyreplOpen {args}                                              *PyreplOpen*
-    Select a kernel and open the REPL. Check |pyrepl-tips| for advanced
-    console usage.
+    Open the REPL. Check |pyrepl-tips| for advanced console usage.
 
     If {args} are given, they are passed directly to `jupyter-console`.
     This allows advanced use cases such as connecting to an existing or remote
     kernel.
 
-    Use `:PyreplOpen!` to force the kernel picker and ignore {args}.
+    Use `:PyreplOpen!` to pick kernel interactively.
 
     Notes:
     - pyrepl.nvim keeps one active REPL session.

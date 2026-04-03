@@ -92,27 +92,6 @@ local function list_kernels()
     return kernels
 end
 
----@param stdout string|nil
-local function parse_console_flags(stdout)
-    local seen = {}
-    local completions = {}
-
-    for line in (stdout or ""):gmatch("[^\r\n]+") do
-        for flag in line:gmatch("%-%-[%w][%w%._-]*") do
-            if not seen[flag] then
-                seen[flag] = true
-                table.insert(completions, flag)
-            end
-        end
-    end
-
-    table.sort(completions, function(a, b)
-        return a > b
-    end)
-
-    return completions
-end
-
 ---Prompt user to choose kernel and call callback with that choice.
 ---@param callback fun(kernel: string)
 function M.prompt_kernel(callback)
@@ -158,6 +137,27 @@ function M.install_packages(tool)
     vim.api.nvim_feedkeys(":!" .. cmd, "n", true)
 end
 
+---@param stdout string|nil
+local function parse_console_flags(stdout)
+    local seen = {}
+    local completions = {}
+
+    for line in (stdout or ""):gmatch("[^\r\n]+") do
+        for flag in line:gmatch("%-%-[%w][%w%._-]*") do
+            if not seen[flag] then
+                seen[flag] = true
+                table.insert(completions, flag)
+            end
+        end
+    end
+
+    table.sort(completions, function(a, b)
+        return a > b
+    end)
+
+    return completions
+end
+
 ---@param reload boolean|nil
 function M.load_console_completions(reload)
     if reload then
@@ -173,17 +173,19 @@ function M.load_console_completions(reload)
     end
     console_completions_running = true
 
-    pcall(vim.system, {
-        M.get_python_path(),
-        "-m",
-        "jupyter",
-        "console",
-        "--help-all",
-    }, { text = true }, function(result)
-        if result.code == 0 then
-            console_completions_cache = parse_console_flags(result.stdout)
-        end
-        console_completions_running = false
+    pcall(function()
+        vim.system({
+            M.get_python_path(),
+            "-m",
+            "jupyter",
+            "console",
+            "--help-all",
+        }, { text = true }, function(result)
+            if result.code == 0 then
+                console_completions_cache = parse_console_flags(result.stdout)
+            end
+            console_completions_running = false
+        end)
     end)
 end
 
