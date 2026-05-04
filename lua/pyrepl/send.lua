@@ -17,10 +17,16 @@ local compound_top_level_nodes = {
     with_statement = true,
 }
 
+---@return boolean
+local function is_windows()
+    return vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1
+end
+
 ---Normalize pasted Python so multi-block code executes correctly.
 ---@param msg string
 ---@return string
 local function normalize_python_message(msg)
+    msg = msg:gsub("\r\n", "\n"):gsub("\r", "\n")
     local lines = vim.split(msg, "\n", { plain = true, trimempty = false })
     if #lines <= 1 then
         return msg
@@ -110,6 +116,28 @@ local function normalize_python_message(msg)
     return table.concat(out, "\n")
 end
 
+---Return the line separator expected by terminal jobs on the current platform.
+---@return string
+local function terminal_newline()
+    if is_windows() then
+        return "\r"
+    end
+
+    return "\n"
+end
+
+---Convert internal line separators to the bytes sent to the terminal PTY.
+---@param msg string
+---@return string
+local function encode_terminal_message(msg)
+    local newline = terminal_newline()
+    if newline == "\n" then
+        return msg
+    end
+
+    return msg:gsub("\n", newline)
+end
+
 ---Send code to the REPL using bracketed paste.
 ---@param chan integer
 ---@param message string
@@ -120,7 +148,17 @@ local function raw_send_message(chan, message)
     local prefix = vim.api.nvim_replace_termcodes("<esc>[200~", true, false, true)
     local suffix = vim.api.nvim_replace_termcodes("<esc>[201~", true, false, true)
     local normalized = normalize_python_message(message)
-    vim.api.nvim_chan_send(chan, prefix .. normalized .. suffix .. "\n")
+    local encoded = encode_terminal_message(normalized)
+    local payload = prefix .. encoded .. suffix
+
+    if is_windows() then
+        vim.api.nvim_chan_send(chan, payload)
+        vim.defer_fn(function()
+            pcall(vim.api.nvim_chan_send, chan, "\r")
+        end, 10)
+    else
+        vim.api.nvim_chan_send(chan, payload .. "\n")
+    end
 end
 
 ---@param buf integer
