@@ -14,6 +14,7 @@
 ---@field python_path string|nil
 ---@field preferred_kernel string|nil
 ---@field jupytext_hook boolean
+---@field auto_install false | "pip" | "uv"
 
 ---Plugin setup opts (all arguments are optional).
 ---@class pyrepl.ConfigOpts
@@ -29,6 +30,7 @@
 ---@field python_path? string
 ---@field preferred_kernel? string
 ---@field jupytext_hook? boolean
+---@field auto_install? false | "pip" | "uv"
 
 ---Image provider interface.
 ---@class pyrepl.Image

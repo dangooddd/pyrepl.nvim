@@ -62,6 +62,9 @@ Minimal `vim.pack` setup with the default config and example keymaps:
     preferred_kernel = "python3",
     -- automatically prompt to convert notebook files into python scripts
     jupytext_hook = true,
+    -- auto-install missing runtime packages on `:PyreplOpen`
+    -- set to "pip" or "uv" to enable; false to disable
+    auto_install = false,
   })
 
   -- repl ui-related commands
@@ -238,6 +241,7 @@ Default configuration:
     python_path = "python",
     preferred_kernel = "python3",
     jupytext_hook = true,
+    auto_install = false,
   })
 <
 
@@ -293,6 +297,9 @@ Options:
       Default: "python3".
   jupytext_hook (boolean)
       Enable jupytext hook to automatically convert notebook buffers to `py:percent`. Default: true.
+  auto_install (false | "pip" | "uv")
+      When |PyreplOpen| is invoked and required runtime packages are
+      missing, install them using the specified tool. Default: false.
 
 ==============================================================================
 TIPS & TRICKS                                                  *pyrepl-tips*

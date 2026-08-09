@@ -9,9 +9,10 @@ local send = require("pyrepl.send")
 
 local group = vim.api.nvim_create_augroup("Pyrepl", { clear = true })
 
----@param args table|nil
-function M.open_repl(args)
-    core.open_repl(args)
+function M.open_repl()
+    python.ensure_dependencies(function()
+        core.open_repl()
+    end)
 end
 
 function M.hide_repl()

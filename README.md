@@ -57,6 +57,9 @@ pyrepl.setup({
   preferred_kernel = "python3",
   -- automatically prompt to convert notebook files into python scripts
   jupytext_hook = true,
+  -- auto-install missing runtime packages on `:PyreplOpen`
+  -- set to "pip" or "uv" to enable; false to disable
+  auto_install = false,
 })
 
 -- repl ui-related commands
@@ -84,6 +87,13 @@ Then install REPL runtime packages with `uv` or `pip` directly from Neovim:
 ```
 :PyreplInstall pip
 :PyreplInstall uv
+```
+
+Alternatively, enable `auto_install` to have pyrepl silently install missing packages
+on `:PyreplOpen`:
+
+```lua
+require("pyrepl").setup({ auto_install = "uv" }) -- or "pip"
 ```
 
 To use jupytext integration, make sure jupytext is available in Neovim:

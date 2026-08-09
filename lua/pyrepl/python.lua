@@ -203,4 +203,67 @@ function M.get_tool_completions(arglead)
     end, vim.tbl_keys(tools))
 end
 
+---Check if required Python packages are importable.
+---@return boolean
+function M.check_dependencies()
+    local ok, python_path = pcall(M.get_python_path)
+    if not ok then
+        return false
+    end
+
+    local obj = vim.system(
+        { python_path, "-c", "import jupyter_console, pynvim" },
+        { text = true }
+    ):wait()
+
+    return obj.code == 0
+end
+
+---Check dependencies and, if `auto_install` is set, install them silently.
+---Calls callback only after dependencies are confirmed present.
+---@param callback fun()
+function M.ensure_dependencies(callback)
+    if M.check_dependencies() then
+        callback()
+        return
+    end
+
+    local tool = config.get_state().auto_install
+    if not tool or not tools[tool] then
+        vim.notify(
+            config.get_message_prefix()
+                .. "dependencies missing, run `:PyreplInstall pip|uv` or set `auto_install`",
+            vim.log.levels.ERROR
+        )
+        return
+    end
+
+    local ok, python_path = pcall(M.get_python_path)
+    if not ok then
+        vim.notify(python_path, vim.log.levels.ERROR)
+        return
+    end
+
+    local packages_string = table.concat(packages, " ")
+    local cmd_str = tools[tool]:format(python_path) .. " " .. packages_string
+
+    vim.notify(config.get_message_prefix() .. "installing dependencies...")
+
+    vim.system(
+        { "/bin/sh", "-c", cmd_str },
+        { text = true },
+        vim.schedule_wrap(function(obj)
+            if obj.code == 0 then
+                vim.notify(config.get_message_prefix() .. "dependencies installed")
+                callback()
+            else
+                vim.notify(
+                    config.get_message_prefix() .. "installation failed\n" .. (obj.stderr or ""),
+                    vim.log.levels.ERROR
+                )
+            end
+        end)
+    )
+end
+
 return M

@@ -14,6 +14,7 @@ local defaults = {
     python_path = "python",
     preferred_kernel = "python3",
     jupytext_hook = true,
+    auto_install = false,
 }
 
 local image_provider_cache
