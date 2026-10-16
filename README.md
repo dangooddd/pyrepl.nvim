@@ -19,7 +19,7 @@ Features `pyrepl.nvim` currently provides:
 - Command to install required Python packages in a configured Python environment;
 - UI commands to integrate `jupyter-console` in Neovim: open, close, toggle, etc;
 - Commands to send code from Neovim buffers to an open REPL: send visual, configurable block and buffer;
-- Hook to display all images in a Neovim floating window;
+- Inline images in the REPL on Ghostty/Kitty, with a floating image history;
 - Console theme integration: syntax, matched brackets, prompt and autocomplete colors;
 - QoL commands: jupytext cell navigation, toggling REPL focus in insert mode for fast testing.
 
@@ -134,8 +134,13 @@ You will also get completions for `jupyter-console` CLI arguments.
 ### Image display
 
 Use `placeholders` provider for [ghostty](https://github.com/ghostty-org/ghostty) and [kitty](https://github.com/kovidgoyal/kitty) terminals.
-This allows image display in hard cases (for example, when Neovim is started in nested `ssh`, `tmux`, and `docker`).
+Enable `vim.opt.termguicolors = true` for inline images. This built-in provider
+uses the Kitty graphics protocol directly; 
 
+Images also remain available through
+`:PyreplOpenImageHistory`. If inline rendering is unavailable, images open in
+the floating history window instead. This allows image display in hard cases 
+(for example, when Neovim is started in nested `ssh`, `tmux`, and `docker`).
 For other terminals, change provider to `image` - [image.nvim](https://github.com/3rd/image.nvim) will be used to display images.
 For example, to display images in a terminal with `sixel` protocol support:
 

@@ -2,9 +2,10 @@ import base64
 import io
 import json
 import os
+import shutil
+import sys
 from argparse import ArgumentParser
-from queue import Queue
-from threading import Event, Thread
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pynvim
@@ -92,44 +93,36 @@ def image_pipeline(data: Any):
     return convert_image_to_png_base64(image_mime, image_data)
 
 
-def image_worker(queue: Queue, dead: Event, nvim: pynvim.Nvim):
-    """Main thread worker to handle image display in nvim."""
-    try:
-        while True:
-            data = queue.get()
-
-            try:
-                nvim.exec_lua("require('pyrepl.image').console_endpoint(...)", data)
-            except Exception as e:
-                print(log(f"failed to display image: {e}"))
-            finally:
-                queue.task_done()
-
-    except Exception as e:
-        print(log(f"image worker is dead {e}"))
-        dead.set()
-
-
 def main() -> None:
     """Run the Jupyter console with pyrepl integration."""
     path = os.environ.get("NVIM")
     assert path is not None
 
-    nvim = pynvim.attach("socket", path=path)
-    queue = Queue()
-    dead = Event()
-    thread = Thread(target=image_worker, args=(queue, dead, nvim), daemon=True)
+    # Keep pynvim's event loop off jupyter-console's asyncio thread.
+    worker = ThreadPoolExecutor(max_workers=1)
+    nvim = worker.submit(pynvim.attach, "socket", path=path).result()
 
     def image_handler(data):
-        if dead.is_set():
-            return False
-
         data = image_pipeline(data)
         if data is None:
             return False
-
-        queue.put(data)
-        return True
+        try:
+            cols, rows = shutil.get_terminal_size()
+            output = worker.submit(
+                nvim.exec_lua,
+                "return require('pyrepl.image').console_endpoint(...)",
+                data,
+                cols,
+                rows,
+            ).result(timeout=10)
+            if output:
+                out = sys.__stdout__ or sys.stdout
+                out.write(output)
+                out.flush()
+            return True
+        except Exception as e:
+            print(log(f"failed to display image: {e}"))
+            return False
 
     config = Config()
     config.ZMQTerminalInteractiveShell.image_handler = "callable"
@@ -148,11 +141,13 @@ def main() -> None:
             overrides.update(json.loads(known.prompt_toolkit_overrides))
             ptk_defaults.PROMPT_TOOLKIT_STYLE[:] = list(overrides.items())
 
-        thread.start()
         app.start()  # type: ignore
 
     except Exception as e:
-        nvim.exec_lua("vim.notify(..., vim.log.levels.ERROR)", log(str(e)))
+        print(log(str(e)), file=sys.stderr)
+    finally:
+        worker.submit(nvim.close)
+        worker.shutdown(wait=False)
 
 
 if __name__ == "__main__":

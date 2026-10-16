@@ -6,6 +6,7 @@ M.__index = M
 
 local ns = vim.api.nvim_create_namespace("PyreplPlaceholders")
 local tmux_detected = nil
+local inline_id = math.random(257, 0xFFFFFF)
 local next_id = 1
 local max_ids = 256
 local placeholder = "\u{10EEEE}"
@@ -122,14 +123,23 @@ local function send_apc(body)
     if is_tmux() then
         sequence = wrap_tmux(sequence)
     end
-    vim.api.nvim_chan_send(vim.v.stderr, sequence)
+    if vim.api.nvim_ui_send then
+        vim.api.nvim_ui_send(sequence)
+    else
+        vim.api.nvim_chan_send(vim.v.stderr, sequence)
+    end
 end
 
 ---Upload base64 PNG data to the terminal image store.
 ---@param img_id integer
 ---@param img_data string
 local function upload_image(img_id, img_data)
-    send_apc(("f=100,t=d,i=%d,q=2;%s"):format(img_id, img_data))
+    for offset = 1, #img_data, 4096 do
+        local chunk = img_data:sub(offset, offset + 4095)
+        local more = offset + 4096 <= #img_data and 1 or 0
+        local header = offset == 1 and ("a=t,f=100,t=d,i=%d,q=2,"):format(img_id) or ""
+        send_apc(("%sm=%d;%s"):format(header, more, chunk))
+    end
 end
 
 ---@param img_id integer
@@ -202,6 +212,36 @@ local function draw(buf, img_id, geometry)
     vim.defer_fn(function()
         create_placement(img_id, cols, rows)
     end, 25)
+end
+
+---Upload to the outer terminal and return placeholders for the REPL PTY.
+---@return string|nil
+function M.render_inline(img_base64, cols, rows)
+    if not vim.o.termguicolors then
+        return nil
+    end
+    -- Separate IDs keep history navigation/deletion from clearing REPL images.
+    local id = inline_id
+    inline_id = inline_id == 0xFFFFFF and 257 or inline_id + 1
+    cols = math.max(1, math.min(cols - 3, 80))
+    rows = math.max(1, math.min(math.floor(rows / 2), 20))
+    upload_image(id, img_base64)
+    create_placement(id, cols, rows)
+
+    local color = ("\27[38;2;%d;%d;%dm"):format(
+        math.floor(id / 65536),
+        math.floor(id / 256) % 256,
+        id % 256
+    )
+    local lines = { "" }
+    for row = 1, rows do
+        local cells = {}
+        for col = 1, cols do
+            cells[col] = placeholder .. diac[row] .. diac[col]
+        end
+        lines[#lines + 1] = "\27[0m" .. color .. table.concat(cells) .. "\27[0m"
+    end
+    return table.concat(lines, "\r\n") .. "\r\n"
 end
 
 ---@param img_base64 string

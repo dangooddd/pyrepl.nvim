@@ -407,7 +407,10 @@ IMAGES                                                         *pyrepl-images*
 
 Image rendering uses kitty unicode placeholders protocol for `placeholders`
 provider, and requires terminal that supports it. For other terminals, use `image`
-provider instead.
+provider instead. With termguicolors enabled, images appear inline in the REPL
+and remain available in the floating history window. The image provider keeps
+using the floating window. Inline images use a box of up to 80 columns and
+20 rows, limited to half the terminal height.
 
 Supported input formats from Jupyter are PNG, JPEG and SVG. JPEG/SVG are
 converted to PNG (requires pillow/cairosvg).

@@ -249,11 +249,21 @@ end
 
 ---Push base64 PNG image to history and display it.
 ---@param img_base64 string
-function M.console_endpoint(img_base64)
+---@param cols? integer
+---@param rows? integer
+---@return string|nil
+function M.console_endpoint(img_base64, cols, rows)
     if type(img_base64) ~= "string" or img_base64 == "" then
         error(config.get_message_prefix() .. "image data missing or invalid", 0)
     end
     push_history(img_base64)
+    local provider = config.get_image_provider()
+    if provider.render_inline and cols and rows then
+        local ok, output = pcall(provider.render_inline, img_base64, cols, rows)
+        if ok and output then
+            return output
+        end
+    end
     M.open_image_history(#state.history, false)
 end
 
